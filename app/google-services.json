@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "895901729935",
+    "project_id": "dave-ai-f959d",
+    "storage_bucket": "dave-ai-f959d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895901729935:android:103a1cba33bfaee96b9cfa",
+        "android_client_info": {
+          "package_name": "com.example.daveai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5I6D-DLwWQ8Vc-Ad3aO2FoSYH8CYYQvY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
