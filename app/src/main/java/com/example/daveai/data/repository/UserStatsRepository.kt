@@ -67,6 +67,21 @@ class UserStatsRepository {
         } catch (_: Exception) { null }
     }
 
+    suspend fun updatePreference(uid: String, key: String, value: String) {
+        try {
+            val userRef = db.collection("users").document(uid)
+            db.runTransaction { transaction ->
+                val snapshot = transaction[userRef]
+                @Suppress("UNCHECKED_CAST")
+                val prefs = (snapshot["preferences"] as? MutableMap<String, String>) ?: mutableMapOf()
+                prefs[key] = value
+                transaction.update(userRef, "preferences", prefs)
+            }.await()
+        } catch (e: Exception) {
+            Log.e("UserStats", "Failed to update preference", e)
+        }
+    }
+
     fun observeTotalUserCount(): Flow<Long> = callbackFlow {
         val statsRef = db.collection("stats").document("global")
         val subscription = statsRef.addSnapshotListener { snapshot, _ ->

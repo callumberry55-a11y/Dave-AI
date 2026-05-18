@@ -9,5 +9,14 @@ sealed interface DaveRoute : NavKey {
     data object Auth : DaveRoute
 
     @Serializable
+    data object Landing : DaveRoute
+
+    @Serializable
     data object Chat : DaveRoute
+
+    @Serializable
+    data object Riddle : DaveRoute
+
+    @Serializable
+    data object Lessons : DaveRoute
 }

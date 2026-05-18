@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Dave AI</string>
+    <string name="shortcut_ask_dave">Ask Dave</string>
+    <string name="shortcut_ask_dave_long">Speak with Dave AI</string>
+    <string name="shortcut_new_chat">New Chat</string>
+    <string name="shortcut_new_chat_long">Start a new elite conversation</string>
 </resources>

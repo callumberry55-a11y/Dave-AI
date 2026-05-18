@@ -6,14 +6,6 @@
         <entry key="Firebase Crashlytics">
           <value>
             <InsightsFilterSettings>
-              <option name="connection">
-                <ConnectionSetting>
-                  <option name="appId" value="com.example.daveai" />
-                  <option name="mobileSdkAppId" value="1:895901729935:android:103a1cba33bfaee96b9cfa" />
-                  <option name="projectId" value="dave-ai-f959d" />
-                  <option name="projectNumber" value="895901729935" />
-                </ConnectionSetting>
-              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="THIRTY_DAYS" />
               <option name="visibilityType" value="ALL" />

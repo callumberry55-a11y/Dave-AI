@@ -9,7 +9,10 @@ import com.example.daveai.data.repository.UserProfile
 import com.example.daveai.data.repository.UserStatsRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ChatUiState(
@@ -21,10 +24,19 @@ data class ChatUiState(
     val isLoading: Boolean = false,
     val isListening: Boolean = false,
     val isFastMode: Boolean = false,
+    val isGodMode: Boolean = false,
+    val isGhostMode: Boolean = false,
     val userLocation: String? = null,
     val totalAppUsers: Long = 0,
     val attachedFiles: List<AttachedFile> = emptyList(),
+    val dynamicSuggestions: List<String> = emptyList(),
+    val isVaultOpen: Boolean = false,
+    val currentMode: DaveMode = DaveMode.EXPLORER,
 )
+
+enum class DaveMode {
+    EXPLORER, RESEARCHER, CREATIVE, HACKER, ANALYST, GAMER
+}
 
 data class AttachedFile(
     val uri: Uri,
@@ -39,10 +51,17 @@ data class ChatMessage(
     val mediaUrl: String? = null,
     val mediaType: MediaType = MediaType.NONE,
     val hasAttachment: Boolean = false,
+    val actions: List<String> = emptyList(),
+    val widgetType: WidgetType = WidgetType.NONE,
+    val widgetData: String? = null,
 )
 
 enum class MediaType {
     NONE, IMAGE, VIDEO
+}
+
+enum class WidgetType {
+    NONE, MAP, HARDWARE
 }
 
 class ChatViewModel(
@@ -60,6 +79,37 @@ class ChatViewModel(
         observeSessions()
         fetchUserCount()
         fetchUserProfile()
+        refreshDynamicSuggestions()
+    }
+
+    private fun refreshDynamicSuggestions() {
+        viewModelScope.launch {
+            val battery = repository.getDeviceAssistant().getBatteryLevel()
+            val connectivity = repository.getDeviceAssistant().getConnectivityStatus()
+            val hour = java.util.Calendar.getInstance()[java.util.Calendar.HOUR_OF_DAY]
+            
+            val suggestions = mutableListOf<String>()
+            
+            // Context-based suggestions
+            if (battery < 30) {
+                suggestions.add("🔋 Check battery health")
+            }
+            
+            if (connectivity.contains("offline")) {
+                suggestions.add("🌐 Troubleshoot connection")
+            }
+
+            if ((hour !in 6..20)) {
+                suggestions.add("🔦 Turn on flashlight")
+            }
+
+            // Always add some "Elite" features
+            suggestions.add("🎸 Write a rock song about coding")
+            suggestions.add("🎨 Create a futuristic AI portrait")
+            suggestions.add("🛠️ Scan hardware performance")
+            
+            _uiState.update { it.copy(dynamicSuggestions = suggestions.take(5)) }
+        }
     }
 
     private fun fetchUserProfile() {
@@ -97,12 +147,28 @@ class ChatViewModel(
         messageCollectionJob = viewModelScope.launch {
             repository.getMessagesForSession(sessionId).collect { entities ->
                 val uiMessages = entities.map {
+                    val content = it.content
                     ChatMessage(
-                        content = it.content,
+                        content = content,
                         isFromDave = it.role == "assistant",
                         mediaUrl = it.mediaUrl,
                         mediaType = try { MediaType.valueOf(it.mediaType) } catch (_: Exception) { MediaType.NONE },
-                        hasAttachment = it.content.contains("[Attached File:"),
+                        hasAttachment = content.contains("[Attached File:"),
+                        actions = buildList {
+                            // Legacy auto-actions
+                            if (content.contains("battery", ignoreCase = true)) add("Check Battery")
+                            if (content.contains("flashlight", ignoreCase = true)) add("Toggle Light")
+                            if (content.contains("hardware", ignoreCase = true)) add("Scan Specs")
+                            if (content.contains("location", ignoreCase = true) || content.contains("near me", ignoreCase = true)) add("Find Nearby")
+                            
+                            // Explicit [BUTTON: ...] actions
+                            val regex = "\\[BUTTON: (.*?)]".toRegex()
+                            regex.findAll(content).forEach { match ->
+                                add(match.groupValues[1])
+                            }
+                        },
+                        widgetType = try { WidgetType.valueOf(it.widgetType) } catch (_: Exception) { WidgetType.NONE },
+                        widgetData = it.widgetData,
                     )
                 }
                 _uiState.update { it.copy(messages = uiMessages) }
@@ -110,15 +176,23 @@ class ChatViewModel(
         }
     }
 
-    fun createNewChat() {
+    fun createNewChat(projectType: String = "GENERAL") {
         viewModelScope.launch {
-            val id = repository.createNewSession("New Chat ${System.currentTimeMillis() / 1000}")
+            val titlePrefix = when(projectType) {
+                "CODE" -> "💻 Code Project"
+                "ART" -> "🎨 Art Project"
+                "LANGUAGE" -> "🌐 Language Project"
+                "MUSIC" -> "🎵 Music Project"
+                "FITNESS" -> "🏋️ Fitness Room"
+                "FINANCE" -> "💰 Finance Room"
+                "TRAVEL" -> "✈️ Travel Room"
+                "GAMING" -> "🎮 Gaming Room"
+                "LESSONS" -> "🎓 Lesson Room"
+                else -> "New Chat"
+            }
+            val id = repository.createNewSession("$titlePrefix ${System.currentTimeMillis() / 1000}", projectType)
             selectSession(id)
         }
-    }
-
-    fun updateLocation(location: String) {
-        _uiState.update { it.copy(userLocation = location) }
     }
 
     fun setIsListening(isListening: Boolean) {
@@ -129,8 +203,24 @@ class ChatViewModel(
         _uiState.update { it.copy(isFastMode = !it.isFastMode) }
     }
 
+    fun toggleGodMode() {
+        _uiState.update { it.copy(isGodMode = !it.isGodMode) }
+    }
+
+    fun toggleGhostMode() {
+        _uiState.update { it.copy(isGhostMode = !it.isGhostMode) }
+    }
+
+    fun setMode(mode: DaveMode) {
+        _uiState.update { it.copy(currentMode = mode) }
+    }
+
     fun onInputTextChanged(newText: String) {
         _uiState.update { it.copy(inputText = newText) }
+    }
+
+    fun updateLocation(location: String?) {
+        _uiState.update { it.copy(userLocation = location) }
     }
 
     fun addAttachment(file: AttachedFile) {
@@ -151,7 +241,10 @@ class ChatViewModel(
 
         val location = _uiState.value.userLocation
         val isFastMode = _uiState.value.isFastMode
+        val isGodMode = _uiState.value.isGodMode
+        val isGhostMode = _uiState.value.isGhostMode
         val userProfile = _uiState.value.userProfile
+        val currentMode = _uiState.value.currentMode
 
         _uiState.update {
             it.copy(
@@ -169,9 +262,13 @@ class ChatViewModel(
                     locationInfo = location,
                     attachments = attachments,
                     isFastMode = isFastMode,
+                    isGodMode = isGodMode || currentMode == DaveMode.HACKER,
+                    isGhostMode = isGhostMode,
                     userProfile = userProfile,
                     bypassIntercept = false,
+                    mode = currentMode,
                 )
+                refreshDynamicSuggestions() // Refresh after Dave responds
             } catch (e: Exception) {
                 android.util.Log.e("ChatViewModel", "Send failed", e)
             } finally {
@@ -192,5 +289,17 @@ class ChatViewModel(
     fun deleteCurrentSession() {
         val sessionId = _uiState.value.currentSessionId ?: return
         deleteSession(sessionId)
+    }
+
+    fun toggleVault(open: Boolean) {
+        _uiState.update { it.copy(isVaultOpen = open) }
+    }
+
+    fun updateVaultEntry(key: String, value: String) {
+        val uid = auth?.currentUser?.uid ?: return
+        viewModelScope.launch {
+            userStatsRepository.updatePreference(uid, key, value)
+            fetchUserProfile()
+        }
     }
 }

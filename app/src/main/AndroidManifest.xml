@@ -6,8 +6,12 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <application
+        android:name=".DaveApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -19,19 +23,188 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.DaveAI"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Handle Assistant trigger -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <activity
+            android:name=".ChatRoomActivity"
+            android:exported="true"
+            android:allowEmbedded="true"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.DaveAI">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".RiddleVaultActivity"
+            android:exported="true"
+            android:theme="@style/Theme.DaveAI"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.assistant.AssistantActivity"
+            android:exported="true"
+            android:theme="@style/Theme.DaveAI.Assistant"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true" />
+
+        <service
+            android:name=".service.DaveAssistantService"
+            android:label="Dave AI"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true">
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/assistant_service" />
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".service.DaveAssistantSessionService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true" />
+
+        <service
+            android:name=".service.DaveRecognitionService"
+            android:label="Dave Recognition"
+            android:permission="android.permission.BIND_RECOGNITION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
+
+        <!-- Widgets -->
+        <receiver
+            android:name=".ui.widgets.DaveMicWidgetReceiver"
+            android:exported="true"
+            android:label="Dave Mic">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widgets.DaveActionsWidgetReceiver"
+            android:exported="true"
+            android:label="Dave Quick Actions">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widgets.DaveStatsWidgetReceiver"
+            android:exported="true"
+            android:label="Dave Stats">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widgets.DaveFlashlightWidgetReceiver"
+            android:exported="true"
+            android:label="Dave Flashlight">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widgets.DaveHardwareWidgetReceiver"
+            android:exported="true"
+            android:label="Dave Hardware">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widgets.DaveSongWidgetReceiver"
+            android:exported="true"
+            android:label="Dave Songwriter">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widgets.DaveHistoryWidgetReceiver"
+            android:exported="true"
+            android:label="Dave History">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ui.widgets.DaveMasterWidgetReceiver"
+            android:exported="true"
+            android:label="Dave Command Center">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dave_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".receiver.NotificationReplyReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -2,16 +2,26 @@ package com.example.daveai.data.network
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Streaming
 
 interface OpenAiApiService {
     @POST("v1/images/generations")
     suspend fun generateImage(
         @Header("Authorization") auth: String,
-        @Body request: ImageRequest
+        @Body request: ImageRequest,
     ): ImageResponse
+
+    @Streaming
+    @POST("v1/audio/speech")
+    suspend fun generateSpeech(
+        @Header("Authorization") auth: String,
+        @Body request: TtsRequest,
+    ): Response<ResponseBody>
 
     companion object {
         const val BASE_URL = "https://api.openai.com/"
@@ -19,11 +29,20 @@ interface OpenAiApiService {
 }
 
 @JsonClass(generateAdapter = true)
+data class TtsRequest(
+    @param:Json(name = "model") val model: String = "tts-1",
+    @param:Json(name = "input") val input: String,
+    @param:Json(name = "voice") val voice: String = "echo", // echo is a balanced, warm male voice
+    @param:Json(name = "response_format") val responseFormat: String = "mp3",
+    @param:Json(name = "speed") val speed: Double = 1.05, // Slightly faster, but relaxed for warmth
+)
+
+@JsonClass(generateAdapter = true)
 data class ImageRequest(
-    @Json(name = "model") val model: String = "dall-e-3",
-    @Json(name = "prompt") val prompt: String,
-    @Json(name = "n") val n: Int = 1,
-    @Json(name = "size") val size: String = "1024x1024"
+    @param:Json(name = "model") val model: String = "dall-e-3",
+    @param:Json(name = "prompt") val prompt: String,
+    @param:Json(name = "n") val n: Int = 1,
+    @param:Json(name = "size") val size: String = "1024x1024",
 )
 
 @JsonClass(generateAdapter = true)

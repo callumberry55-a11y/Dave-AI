@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="dave_assistant"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_btn_speak_now"
+        android:shortcutShortLabel="@string/shortcut_ask_dave"
+        android:shortcutLongLabel="@string/shortcut_ask_dave_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.daveai"
+            android:targetClass="com.example.daveai.ui.assistant.AssistantActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="dave_chat"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_edit"
+        android:shortcutShortLabel="@string/shortcut_new_chat"
+        android:shortcutLongLabel="@string/shortcut_new_chat_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.daveai"
+            android:targetClass="com.example.daveai.MainActivity" />
+    </shortcut>
+</shortcuts>

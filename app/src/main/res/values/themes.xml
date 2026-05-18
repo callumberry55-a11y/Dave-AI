@@ -1,4 +1,12 @@
 <resources>
 
-    <style name="Theme.DaveAI" parent="Theme.MaterialComponents.Light" />
+    <style name="Theme.DaveAI" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <style name="Theme.DaveAI.Assistant" parent="Theme.DaveAI">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

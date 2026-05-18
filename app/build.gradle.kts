@@ -38,9 +38,6 @@ android {
         val openaiKey = localProps.getProperty("OPENAI_API_KEY") ?: ""
         buildConfigField("String", "OPENAI_API_KEY", "\"$openaiKey\"")
 
-        val lumaKey = localProps.getProperty("LUMA_API_KEY") ?: ""
-        buildConfigField("String", "LUMA_API_KEY", "\"$lumaKey\"")
-
         val sunoKey = localProps.getProperty("SUNO_API_KEY") ?: ""
         buildConfigField("String", "SUNO_API_KEY", "\"$sunoKey\"")
 
@@ -133,6 +130,13 @@ dependencies {
     
     // ML Kit GenAI (AICore) for deep Android system integration
     implementation(libs.genai.prompt)
+    
+    // WorkManager for background tasks (Lessons check-ins)
+    implementation(libs.work.runtime.ktx)
+
+    // Widgets support (Glance)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
 
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.junit)

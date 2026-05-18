@@ -8,5 +8,7 @@ import java.util.UUID
 data class ChatSessionEntity(
     @PrimaryKey val sessionId: String = UUID.randomUUID().toString(),
     val title: String,
-    val lastMessageTimestamp: Long = System.currentTimeMillis()
+    val summary: String? = null,
+    val lastMessageTimestamp: Long = System.currentTimeMillis(),
+    val projectType: String = "GENERAL", // GENERAL, CODE, ART, LANGUAGE, MUSIC, FITNESS, FINANCE, TRAVEL, GAMING, LESSONS
 )
