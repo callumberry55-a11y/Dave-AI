@@ -125,7 +125,7 @@ fun ChatScreen(
 
     if (showDeleteConfirmation) {
         AlertDialog(
-            onDismissRequest = { /* No-op to avoid state mutation during recomposition if needed, but usually we set to false here */ showDeleteConfirmation = false },
+            onDismissRequest = { showDeleteConfirmation = false },
             title = { Text("Clear Conversation?", fontWeight = FontWeight.Bold) },
             text = { Text("This will wipe Dave's memory of this chat.") },
             confirmButton = {
@@ -257,28 +257,27 @@ fun ChatScreen(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(16.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(20.dp),
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "APP STATS",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Rounded.Group, 
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Total Users", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text("Total Users", style = MaterialTheme.typography.labelSmall)
                                 Text(
                                     text = uiState.totalAppUsers.toString(),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -347,17 +346,18 @@ fun ChatScreen(
 ) {
     Scaffold(
             topBar = {
-                LargeTopAppBar(
+                TopAppBar(
                     title = { 
-                        Column {
-                            Text("Dave AI", fontWeight = FontWeight.Black)
-                            Text("Always energetic!", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Dave AI", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge)
+                            Spacer(Modifier.width(8.dp))
+                            Text("⚡️", style = MaterialTheme.typography.titleMedium)
                         }
                     },
                     navigationIcon = {
                         BouncyIconButton(icon = Icons.Rounded.Menu) { scope.launch { drawerState.open() } }
                     },
-                    colors = TopAppBarDefaults.largeTopAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
                         scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
                     ),
@@ -366,7 +366,44 @@ fun ChatScreen(
                     }
                 )
             },
-            bottomBar = {
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            containerColor = MaterialTheme.colorScheme.background
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .imePadding()
+                    .navigationBarsPadding()
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(
+                        items = uiState.messages,
+                        key = { index, _ -> index }
+                    ) { _, message ->
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = slideInVertically(
+                                initialOffsetY = { 50 },
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+                            ) + fadeIn()
+                        ) {
+                            @OptIn(UnstableApi::class)
+                            MessageBubble(message)
+                        }
+                    }
+                    if (uiState.isLoading) {
+                        item {
+                            DaveIsTypingIndicator()
+                        }
+                    }
+                }
+
                 ChatInputBar(
                     inputText = uiState.inputText,
                     attachedFiles = uiState.attachedFiles,
@@ -385,41 +422,12 @@ fun ChatScreen(
                     onRemoveAttachment = viewModel::removeAttachment,
                     isLoading = uiState.isLoading
                 )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { padding ->
-            Box(modifier = Modifier.padding(padding)) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize().padding(bottom = 4.dp), // Minimal bottom padding for messages
-                    contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 80.dp), // Adjust internal padding
-                    verticalArrangement = Arrangement.spacedBy(8.dp) // Tighter spacing
-                ) {
-                    itemsIndexed(
-                        items = uiState.messages,
-                        key = { index, _ -> index }
-                    ) { _, message ->
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = slideInVertically(
-                                initialOffsetY = { 50 },
-                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
-                            ) + fadeIn()
-                        ) {
-                            MessageBubble(message)
-                        }
-                    }
-                    if (uiState.isLoading) {
-                        item {
-                            DaveIsTypingIndicator()
-                        }
-                    }
-                }
             }
         }
     }
 }
 
+@UnstableApi
 @Composable
 fun MessageBubble(message: ChatMessage) {
     val context = LocalContext.current
@@ -498,7 +506,6 @@ fun MessageBubble(message: ChatMessage) {
 
                 if (message.mediaUrl != null) {
                     Spacer(Modifier.height(12.dp))
-                    @OptIn(UnstableApi::class)
                     MessageMedia(
                         url = message.mediaUrl,
                         type = message.mediaType,
@@ -629,9 +636,6 @@ fun ChatInputBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .imePadding()
-            .padding(bottom = 80.dp)
     ) {
         if (attachedFiles.isNotEmpty()) {
             LazyRow(
