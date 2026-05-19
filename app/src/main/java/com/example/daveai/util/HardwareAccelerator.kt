@@ -5,6 +5,7 @@ import android.os.Build
 import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
+import com.google.mlkit.genai.prompt.Generation
 
 /**
  * Manages access to the Google Tensor TPU, AICore, and Android System Intelligence features.
@@ -35,13 +36,18 @@ class HardwareAccelerator(@Suppress("unused") private val context: Context) {
      * Executes a prompt directly on the device TPU using Gemini Nano via AICore.
      * This is the fastest path for text tasks and ensures user privacy.
      */
-    fun generateOnDevice(prompt: String): String? {
+    suspend fun generateOnDevice(prompt: String): String? {
         if (!isAICoreAvailable()) return null
         
         Log.d("HardwareAccelerator", "Routing task to System Intelligence / AICore TPU: $prompt")
-        // Implementation note: This leverages ML Kit's on-device GenAI APIs which
-        // bind to the device's AICore service.
-        return null
+        return try {
+            val generativeModel = Generation.getClient()
+            val response = generativeModel.generateContent(prompt)
+            response.candidates.firstOrNull()?.text
+        } catch (e: Exception) {
+            Log.e("HardwareAccelerator", "Failed on-device execution: ${e.message}", e)
+            null
+        }
     }
 
     /**

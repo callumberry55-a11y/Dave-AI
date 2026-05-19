@@ -3,9 +3,12 @@ package com.example.daveai
 import android.app.Application
 import com.example.daveai.data.db.DaveDatabase
 import com.example.daveai.data.network.ClaudeApiService
+import com.example.daveai.data.network.CryptoApiService
 import com.example.daveai.data.network.GoogleMapsApiService
 import com.example.daveai.data.network.OpenAiApiService
+import com.example.daveai.data.network.OpenMeteoGeocodingApiService
 import com.example.daveai.data.network.SunoApiService
+import com.example.daveai.data.network.WeatherApiService
 import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.util.DaveNotificationManager
 import com.example.daveai.util.DaveVoiceManager
@@ -85,6 +88,27 @@ class DaveApplication : Application() {
             .build()
         val mapsService = mapsRetrofit.create(GoogleMapsApiService::class.java)
 
+        val cryptoRetrofit = Retrofit.Builder()
+            .baseUrl(CryptoApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val cryptoService = cryptoRetrofit.create(CryptoApiService::class.java)
+
+        val weatherRetrofit = Retrofit.Builder()
+            .baseUrl(WeatherApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val weatherService = weatherRetrofit.create(WeatherApiService::class.java)
+
+        val openMeteoGeocodingRetrofit = Retrofit.Builder()
+            .baseUrl(OpenMeteoGeocodingApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val openMeteoGeocodingService = openMeteoGeocodingRetrofit.create(OpenMeteoGeocodingApiService::class.java)
+
         val deviceAssistant = DeviceAssistant(this)
         val hardwareAccelerator = HardwareAccelerator(this)
         voiceManager = DaveVoiceManager(this, openaiService)
@@ -96,6 +120,9 @@ class DaveApplication : Application() {
             openaiService = openaiService,
             sunoService = sunoService,
             mapsService = mapsService,
+            cryptoService = cryptoService,
+            weatherService = weatherService,
+            openMeteoGeocodingService = openMeteoGeocodingService,
             chatDao = chatDao,
             riddleDao = riddleDao,
             hardwareAccelerator = hardwareAccelerator,

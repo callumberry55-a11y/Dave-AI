@@ -44,6 +44,9 @@ class ChatRepository(
     private val openaiService: OpenAiApiService,
     private val sunoService: SunoApiService,
     private val mapsService: GoogleMapsApiService,
+    private val cryptoService: com.example.daveai.data.network.CryptoApiService,
+    private val weatherService: com.example.daveai.data.network.WeatherApiService,
+    private val openMeteoGeocodingService: com.example.daveai.data.network.OpenMeteoGeocodingApiService,
     private val chatDao: ChatDao,
     private val riddleDao: RiddleDao,
     private val hardwareAccelerator: HardwareAccelerator,
@@ -130,8 +133,8 @@ class ChatRepository(
                 question = "What's always lumpy and wet, but gets sharper the more you use it?",
                 answerKeyword = "brain",
                 hint = "It's inside your head.",
-                tier = 4
-            )
+                tier = 4,
+            ),
         )
 
         originalRiddles.forEach { riddleDao.insertRiddle(it) }
@@ -227,8 +230,20 @@ class ChatRepository(
                 
                 attachments.forEach { file ->
                     if (file.base64Data != null) {
-                        val blockType = if (file.type.startsWith("image/")) "image" else if (file.type == "application/pdf") "document" else "video"
-                        contents.add(ClaudeContent(type = blockType, source = ClaudeContentSource(mediaType = file.type, data = file.base64Data)))
+                        if (file.type.startsWith("image/")) {
+                            contents.add(ClaudeContent(type = "image", source = ClaudeContentSource(mediaType = file.type, data = file.base64Data)))
+                        } else if (file.type == "application/pdf") {
+                            contents.add(ClaudeContent(type = "document", source = ClaudeContentSource(mediaType = "application/pdf", data = file.base64Data)))
+                        } else {
+                            // Attempt to parse as text if it's not an image or PDF
+                            try {
+                                val decodedBytes = android.util.Base64.decode(file.base64Data, android.util.Base64.DEFAULT)
+                                val textContent = String(decodedBytes, Charsets.UTF_8)
+                                contents.add(ClaudeContent(type = "text", text = "File: ${file.name}\n\n$textContent"))
+                            } catch (e: Exception) {
+                                contents.add(ClaudeContent(type = "text", text = "[Attached file ${file.name} is of unsupported type ${file.type} and could not be read]"))
+                            }
+                        }
                     }
                 }
                 claudeMessages[lastIdx] = claudeMessages[lastIdx].copy(content = contents)
@@ -476,9 +491,91 @@ class ChatRepository(
         }
     }
 
+    private suspend fun handleWeatherCheck(sessionId: String, content: String, isGhostMode: Boolean): String {
+        try {
+            val locationQuery = if (content.contains("in")) {
+                content.substringAfter("in").trim().split(" ").firstOrNull()?.replace(Regex("[^a-zA-Z]"), "") ?: "New York"
+            } else {
+                "New York"
+            }
+            
+            val geoResponse = openMeteoGeocodingService.searchLocation(locationQuery)
+            val result = geoResponse.results?.firstOrNull()
+            
+            if (result == null) {
+                val errorMsg = "Couldn't find the location '$locationQuery'. Check your spelling! 🌍"
+                chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = errorMsg))
+                return errorMsg
+            }
+            
+            val weatherResponse = weatherService.getWeather(result.latitude, result.longitude)
+            val temp = weatherResponse.currentWeather?.temperature
+            val wind = weatherResponse.currentWeather?.windspeed
+            
+            val daveMsg = "The current weather in ${result.name} is $temp°C with a windspeed of $wind km/h! ⚡️☁️"
+            
+            if (!isGhostMode) {
+                chatDao.insertMessage(
+                    ChatMessageEntity(
+                        sessionId = sessionId,
+                        role = "assistant",
+                        content = daveMsg,
+                        widgetType = "HARDWARE",
+                        widgetData = "{\"type\":\"weather\",\"location\":\"${result.name}\",\"temp\":$temp,\"wind\":$wind}"
+                    )
+                )
+            }
+            return daveMsg
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val errorMsg = "Got an error checking the weather: ${e.message} ⚡️"
+            if (!isGhostMode) chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = errorMsg))
+            return errorMsg
+        }
+    }
+
+    private suspend fun handleCryptoCheck(sessionId: String, content: String, isGhostMode: Boolean): String {
+        try {
+            var coins = "bitcoin,ethereum,dogecoin"
+            if (content.contains("solana") || content.contains("sol")) coins += ",solana"
+            
+            val priceResponse = cryptoService.getPrice(coins)
+            val btc = priceResponse["bitcoin"]?.get("usd")
+            val eth = priceResponse["ethereum"]?.get("usd")
+            val doge = priceResponse["dogecoin"]?.get("usd")
+            val sol = priceResponse["solana"]?.get("usd")
+            
+            val daveMsg = buildString {
+                append("Here are the latest crypto prices, boss! 📈💎\n")
+                btc?.let { append("- Bitcoin: $$it\n") }
+                eth?.let { append("- Ethereum: $$it\n") }
+                doge?.let { append("- Dogecoin: $$it\n") }
+                sol?.let { append("- Solana: $$it\n") }
+            }.trim()
+            
+            if (!isGhostMode) {
+                chatDao.insertMessage(
+                    ChatMessageEntity(
+                        sessionId = sessionId,
+                        role = "assistant",
+                        content = daveMsg
+                    )
+                )
+            }
+            return daveMsg
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val errorMsg = "Crypto markets are down... or just my API call. Error: ${e.message} ⚡️"
+            if (!isGhostMode) chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = errorMsg))
+            return errorMsg
+        }
+    }
+
     private suspend fun generateSessionContext(sessionId: String, userMsg: String, daveMsg: String) {
         val history = chatDao.getMessagesForSession(sessionId).first()
-        if ((history.size !in 2..10) && (history.size % 10 != 0)) return
+        val size = history.size
+        val isValidSize = (size in 2..10) || (size % 10 == 0)
+        if (!isValidSize) return
 
         try {
             val apiKey = BuildConfig.CLAUDE_API_KEY
@@ -597,7 +694,7 @@ class ChatRepository(
     }
 
     private enum class DaveTask {
-        IMAGE, SONG, MAP, APP, BATTERY, FLASHLIGHT, WIFI, HARDWARE, GENERAL
+        IMAGE, SONG, MAP, APP, BATTERY, FLASHLIGHT, WIFI, HARDWARE, WEATHER, CRYPTO, GENERAL
     }
 
     private fun routeEliteTask(content: String): DaveTask {
@@ -610,6 +707,8 @@ class ChatRepository(
             content.contains("flashlight") || content.contains("torch") -> DaveTask.FLASHLIGHT
             content.contains("wifi") || content.contains("internet") || content.contains("connection") -> DaveTask.WIFI
             content.contains("hardware") || content.contains("specs") || content.contains("cpu") || content.contains("about this device") -> DaveTask.HARDWARE
+            content.contains("weather") || content.contains("forecast") -> DaveTask.WEATHER
+            content.contains("crypto") || content.contains("bitcoin") || content.contains("ethereum") || content.contains("price of btc") || content.contains("price of eth") -> DaveTask.CRYPTO
             else -> DaveTask.GENERAL
         }
     }
@@ -653,6 +752,8 @@ class ChatRepository(
             DaveTask.FLASHLIGHT -> handleFlashlight(sessionId, !content.lowercase().contains("off"))
             DaveTask.WIFI -> handleConnectivityCheck(sessionId)
             DaveTask.HARDWARE -> handleHardwareCheck(sessionId)
+            DaveTask.WEATHER -> handleWeatherCheck(sessionId, content, isGhostMode)
+            DaveTask.CRYPTO -> handleCryptoCheck(sessionId, content, isGhostMode)
             else -> "ERROR: Unrouted elite task."
         }
     }

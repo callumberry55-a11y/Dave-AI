@@ -63,11 +63,11 @@ import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AttachFile
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.Language
@@ -174,12 +174,11 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     var showDeleteConfirmation by remember { mutableStateOf(value = false) }
-    var isDockCollapsed by remember { mutableStateOf(false) }
+    var isDockCollapsed by remember { mutableStateOf(value = false) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val clipboard = LocalClipboard.current
 
     val voiceToTextManager = remember { VoiceToTextManager(context) }
     val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
@@ -187,8 +186,8 @@ fun ChatScreen(
     val locationPermissionState = com.google.accompanist.permissions.rememberMultiplePermissionsState(
         listOf(
             Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ),
     )
     val locationHelper = remember { com.example.daveai.util.LocationHelper(context) }
 
@@ -231,12 +230,8 @@ fun ChatScreen(
                 val isImage = file.type.startsWith("image/")
                 val isPdf = file.type == "application/pdf"
                 
-                if (isImage || isPdf) {
-                    viewModel.addAttachment(file)
-                } else {
-                    // Let Dave explain the limitation instead of cluttering the text field
-                    viewModel.addAttachment(file)
-                }
+                // Allow any file. Text-based files will be parsed inside the repository.
+                viewModel.addAttachment(file)
             }
         }
     }
@@ -276,8 +271,8 @@ fun ChatScreen(
     if (uiState.isVaultOpen) {
         MemoryVaultSheet(
             profile = uiState.userProfile,
-            onDismiss = { viewModel.toggleVault(false) },
-            onUpdateEntry = viewModel::updateVaultEntry
+            onDismiss = { viewModel.toggleVault(open = false) },
+            onUpdateEntry = viewModel::updateVaultEntry,
         )
     }
 
@@ -290,7 +285,7 @@ fun ChatScreen(
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 12.dp)
+                    contentPadding = PaddingValues(vertical = 12.dp),
                 ) {
                     item {
                         Column(modifier = Modifier.padding(horizontal = 12.dp)) {
@@ -305,14 +300,14 @@ fun ChatScreen(
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Box(
                                             modifier = Modifier
                                                 .size(48.dp)
                                                 .clip(CircleShape)
                                                 .background(MaterialTheme.colorScheme.primary),
-                                            contentAlignment = Alignment.Center
+                                            contentAlignment = Alignment.Center,
                                         ) {
                                             Text(
                                                 text = profile.displayName?.take(1)?.uppercase() ?: "D",
@@ -524,7 +519,7 @@ fun ChatScreen(
                                     .padding(16.dp)
                                     .clickable { 
                                         scope.launch { drawerState.close() }
-                                        viewModel.toggleVault(true) 
+                                        viewModel.toggleVault(open = true)
                                     },
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                                 shape = RoundedCornerShape(20.dp),
@@ -635,7 +630,7 @@ fun ChatScreen(
                             Text("Dave AI", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge)
                             Spacer(Modifier.width(8.dp))
                             Surface(
-                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
@@ -654,16 +649,19 @@ fun ChatScreen(
                         BouncyIconButton(icon = Icons.Rounded.Menu) { scope.launch { drawerState.open() } }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+                        containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.6f),
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp).copy(alpha = 0.8f)
                     ),
                     actions = {
+                        IconButton(onClick = onEnterRiddleRoom) {
+                            Icon(Icons.Rounded.AutoAwesome, contentDescription = "Riddle Room", tint = MaterialTheme.colorScheme.tertiary)
+                        }
                         BouncyIconButton(icon = Icons.Rounded.Delete) { showDeleteConfirmation = true }
                     }
                 )
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = Color.Transparent
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -682,12 +680,11 @@ fun ChatScreen(
                     item {
                         DaveWelcomeCard(
                             suggestions = uiState.dynamicSuggestions,
-                            onSuggestionClick = { suggestion ->
-                                val cleanSuggestion = suggestion.substringAfter(" ").trim()
-                                viewModel.onInputTextChanged(cleanSuggestion)
-                                viewModel.sendMessage()
-                            }
-                        )
+                        ) { suggestion ->
+                            val cleanSuggestion = suggestion.substringAfter(" ").trim()
+                            viewModel.onInputTextChanged(cleanSuggestion)
+                            viewModel.sendMessage()
+                        }
                     }
                 }
                     itemsIndexed(
@@ -719,10 +716,7 @@ fun ChatScreen(
                     micPermissionState = micPermissionState,
                     isDockCollapsed = isDockCollapsed,
                     onCollapseChange = { isDockCollapsed = it },
-                    haptic = haptic,
-                    clipboard = clipboard,
-                    scope = scope,
-                    context = context
+                    haptic = haptic
                 )
             }
         }
@@ -740,19 +734,8 @@ fun DaveDock(
     onVaultClick: () -> Unit,
     isLoading: Boolean,
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
+    var isExpanded by remember { mutableStateOf(value = false) }
     val haptic = LocalHapticFeedback.current
-
-    val infiniteTransition = rememberInfiniteTransition(label = "dock_glow")
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "glowAlpha"
-    )
 
     Column(
         modifier = Modifier
@@ -785,9 +768,9 @@ fun DaveDock(
                 .fillMaxWidth()
                 .heightIn(min = 64.dp),
             shape = RoundedCornerShape(32.dp),
-            color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp),
-            tonalElevation = 8.dp,
-            shadowElevation = 12.dp,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+            tonalElevation = 0.dp,
+            shadowElevation = 8.dp,
             border = if (isLoading) 
                         androidx.compose.foundation.BorderStroke(
                             2.dp, 
@@ -797,9 +780,9 @@ fun DaveDock(
                                     MaterialTheme.colorScheme.tertiary,
                                     MaterialTheme.colorScheme.primary
                                 )
-                            ).let { if (isLoading) it else Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent)) }
+                            )
                         )
-                     else null
+                     else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
         ) {
             Row(
                 modifier = Modifier
@@ -888,7 +871,7 @@ fun DaveDock(
                         val isPressed by interactionSource.collectIsPressedAsState()
                         val scale by animateFloatAsState(
                             targetValue = if (isPressed) 0.85f else 1.1f,
-                            animationSpec = spring(dampingRatio = androidx.compose.animation.core.Spring.DampingRatioHighBouncy),
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy),
                             label = "scale"
                         )
 
@@ -973,20 +956,10 @@ fun MessageBubble(
     val scope = rememberCoroutineScope()
     val alignment = if (message.isFromDave) Alignment.Start else Alignment.End
     
-    val containerBrush = if (message.isFromDave) {
-        Brush.linearGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.secondaryContainer,
-                MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp)
-            )
-        )
+    val bubbleBg = if (message.isFromDave) {
+        MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp)
     } else {
-        Brush.linearGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-            )
-        )
+        MaterialTheme.colorScheme.primary
     }
     
     val contentColor = if (message.isFromDave) {
@@ -1007,13 +980,14 @@ fun MessageBubble(
     ) {
         Surface(
             shape = shape,
-            shadowElevation = 2.dp, // Reduced elevation for stability/cleanliness
-            modifier = Modifier.widthIn(max = 340.dp) // Wider bubbles for readability
+            shadowElevation = 4.dp,
+            color = bubbleBg.copy(alpha = 0.85f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
+            modifier = Modifier.widthIn(max = 340.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .background(containerBrush)
-                    .padding(horizontal = 16.dp, vertical = 10.dp) // Optimized bubble internal padding
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
                 if (message.hasAttachment) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1037,7 +1011,7 @@ fun MessageBubble(
                 if (message.content.contains("```")) {
                     val parts = message.content.split("```")
                     parts.forEachIndexed { index, part ->
-                        if (index % 2 == 1) {
+                        if ((index % 2) == 1) {
                             val language = part.substringBefore("\n").trim()
                             val code = part.substringAfter("\n").trim()
                             EliteCodeTerminal(language = language, code = code)
@@ -1050,7 +1024,7 @@ fun MessageBubble(
                 }
 
                 // Hyper-Local Widget Integration
-                if (message.widgetType != WidgetType.NONE && message.widgetData != null) {
+                if ((message.widgetType != WidgetType.NONE) && (message.widgetData != null)) {
                     Spacer(Modifier.height(12.dp))
                     DaveWidget(type = message.widgetType, data = message.widgetData)
                 }
@@ -1204,20 +1178,17 @@ fun ChatInputContainer(
     micPermissionState: com.google.accompanist.permissions.PermissionState,
     isDockCollapsed: Boolean,
     onCollapseChange: (Boolean) -> Unit,
-    haptic: androidx.compose.ui.hapticfeedback.HapticFeedback,
-    clipboard: androidx.compose.ui.platform.Clipboard,
-    scope: kotlinx.coroutines.CoroutineScope,
-    context: android.content.Context
+    haptic: androidx.compose.ui.hapticfeedback.HapticFeedback
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount ->
-                    if (dragAmount > 50 && !isDockCollapsed) {
+                    if ((dragAmount > 50) && !isDockCollapsed) {
                         onCollapseChange(true)
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    } else if (dragAmount < -50 && isDockCollapsed) {
+                    } else if ((dragAmount < -50) && isDockCollapsed) {
                         onCollapseChange(false)
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
@@ -1244,7 +1215,7 @@ fun ChatInputContainer(
                     }
                 },
                 onModeChange = viewModel::setMode,
-                onVaultClick = { viewModel.toggleVault(true) },
+                onVaultClick = { viewModel.toggleVault(open = true) },
                 isLoading = uiState.isLoading
             )
         }
@@ -1345,32 +1316,7 @@ fun RecordingMicButton(
     }
 }
 
-@Composable
-fun FileChip(file: AttachedFile, onRemove: () -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.height(36.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Rounded.Description, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(file.name, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-            Spacer(Modifier.width(6.dp))
-            Icon(
-                Icons.Rounded.Close, 
-                contentDescription = "Remove", 
-                modifier = Modifier
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .clickable { onRemove() }
-            )
-        }
-    }
-}
+
 
 @Composable
 fun BouncyIconButton(icon: ImageVector, onClick: () -> Unit) {
@@ -1477,9 +1423,10 @@ fun DaveWelcomeCard(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSuggestionClick(suggestion)
                     },
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                shadowElevation = 2.dp
             ) {
                 Text(
                     text = suggestion,
@@ -1605,7 +1552,13 @@ private fun getAttachedFileFromUri(context: Context, uri: Uri): AttachedFile? {
     
     return try {
         val inputStream: InputStream? = contentResolver.openInputStream(uri)
-        val bytes = inputStream?.readBytes()
+        // Set a 5MB limit to prevent OutOfMemoryError on large files
+        val sizeLimit = 5 * 1024 * 1024
+        var bytes = inputStream?.readBytes()
+        if (bytes != null && bytes.size > sizeLimit) {
+            bytes = null
+            fileName = "$fileName (File too large, skipped)"
+        }
         val base64 = bytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
         AttachedFile(uri, fileName, mimeType, base64)
     } catch (_: Exception) {
@@ -1894,24 +1847,63 @@ fun MemoryVaultSheet(
 @Composable
 fun StructuredContent(text: String, contentColor: Color) {
     val lines = text.split("\n")
-    
-    // Table Detection
-    if (text.contains("|") && text.contains("---")) {
-        val tableLines = lines.filter { it.contains("|") }
-        if (tableLines.size >= 2) {
-            EliteDataGrid(tableLines)
-            return
-        }
-    }
+    var inTable = false
+    val tableBuffer = mutableListOf<String>()
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        lines.forEach { line ->
+        for (line in lines) {
             val trimmedLine = line.trim()
-            if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
-                EliteBulletPoint(trimmedLine.substring(2), contentColor)
-            } else if (trimmedLine.isNotEmpty()) {
+            
+            // Detect if line is part of a markdown table
+            if (trimmedLine.contains("|") && !trimmedLine.startsWith("```")) {
+                inTable = true
+                tableBuffer.add(trimmedLine)
+            } else {
+                // If we were parsing a table and just exited it, render the table
+                if (inTable) {
+                    if (tableBuffer.size >= 2) {
+                        Spacer(Modifier.height(8.dp))
+                        EliteDataGrid(tableBuffer.toList())
+                        Spacer(Modifier.height(8.dp))
+                    } else if (tableBuffer.size == 1) {
+                        // Not a real table, just render the line as text
+                        Text(
+                            text = tableBuffer.first(),
+                            color = contentColor,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                lineHeight = 24.sp,
+                                letterSpacing = 0.25.sp
+                            )
+                        )
+                    }
+                    tableBuffer.clear()
+                    inTable = false
+                }
+                
+                // Render normal text lines
+                if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+                    EliteBulletPoint(trimmedLine.substring(2), contentColor)
+                } else if (trimmedLine.isNotEmpty() && !trimmedLine.contains("---")) {
+                    Text(
+                        text = trimmedLine,
+                        color = contentColor,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            lineHeight = 24.sp,
+                            letterSpacing = 0.25.sp
+                        )
+                    )
+                }
+            }
+        }
+        
+        // Render any remaining table at the end of the text
+        if (inTable) {
+            if (tableBuffer.size >= 2) {
+                Spacer(Modifier.height(8.dp))
+                EliteDataGrid(tableBuffer.toList())
+            } else if (tableBuffer.size == 1) {
                 Text(
-                    text = trimmedLine,
+                    text = tableBuffer.first(),
                     color = contentColor,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         lineHeight = 24.sp,
@@ -1946,9 +1938,9 @@ fun EliteBulletPoint(text: String, color: Color) {
 
 @Composable
 fun EliteDataGrid(lines: List<String>) {
-    val data = lines.map { line ->
-        line.split("|").filter { it.isNotBlank() }.map { it.trim() }
-    }.filter { it.isNotEmpty() && !it.all { cell -> cell.contains("-") } }
+    val data = lines.asSequence().map { line ->
+        line.split("|").asSequence().filter { it.isNotBlank() }.map { it.trim() }.toList()
+    }.filter { it.isNotEmpty() && !it.all { cell -> cell.contains("-") } }.toList()
 
     if (data.isEmpty()) return
 
@@ -1993,7 +1985,6 @@ fun ChatScreenPreview() {
         ChatScreen(
             viewModel = viewModel(),
             onLogout = {},
-            onEnterRiddleRoom = {}
-        )
+        ) {}
     }
 }

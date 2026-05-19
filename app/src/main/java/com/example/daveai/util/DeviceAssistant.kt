@@ -18,27 +18,34 @@ class DeviceAssistant(private val context: Context) {
         
         val resolvedInfos = pm.queryIntentActivities(mainIntent, 0)
         
+        // Extract potential target from the input (e.g., "open spotify", "launch maps")
+        val cleanedAppName = appName.lowercase().removePrefix("open ").removePrefix("launch ").trim()
+        
         // Exact match first
         var targetActivity = resolvedInfos.find { 
-            it.loadLabel(pm).toString().equals(appName, ignoreCase = true) 
+            it.loadLabel(pm).toString().equals(cleanedAppName, ignoreCase = true) 
         }
         
         // Partial match if no exact match
         if (targetActivity == null) {
             targetActivity = resolvedInfos.find { 
-                it.loadLabel(pm).toString().contains(appName, ignoreCase = true) 
+                it.loadLabel(pm).toString().contains(cleanedAppName, ignoreCase = true) ||
+                it.activityInfo.packageName.contains(cleanedAppName, ignoreCase = true)
             }
         }
 
         // Handle common variations
         if (targetActivity == null) {
-            val variations = when (appName.lowercase()) {
+            val variations = when (cleanedAppName) {
                 "camera" -> listOf("camera", "cam")
                 "messages" -> listOf("messages", "messaging", "sms")
                 "phone" -> listOf("phone", "dialer", "call")
-                "browser" -> listOf("chrome", "browser", "internet")
+                "browser" -> listOf("chrome", "browser", "internet", "firefox", "edge")
                 "gallery" -> listOf("photos", "gallery")
                 "settings" -> listOf("settings", "config")
+                "maps" -> listOf("maps", "navigation", "waze")
+                "music" -> listOf("music", "spotify", "youtube music", "apple music")
+                "mail" -> listOf("mail", "gmail", "outlook")
                 else -> emptyList()
             }
             

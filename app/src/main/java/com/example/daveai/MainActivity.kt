@@ -68,9 +68,9 @@ class MainActivity : ComponentActivity() {
         val medium = data.getQueryParameter("cm")
         
         val referral = mutableMapOf<String, String?>()
-        if (campaign != null) referral["campaign"] = campaign
-        if (source != null) referral["source"] = source
-        if (medium != null) referral["medium"] = medium
+        campaign?.let { referral["campaign"] = it }
+        source?.let { referral["source"] = it }
+        medium?.let { referral["medium"] = it }
         
         if (referral.isNotEmpty()) {
             android.util.Log.d("DaveAI", "Launched with referral: $campaign / $source")
@@ -109,7 +109,7 @@ fun DaveApp(
         RiddleViewModel(
             riddleDao = app.chatRepository.getRiddleDao(),
             voiceManager = app.voiceManager,
-            soundManager = app.riddleSoundManager
+            soundManager = app.riddleSoundManager,
         )
     }
 
@@ -140,7 +140,7 @@ fun DaveApp(
                             LandingScreen(
                                 riddleViewModel = riddleViewModel,
                                 onNavigateToChat = { backStack.add(DaveRoute.Chat) },
-                                onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) }
+                                onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
                             ) { backStack.add(DaveRoute.Lessons) }
                         }
                     }
@@ -153,18 +153,16 @@ fun DaveApp(
                                     backStack.clear()
                                     backStack.add(DaveRoute.Auth)
                                 },
-                                onEnterRiddleRoom = {
-                                    backStack.add(DaveRoute.Riddle)
-                                },
-                            )
+                            ) {
+                                backStack.add(DaveRoute.Riddle)
+                            }
                         }
                     }
                     is DaveRoute.Riddle -> {
                         NavEntry(key) {
                             RiddleScreen(
                                 viewModel = riddleViewModel,
-                                onBack = { backStack.removeLastOrNull() }
-                            )
+                            ) { backStack.removeLastOrNull() }
                         }
                     }
                     is DaveRoute.Lessons -> {

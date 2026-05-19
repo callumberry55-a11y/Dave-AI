@@ -1,0 +1,5 @@
+int attr description 0x0
+int attr displayDescription 0x0
+int[] styleable AppFunctionAppMetadata { 0x0, 0x0 }
+int styleable AppFunctionAppMetadata_description 0
+int styleable AppFunctionAppMetadata_displayDescription 1

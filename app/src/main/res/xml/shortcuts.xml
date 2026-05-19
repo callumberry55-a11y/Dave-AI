@@ -1,25 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Agentic Action: Ask Dave AI -->
+    <!-- Maps to the standard conversational BII for assistant integrations -->
+    <capability android:name="actions.intent.CREATE_MESSAGE">
+        <intent
+            android:action="com.example.daveai.AGENTIC_ACTION"
+            android:targetPackage="com.example.daveai"
+            android:targetClass="com.example.daveai.agent.DaveAgentReceiver">
+            <parameter
+                android:name="message.text"
+                android:key="messageQuery" />
+        </intent>
+    </capability>
+
+    <!-- Agentic Action: Hardware Scan -->
+    <capability android:name="actions.intent.GET_THING">
+        <intent
+            android:action="com.example.daveai.AGENTIC_ACTION"
+            android:targetPackage="com.example.daveai"
+            android:targetClass="com.example.daveai.agent.DaveAgentReceiver">
+            <parameter
+                android:name="thing.name"
+                android:key="scanType" />
+        </intent>
+    </capability>
+
+    <!-- App Links for Web-based Agentic triggers -->
     <shortcut
-        android:shortcutId="dave_assistant"
+        android:shortcutId="agentic_chat"
         android:enabled="true"
-        android:icon="@android:drawable/ic_btn_speak_now"
-        android:shortcutShortLabel="@string/shortcut_ask_dave"
-        android:shortcutLongLabel="@string/shortcut_ask_dave_long">
+        android:shortcutShortLabel="@string/app_name"
+        android:shortcutLongLabel="@string/app_name">
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.example.daveai"
-            android:targetClass="com.example.daveai.ui.assistant.AssistantActivity" />
-    </shortcut>
-    <shortcut
-        android:shortcutId="dave_chat"
-        android:enabled="true"
-        android:icon="@android:drawable/ic_menu_edit"
-        android:shortcutShortLabel="@string/shortcut_new_chat"
-        android:shortcutLongLabel="@string/shortcut_new_chat_long">
-        <intent
-            android:action="android.intent.action.VIEW"
-            android:targetPackage="com.example.daveai"
-            android:targetClass="com.example.daveai.MainActivity" />
+            android:targetClass="com.example.daveai.agent.DaveAgentReceiver" />
+        <categories android:name="android.intent.category.DEFAULT" />
     </shortcut>
 </shortcuts>

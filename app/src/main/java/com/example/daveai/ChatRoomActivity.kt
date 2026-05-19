@@ -52,8 +52,7 @@ class ChatRoomActivity : ComponentActivity() {
                             ChatScreen(
                                 viewModel = chatViewModel,
                                 onLogout = { finish() },
-                                onEnterRiddleRoom = { currentScreen = ChatActivityScreen.RIDDLE }
-                            )
+                            ) { currentScreen = ChatActivityScreen.RIDDLE }
                         }
                         ChatActivityScreen.RIDDLE -> {
                             val riddleViewModel: RiddleViewModel = viewModel {
@@ -61,8 +60,7 @@ class ChatRoomActivity : ComponentActivity() {
                             }
                             RiddleScreen(
                                 viewModel = riddleViewModel,
-                                onBack = { currentScreen = ChatActivityScreen.CHAT }
-                            )
+                            ) { currentScreen = ChatActivityScreen.CHAT }
                         }
                     }
                 }

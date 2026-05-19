@@ -27,7 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicNone
@@ -57,7 +57,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -86,9 +85,10 @@ fun RiddleScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
-    val gold = Color(0xFFFFB300)
-    val darkBg = Color(0xFF121212)
-    val cardBg = Color(0xFF1E1E1E)
+    val gold = Color(0xFFFFD700)
+    val darkBg = Color(0xFF0A0214) // Deep, deep purple/black
+    val cardBg = Color(0xFF1E0B36) // Dark mysterious purple
+    val accentPurple = Color(0xFF4A148C)
 
     var offsetX by remember { mutableStateOf(0.dp) }
     val animatedOffsetX by animateDpAsState(
@@ -136,17 +136,22 @@ fun RiddleScreen(
     }
 
     Scaffold(
-        containerColor = darkBg,
+        containerColor = Color.Transparent,
+        modifier = Modifier.background(
+            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                colors = listOf(darkBg, Color.Black)
+            )
+        ),
         topBar = {
             TopAppBar(
-                title = { Text("The Riddle Vault", fontWeight = FontWeight.Black, color = Color.White) },
+                title = { Text("The Riddle Vault", fontWeight = FontWeight.Black, color = gold, letterSpacing = 2.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = gold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = darkBg
+                    containerColor = Color.Transparent
                 )
             )
         }
@@ -159,32 +164,40 @@ fun RiddleScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Scoreboard Dock
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = cardBg.copy(alpha = 0.6f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, accentPurple)
             ) {
-                Text(
-                    "TIER: ${uiState.tierName}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = gold,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    "STREAK: 🔥 ${uiState.streak}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    "${uiState.solvedCount} / ${uiState.totalCount}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color(0xFF888888),
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.weight(1f)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "TIER: ${uiState.tierName}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = gold,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "STREAK: 🔥 ${uiState.streak}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "${uiState.solvedCount} / ${uiState.totalCount}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = gold.copy(alpha = 0.7f),
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -195,9 +208,10 @@ fun RiddleScreen(
                     .fillMaxWidth()
                     .weight(1f)
                     .offset { IntOffset(animatedOffsetX.roundToPx(), 0) },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = cardBg),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                border = androidx.compose.foundation.BorderStroke(2.dp, gold.copy(alpha = 0.5f))
             ) {
                 Box(
                     modifier = Modifier
@@ -220,18 +234,20 @@ fun RiddleScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                Icons.Rounded.Bolt,
+                                Icons.Rounded.AutoAwesome,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
                                 tint = gold
                             )
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(24.dp))
                             Text(
                                 uiState.currentRiddle!!.question,
                                 color = Color.White,
-                                fontSize = 18.sp,
+                                fontSize = 22.sp,
                                 textAlign = TextAlign.Center,
-                                lineHeight = 24.sp
+                                lineHeight = 32.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                             )
                             
                             AnimatedVisibility(
@@ -239,16 +255,19 @@ fun RiddleScreen(
                                 enter = fadeIn() + slideInVertically { 20 }
                             ) {
                                 Surface(
-                                    modifier = Modifier.padding(top = 24.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFF2C2C2C)
+                                    modifier = Modifier.padding(top = 32.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = darkBg.copy(alpha = 0.8f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, gold.copy(alpha = 0.3f))
                                 ) {
                                     Text(
-                                        uiState.currentRiddle!!.hint,
+                                        "\"${uiState.currentRiddle!!.hint}\"",
                                         modifier = Modifier.padding(16.dp),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = gold,
-                                        textAlign = TextAlign.Center
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                        color = gold.copy(alpha = 0.9f),
+                                        textAlign = TextAlign.Center,
+                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                                     )
                                 }
                             }
@@ -281,31 +300,32 @@ fun RiddleScreen(
                             value = uiState.inputText,
                             onValueChange = viewModel::onInputChanged,
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("Type your guess here...", color = Color(0xFF666666)) },
+                            placeholder = { Text("Speak the password...", color = gold.copy(alpha = 0.4f), fontFamily = androidx.compose.ui.text.font.FontFamily.Serif) },
                             colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedIndicatorColor = gold,
-                                unfocusedIndicatorColor = Color(0xFF333333)
+                                focusedContainerColor = cardBg.copy(alpha = 0.5f),
+                                unfocusedContainerColor = cardBg.copy(alpha = 0.5f),
+                                focusedTextColor = gold,
+                                unfocusedTextColor = gold,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
                             ),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
                             singleLine = true
                         )
                         
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(12.dp))
 
-                        val micColor by animateColorAsState(if (isListening) Color.Red else gold, label = "micColor")
+                        val micColor by animateColorAsState(if (isListening) Color(0xFFE53935) else cardBg, label = "micColor")
+                        val micIconTint = if (isListening) Color.White else gold
                         val micScale by animateFloatAsState(if (isListening) 1.2f else 1f, label = "micScale")
 
                         Surface(
                             modifier = Modifier
-                                .size(50.dp)
-                                .scale(micScale)
-                                .clip(CircleShape)
-                                .background(micColor),
+                                .size(56.dp)
+                                .scale(micScale),
+                            shape = CircleShape,
                             color = micColor,
+                            border = androidx.compose.foundation.BorderStroke(2.dp, if (isListening) Color(0xFFE53935) else gold.copy(alpha = 0.5f)),
                             onClick = {
                                 if (micPermissionState.status.isGranted) {
                                     if (isListening) {
@@ -322,7 +342,7 @@ fun RiddleScreen(
                                 Icon(
                                     imageVector = if (isListening) Icons.Rounded.Mic else Icons.Rounded.MicNone,
                                     contentDescription = "Mic",
-                                    tint = if (isListening) Color.White else darkBg
+                                    tint = micIconTint
                                 )
                             }
                         }
@@ -332,21 +352,22 @@ fun RiddleScreen(
                     
                     BouncyButton(
                         onClick = { viewModel.submitAnswer() },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
                         containerColor = gold,
                         contentColor = darkBg
                     ) {
-                        Text("Unlock", fontWeight = FontWeight.Bold)
+                        Text("Speak Friend and Enter", fontWeight = FontWeight.Black, fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, fontSize = 16.sp)
                     }
                 } else if (uiState.isSolved) {
                     BouncyButton(
                         onClick = { viewModel.loadNextRiddle() },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        containerColor = Color(0xFF4CAF50)
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        containerColor = accentPurple,
+                        contentColor = gold
                     ) {
                         Icon(Icons.Rounded.SkipNext, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Next Riddle", fontWeight = FontWeight.Bold)
+                        Text("Proceed Deeper", fontWeight = FontWeight.Black, fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, fontSize = 16.sp)
                     }
                 }
             }

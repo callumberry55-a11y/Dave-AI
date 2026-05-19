@@ -205,6 +205,17 @@
         <receiver
             android:name=".receiver.NotificationReplyReceiver"
             android:exported="false" />
+
+        <receiver
+            android:name=".agent.DaveAgentReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.example.daveai.AGENTIC_ACTION" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
