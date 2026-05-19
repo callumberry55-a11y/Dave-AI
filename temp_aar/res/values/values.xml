@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr format="string" name="description"/>
+    <attr format="reference|string" name="displayDescription"/>
+    <declare-styleable name="AppFunctionAppMetadata">
+        
+        <attr name="description"/>
+
+        
+        <attr name="displayDescription"/>
+    </declare-styleable>
+</resources>
