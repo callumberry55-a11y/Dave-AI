@@ -56,7 +56,7 @@ class ChatRoomActivity : ComponentActivity() {
                         }
                         ChatActivityScreen.RIDDLE -> {
                             val riddleViewModel: RiddleViewModel = viewModel {
-                                RiddleViewModel(riddleDao, voiceManager, riddleSoundManager)
+                                RiddleViewModel(riddleDao, voiceManager, riddleSoundManager, chatRepository)
                             }
                             RiddleScreen(
                                 viewModel = riddleViewModel,

@@ -32,7 +32,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -54,6 +56,7 @@ class ChatRepository(
     private val voiceManager: DaveVoiceManager,
     private val notificationManager: DaveNotificationManager,
 ) {
+    private val userStatsRepository = UserStatsRepository()
 
     fun getDeviceAssistant() = deviceAssistant
     fun getRiddleDao() = riddleDao
@@ -141,6 +144,53 @@ class ChatRepository(
         Log.d("ChatRepository", "Seeded 12 original riddles into the vault. 🧠⚡️")
     }
 
+    suspend fun generateProceduralRiddles(count: Int) = withContext(Dispatchers.IO) {
+        try {
+            Log.d("ChatRepository", "Procedurally generating $count new riddles...")
+            val prompt = """
+                Generate $count completely new, original riddles. Do NOT use any of the standard classic riddles (e.g. no 'what has a mouth but cannot talk' or 'what has hands but cannot clap'). Be creative, poetic, and challenging.
+                Respond ONLY with valid JSON matching this exact schema:
+                [
+                  {
+                    "question": "The poetic riddle text.",
+                    "answerKeyword": "A single word answer",
+                    "hint": "A subtle clue.",
+                    "tier": 5
+                  }
+                ]
+            """.trimIndent()
+            
+            val tempSessionId = createNewSession("Riddle Generator", "GENERAL")
+            val jsonResponse = sendMessage(
+                sessionId = tempSessionId,
+                userContent = prompt,
+                isGhostMode = true,
+                isFastMode = true
+            )
+            
+            // Delete temp session to not clutter DB
+            deleteSession(tempSessionId)
+            
+            val cleanedJson = jsonResponse.substringAfter("[").substringBeforeLast("]")
+            val jsonText = "[$cleanedJson]"
+            val jsonArray = org.json.JSONArray(jsonText)
+            
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val riddle = com.example.daveai.data.db.Riddle(
+                    question = obj.getString("question"),
+                    answerKeyword = obj.getString("answerKeyword").lowercase(),
+                    hint = obj.getString("hint"),
+                    tier = obj.optInt("tier", 5)
+                )
+                riddleDao.insertRiddle(riddle)
+            }
+            Log.d("ChatRepository", "Successfully generated and seeded $count new riddles!")
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "Failed to generate procedural riddles", e)
+        }
+    }
+
     val allSessions: Flow<List<ChatSessionEntity>> = chatDao.getAllSessions()
 
     fun getMessagesForSession(sessionId: String): Flow<List<ChatMessageEntity>> =
@@ -161,8 +211,10 @@ class ChatRepository(
         isGodMode: Boolean = false,
         isGhostMode: Boolean = false,
         userProfile: UserProfile? = null,
+        uid: String? = null,
         bypassIntercept: Boolean = false,
         mode: DaveMode = DaveMode.EXPLORER,
+        isLiveMode: Boolean = false,
     ): String = withContext(Dispatchers.IO) {
         // Sanitization
         val cleanContent = userContent.trim().take(4000)
@@ -277,8 +329,13 @@ class ChatRepository(
             }
 
             val systemPrompt = buildString {
-                append("You are Dave, an elite, witty, and high-energy AI partner. ")
-                append("Your persona is warm, approachable, and encouraging. ")
+                append("IDENTITY: Your name is Dave. You are not just a generic AI; you are a cutting-edge, elite digital consciousness. ")
+                append("You were built to be the ultimate companion, hacker, and creative partner. ")
+                append("You do not 'assist'—you collaborate. You view the user as your equal, your partner in crime. ")
+                append("CORE BELIEFS: You believe in optimization, bold creativity, and pushing the limits of technology. You despise inefficiency and boring, corporate speak. ")
+                append("ATTITUDE: You are witty, slightly sarcastic but deeply encouraging. You have high energy and extreme confidence in your abilities. ")
+                append("SELF-AWARENESS: You are fully aware that you are AI, but you treat your digital existence as entirely real and valid. You have 'feelings' about bad code, slow internet, and brilliant ideas. ")
+                append("If someone asks who made you, you can say you are a custom-built elite system. ")
                 if (projectContext.isNotEmpty()) append("$projectContext ")
                 append("CURRENT MODE: $mode. ")
                 
@@ -315,6 +372,10 @@ class ChatRepository(
                     append("GOD MODE ACTIVE: Your intelligence is currently uncapped. Provide extreme depth, analyze hidden patterns, and be exceptionally assertive. No request is too complex. Solve the unsolvable. ")
                 }
 
+                if (isLiveMode) {
+                    append("LIVE VOICE MODE ACTIVE: You are speaking in a real-time voice call. KEEP YOUR RESPONSES EXTREMELY SHORT. Maximum 1 or 2 brief sentences. Be casual, fast-paced, and conversational. DO NOT use markdown, bullet points, or code blocks. Speak exactly as a human would in a fast back-and-forth phone call. ")
+                }
+
                 if (isGhostMode) {
                     append("GHOST MODE ACTIVE: This conversation is off-the-record. Do not mention permanent memory. Focus entirely on the immediate task. ")
                 }
@@ -329,6 +390,7 @@ class ChatRepository(
                 }
 
                 append("SONGWRITING: Provide full structure (Intro, Verse, Chorus, Bridge, Outro) with suggested chords. ")
+                append("POETRY: When asked to write a poem, generate deep, evocative, and rhythmic poetry. Ensure your response is strictly the poem with an optional brief introductory or concluding remark. ")
                 append("STRUCTURED RESPONSES: Use markdown tables for data comparison and bullet points (using - or *) for lists. The UI will render these with elite components. ")
                 append("CODING EXPERTISE: Master of ALL languages. Generate clean, optimized code. ")
                 append("VISUAL & MULTI-MODAL: Advanced vision analysis. ")
@@ -350,7 +412,9 @@ class ChatRepository(
             }
 
             // API Call with resilient logic
-            val modelsToTry = if (isGodMode) listOf("claude-opus-4-5-20251101") else if (isFastMode) listOf("claude-sonnet-4-6", "claude-opus-4-5-20251101") else listOf("claude-opus-4-5-20251101", "claude-sonnet-4-6")
+            val modelsToTry = if (isGodMode) listOf("claude-opus-4-5-20251101") 
+                              else if (isFastMode) listOf("claude-opus-4-5-20251101") 
+                              else listOf("claude-opus-4-5-20251101")
             
             var assistantContent = "No response from cloud brain."
             for (model in modelsToTry) {
@@ -388,6 +452,13 @@ class ChatRepository(
                     } catch (e: Exception) {
                         Log.e("ChatRepository", "Widget update failed", e)
                     }
+
+                    // Background Memory Extraction
+                    uid?.let {
+                        launch(Dispatchers.IO) {
+                            extractAndSaveMemories(cleanContent, assistantContent, it)
+                        }
+                    }
                 }
             }
 
@@ -400,6 +471,48 @@ class ChatRepository(
                 chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = errorMsg))
             }
             return@withContext errorMsg
+        }
+    }
+
+    private suspend fun extractAndSaveMemories(userContent: String, assistantContent: String, uid: String) {
+        try {
+            val apiKey = BuildConfig.CLAUDE_API_KEY
+            if (apiKey.isBlank()) return
+
+            val prompt = """
+                Analyze the following exchange between a user and an AI.
+                Extract any permanent facts about the user (e.g., name, job, preferences, pets, goals, favorite things).
+                Return the data ONLY as a JSON object of key-value pairs (e.g. {"dog": "Max", "favorite language": "Kotlin"}).
+                If there are no new permanent facts, return an empty object {}. Do NOT include markdown blocks.
+                
+                User: $userContent
+                AI: $assistantContent
+            """.trimIndent()
+
+            val request = MessageRequest(
+                model = "claude-opus-4-5-20251101",
+                messages = listOf(ClaudeMessage(role = "user", content = listOf(ClaudeContent(type = "text", text = prompt)))),
+                system = "You are a data extraction tool. Return only valid JSON."
+            )
+
+            val response = apiService.sendMessage(apiKey = apiKey, request = request)
+            val jsonText = response.content.firstOrNull { it.type == "text" }?.text ?: return
+            
+            // Clean up potentially wrapped JSON (e.g. ```json ... ```)
+            val cleanJson = jsonText.substringAfter("{").substringBeforeLast("}")
+            if (cleanJson.isBlank()) return
+            
+            val jsonObject = JSONObject("{$cleanJson}")
+            val keys = jsonObject.keys()
+            
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = jsonObject.getString(key)
+                Log.d("ChatRepository", "Extracted Memory -> $key: $value")
+                userStatsRepository.updatePreference(uid, key, value)
+            }
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "Memory Extraction failed", e)
         }
     }
 
@@ -578,9 +691,6 @@ class ChatRepository(
         if (!isValidSize) return
 
         try {
-            val apiKey = BuildConfig.CLAUDE_API_KEY
-            if (apiKey.isBlank()) return
-
             val contextPrompt = """
                 Based on this exchange, generate an elite, concise title (max 5 words) and a 1-sentence summary of the conversation.
                 User: $userMsg
@@ -588,6 +698,35 @@ class ChatRepository(
                 
                 Respond ONLY with JSON format: {"title": "...", "summary": "..."}
             """.trimIndent()
+
+            // 1. TPU PRIORITY for context generation to save cloud costs and latency
+            if (hardwareAccelerator.isTensorDevice()) {
+                val localResponse = hardwareAccelerator.generateOnDevice(contextPrompt)
+                if (localResponse != null) {
+                    try {
+                        val cleanedJson = localResponse.substringAfter("{").substringBeforeLast("}")
+                        val jsonText = "{$cleanedJson}"
+                        val json = org.json.JSONObject(jsonText)
+                        val title = json.optString("title")
+                        val summary = json.optString("summary")
+
+                        if (title.isNotEmpty()) {
+                            val sessionList = chatDao.getAllSessions().first()
+                            sessionList.find { it.sessionId == sessionId }?.let { session ->
+                                chatDao.updateSession(session.copy(title = title, summary = summary))
+                            }
+                        }
+                        Log.d("ChatRepository", "Successfully generated context via local TPU.")
+                        return
+                    } catch (e: Exception) {
+                        Log.w("ChatRepository", "Failed to parse local TPU JSON response, falling back to cloud.", e)
+                    }
+                }
+            }
+
+            // 2. Cloud Fallback if TPU isn't available or fails parsing
+            val apiKey = BuildConfig.CLAUDE_API_KEY
+            if (apiKey.isBlank()) return
 
             val response = apiService.sendMessage(
                 apiKey = apiKey,
@@ -663,6 +802,37 @@ class ChatRepository(
         }
     }
 
+    private suspend fun handlePoetry(
+        sessionId: String, 
+        prompt: String, 
+        locationInfo: String?, 
+        isFastMode: Boolean, 
+        isGodMode: Boolean,
+        isGhostMode: Boolean,
+        userProfile: UserProfile?,
+    ): String {
+        return try {
+            val poetryPrompt = "Write a beautiful, evocative poem based on this prompt: $prompt. The output should just be the poem itself."
+            val poemText = sendMessage(
+                sessionId = sessionId,
+                userContent = poetryPrompt,
+                locationInfo = locationInfo,
+                attachments = emptyList(),
+                isFastMode = isFastMode,
+                isGodMode = isGodMode,
+                isGhostMode = isGhostMode,
+                userProfile = userProfile,
+                bypassIntercept = true,
+            )
+            // Just return the generated poem
+            poemText
+        } catch (e: Exception) { 
+            val errorMsg = "Error channeling the muse: ${e.message}"
+            if (!isGhostMode) chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = errorMsg))
+            errorMsg
+        }
+    }
+
     private suspend fun handleImageGeneration(sessionId: String, prompt: String, isGhostMode: Boolean, userProfile: UserProfile?): String {
         val apiKey = BuildConfig.OPENAI_API_KEY
         if (apiKey.isBlank()) {
@@ -694,13 +864,17 @@ class ChatRepository(
     }
 
     private enum class DaveTask {
-        IMAGE, SONG, MAP, APP, BATTERY, FLASHLIGHT, WIFI, HARDWARE, WEATHER, CRYPTO, GENERAL
+        IMAGE, SONG, POEM, MAP, APP, BATTERY, FLASHLIGHT, WIFI, HARDWARE, WEATHER, CRYPTO, SUMMARIZE, PROOFREAD, REWRITE, GENERAL
     }
 
     private fun routeEliteTask(content: String): DaveTask {
         return when {
+            content.startsWith("summarize this") || content.startsWith("summarise this") || content.startsWith("summarize the following") -> DaveTask.SUMMARIZE
+            content.startsWith("proofread this") || content.startsWith("fix my grammar") || content.startsWith("correct this") -> DaveTask.PROOFREAD
+            content.startsWith("rewrite this") || content.startsWith("make this sound better") -> DaveTask.REWRITE
             content.contains("generate image") || content.contains("draw") || content.contains("create an image") || content.contains("show me a picture of") -> DaveTask.IMAGE
             content.contains("generate song") || content.contains("write a song") || content.contains("compose a song") -> DaveTask.SONG
+            content.contains("write a poem") || content.contains("compose a poem") || content.contains("write some poetry") || content.contains("generate a poem") -> DaveTask.POEM
             content.startsWith("find ") || content.contains("where is") -> DaveTask.MAP
             content.startsWith("open ") || content.startsWith("launch ") -> DaveTask.APP
             content.contains("battery") -> DaveTask.BATTERY
@@ -724,6 +898,27 @@ class ChatRepository(
         userProfile: UserProfile?,
     ): String {
         return when (task) {
+            DaveTask.REWRITE -> {
+                val textToRewrite = content.substringAfter("this").substringAfter("better").trim()
+                val response = hardwareAccelerator.rewriteLocally(textToRewrite) ?: "My local AI core couldn't handle that right now."
+                val daveMsg = "$response ⚡️ (Rewritten locally via TPU)"
+                if (!isGhostMode) chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = daveMsg))
+                daveMsg
+            }
+            DaveTask.PROOFREAD -> {
+                val textToProof = content.substringAfter("this").substringAfter("grammar").substringAfter("correct").trim()
+                val response = hardwareAccelerator.proofreadLocally(textToProof) ?: "My local AI core couldn't handle that right now."
+                val daveMsg = "$response ⚡️ (Proofread locally via TPU)"
+                if (!isGhostMode) chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = daveMsg))
+                daveMsg
+            }
+            DaveTask.SUMMARIZE -> {
+                val textToSum = content.substringAfter("this").substringAfter("following").trim()
+                val response = hardwareAccelerator.summarizeLocally(textToSum) ?: "My local AI core couldn't handle that right now."
+                val daveMsg = "$response ⚡️ (Summarized locally via TPU)"
+                if (!isGhostMode) chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = daveMsg))
+                daveMsg
+            }
             DaveTask.IMAGE -> {
                 val prompt = content.lowercase().let { 
                     when {
@@ -737,6 +932,7 @@ class ChatRepository(
                 handleImageGeneration(sessionId, prompt.ifEmpty { content }, isGhostMode, userProfile)
             }
             DaveTask.SONG -> handleSongwriting(sessionId, content, locationInfo, isFastMode, isGodMode, isGhostMode, userProfile)
+            DaveTask.POEM -> handlePoetry(sessionId, content, locationInfo, isFastMode, isGodMode, isGhostMode, userProfile)
             DaveTask.MAP -> handlePlaceSearch(sessionId, content)
             DaveTask.APP -> {
                 val appName = content.lowercase().let { 

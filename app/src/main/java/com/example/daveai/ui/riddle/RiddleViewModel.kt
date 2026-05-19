@@ -6,6 +6,7 @@ import com.example.daveai.data.db.AnswerResult
 import com.example.daveai.data.db.Riddle
 import com.example.daveai.data.db.RiddleDao
 import com.example.daveai.data.db.verifyUserAnswer
+import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.util.DaveVoiceManager
 import com.example.daveai.util.RiddleSoundManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,13 +25,14 @@ data class RiddleUiState(
     val totalCount: Int = 0,
     val streak: Int = 0,
     val tierName: String = "CASUAL",
-    val errorTrigger: Int = 0
+    val errorTrigger: Int = 0,
 )
 
 class RiddleViewModel(
     private val riddleDao: RiddleDao,
     private val voiceManager: DaveVoiceManager,
-    private val soundManager: RiddleSoundManager
+    private val soundManager: RiddleSoundManager,
+    private val chatRepository: ChatRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RiddleUiState())
@@ -54,7 +56,16 @@ class RiddleViewModel(
     fun loadNextRiddle() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, isSolved = false, showHint = false, inputText = "") }
-            val riddle = riddleDao.getNextUnsolvedRiddle()
+            var riddle = riddleDao.getNextUnsolvedRiddle()
+            
+            if (riddle == null) {
+                // Procedurally generate new riddles!
+                _uiState.update { it.copy(isLoading = true) }
+                voiceManager.speak("Forging new challenges in the depths of the vault...")
+                chatRepository.generateProceduralRiddles(5)
+                riddle = riddleDao.getNextUnsolvedRiddle() // Try fetching again
+            }
+
             _uiState.update { state -> 
                 state.copy(
                     currentRiddle = riddle, 
@@ -64,7 +75,8 @@ class RiddleViewModel(
                         2 -> "EXPLORER"
                         3 -> "MASTER"
                         4 -> "ELITE"
-                        else -> "CASUAL"
+                        5 -> "LEGENDARY"
+                        else -> "UNKNOWN"
                     }
                 ) 
             }

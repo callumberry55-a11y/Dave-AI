@@ -21,6 +21,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,9 +35,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,6 +48,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -134,177 +138,214 @@ fun AssistantPillOverlay(
                 visible = false
                 onDismiss() 
             }
-            .background(Color.Black.copy(alpha = 0.3f)),
+            .background(Color.Black.copy(alpha = 0.5f)), // Slightly darker scrim
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
             visible = visible,
             enter = slideInVertically(
                 initialOffsetY = { it },
-                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
             ) + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
         ) {
-            Box(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = false) {}
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
-                                MaterialTheme.colorScheme.background,
-                            )
-                        )
-                    )
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 16.dp)
+                    .clickable(enabled = false) {}, // Prevent dismiss when clicking the sheet
+                shape = RoundedCornerShape(28.dp), // Like Gemini's bottom sheet
+                color = MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp).copy(alpha = 0.95f),
+                shadowElevation = 16.dp,
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(top = 48.dp, bottom = 48.dp)
-                        .animateContentSize()
+                        .animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium))
+                        .padding(24.dp),
                 ) {
+                    // Header / Status
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Dave Energy Indicator
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            Color.Transparent
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
+                        // Dave Sparkle Icon
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = when {
+                                isListening -> "Listening..."
+                                uiState.isThinking -> "Thinking..."
+                                uiState.daveResponse != null -> "Dave AI"
+                                else -> "Hi, I'm Dave"
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Spacer(Modifier.weight(1f))
+                        
+                        // Close / Expand Buttons
+                        if (uiState.daveResponse != null) {
+                            IconButton(
+                                onClick = onNavigateToChat,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.OpenInNew,
+                                    contentDescription = "Open Full Chat",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        
+                        IconButton(
+                            onClick = { 
+                                visible = false
+                                onDismiss() 
+                            },
+                            modifier = Modifier.size(32.dp)
                         ) {
-                            if (uiState.isThinking) {
+                            Icon(
+                                Icons.Rounded.Close, 
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+
+                    // Main Content Area (User query / Dave Response)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 60.dp, max = 400.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        if (uiState.isThinking) {
+                            // Thinking indicator
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.5.dp,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                            } else {
-                                Text("⚡️", style = MaterialTheme.typography.titleLarge)
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = "Analyzing request...",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        }
-
-                        Spacer(Modifier.width(16.dp))
-
-                        // Interaction Content
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(max = 400.dp)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            Text(
-                                text = when {
-                                    isListening -> "Dave is listening..."
-                                    uiState.isThinking -> "Dave is thinking..."
-                                    uiState.daveResponse != null -> "Dave AI"
-                                    else -> "Elite AI Partner"
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp
-                            )
+                        } else {
                             Text(
                                 text = when {
                                     uiState.daveResponse != null -> uiState.daveResponse!!
                                     spokenText.isNotBlank() -> spokenText
-                                    else -> "How can I help, boss?"
+                                    else -> "How can I help you today?"
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                fontSize = if (uiState.daveResponse != null) 16.sp else 20.sp, // Larger font for input, standard for response
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 24.sp
                             )
                         }
+                    }
 
-                        if (uiState.daveResponse == null) {
-                            // Pulse Mic Button
-                            AssistantMicButton(isListening = isListening) {
-                                if (isListening) voiceManager.stopListening()
-                                else voiceManager.startListening()
-                            }
-                        } else {
-                            IconButton(
+                    Spacer(Modifier.height(24.dp))
+
+                    // Bottom Bar (Mic / Re-ask)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // The Pixel Assistant glowing edge underneath the mic
+                        val infiniteTransition = rememberInfiniteTransition(label = "glowTransition")
+                        val glowAlpha by infiniteTransition.animateFloat(
+                            initialValue = 0.5f,
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(800, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "glowAlpha"
+                        )
+
+                        // If response exists, we show a "re-ask" button. Otherwise, we show the active listening mic.
+                        if (uiState.daveResponse != null) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
                                 onClick = {
                                     viewModel.reset()
                                     voiceManager.startListening()
                                 }
                             ) {
-                                Icon(
-                                    Icons.Rounded.Mic, 
-                                    contentDescription = "Ask Another",
-                                    tint = MaterialTheme.colorScheme.primary
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Mic, 
+                                        contentDescription = "Ask Another",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Ask something else",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // Background Glow matching Gemini
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (isListening) 80.dp else 64.dp)
+                                        .clip(CircleShape)
+                                        .graphicsLayer {
+                                            alpha = if (isListening) glowAlpha else 0.3f
+                                        }
+                                        .background(
+                                            Brush.sweepGradient(
+                                                colors = listOf(
+                                                    Color(0xFF4285F4), // Google Blue
+                                                    Color(0xFFEA4335), // Google Red
+                                                    Color(0xFFFBBC05), // Google Yellow
+                                                    Color(0xFF34A853), // Google Green
+                                                    Color(0xFF4285F4)  // Google Blue (wrap around)
+                                                )
+                                            )
+                                        )
                                 )
-                            }
 
-                            IconButton(onClick = onNavigateToChat) {
-                                Icon(
-                                    Icons.AutoMirrored.Rounded.OpenInNew,
-                                    contentDescription = "Open Full Chat",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                AssistantMicButton(isListening = isListening) {
+                                    if (isListening) voiceManager.stopListening()
+                                    else voiceManager.startListening()
+                                }
                             }
-                        }
-                        
-                        Spacer(Modifier.width(4.dp))
-
-                        IconButton(
-                            onClick = { 
-                                visible = false
-                                onDismiss() 
-                            }
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close, 
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                            )
                         }
                     }
                 }
-
-                // The Pixel Assistant glowing edge
-                val infiniteTransition = rememberInfiniteTransition(label = "glowTransition")
-                val glowAlpha by infiniteTransition.animateFloat(
-                    initialValue = 0.4f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(800, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "glowAlpha"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(if (isListening || uiState.isThinking) 6.dp else 2.dp)
-                        .graphicsLayer {
-                            alpha = if (isListening || uiState.isThinking) glowAlpha else 0.5f
-                        }
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    Color(0xFF4285F4), // Blue
-                                    Color(0xFFEA4335), // Red
-                                    Color(0xFFFBBC05), // Yellow
-                                    Color(0xFF34A853)  // Green
-                                )
-                            )
-                        )
-                )
             }
         }
     }

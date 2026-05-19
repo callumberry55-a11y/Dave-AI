@@ -9,7 +9,7 @@ import android.speech.SpeechRecognizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.*
+import java.util.Locale
 
 class VoiceToTextManager(context: Context) {
 
@@ -21,28 +21,50 @@ class VoiceToTextManager(context: Context) {
     private val _spokenText = MutableStateFlow("")
     val spokenText: StateFlow<String> = _spokenText.asStateFlow()
 
+    private val _finalText = MutableStateFlow("")
+    val finalText: StateFlow<String> = _finalText.asStateFlow()
+
+    private val _rmsLevel = MutableStateFlow(0f)
+    val rmsLevel: StateFlow<Float> = _rmsLevel.asStateFlow()
+    
+    // Callback to trigger when the user starts speaking (useful for barge-in)
+    var onSpeechBegan: (() -> Unit)? = null
+
     fun startListening() {
+        _isListening.value = true
+        _spokenText.value = ""
+        _finalText.value = ""
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            // Increase silence timeouts to prevent it from cutting the user off too early
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 5000L)
         }
 
         speechRecognizer.setRecognitionListener(
             object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
-                _isListening.value = true
-                _spokenText.value = ""
-            }
+                    // Already set listening to true to fix state propagation
+                }
 
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBeginningOfSpeech() {
+                onSpeechBegan?.invoke()
+            }
+            override fun onRmsChanged(rmsdB: Float) {
+                _rmsLevel.value = rmsdB
+            }
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
-                _isListening.value = false
+                // Do not set isListening to false here yet. 
+                // Wait for onResults or onError to finish the interaction gracefully.
             }
 
             override fun onError(error: Int) {
+                // Error occurred.
                 _isListening.value = false
             }
 
@@ -50,7 +72,10 @@ class VoiceToTextManager(context: Context) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
                     _spokenText.value = matches[0]
+                    _finalText.value = matches[0]
                 }
+                // Mark listening as finished only when we have the final result
+                _isListening.value = false
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
@@ -70,9 +95,11 @@ class VoiceToTextManager(context: Context) {
     fun stopListening() {
         speechRecognizer.stopListening()
         _isListening.value = false
+        _rmsLevel.value = 0f
     }
 
     fun destroy() {
         speechRecognizer.destroy()
+        _rmsLevel.value = 0f
     }
 }

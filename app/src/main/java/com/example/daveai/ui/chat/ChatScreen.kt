@@ -170,6 +170,7 @@ fun ChatScreen(
     viewModel: ChatViewModel,
     onLogout: () -> Unit,
     onEnterRiddleRoom: () -> Unit = {},
+    onEnterLiveMode: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
@@ -193,6 +194,7 @@ fun ChatScreen(
 
     val isListening by voiceToTextManager.isListening.collectAsState()
     val spokenText by voiceToTextManager.spokenText.collectAsState()
+    val finalText by voiceToTextManager.finalText.collectAsState()
 
     LaunchedEffect(locationPermissionState.allPermissionsGranted) {
         if (locationPermissionState.allPermissionsGranted) {
@@ -203,16 +205,34 @@ fun ChatScreen(
         }
     }
 
-    // Sync voice manager state to ViewModel
-    LaunchedEffect(isListening) {
-        viewModel.setIsListening(isListening)
-    }
-
     // Update input text as speech is recognized
     LaunchedEffect(spokenText) {
         if (spokenText.isNotBlank()) {
             viewModel.onInputTextChanged(spokenText)
         }
+    }
+
+    // Continuous Voice Loop Handlers
+    val app = context.applicationContext as com.example.daveai.DaveApplication
+    val isDaveSpeaking by app.voiceManager.isSpeaking.collectAsState()
+
+    // When continuous voice is ON, if Dave stops speaking, start listening again automatically.
+    LaunchedEffect(isDaveSpeaking, uiState.isContinuousVoiceMode) {
+        if (uiState.isContinuousVoiceMode && !isDaveSpeaking && !uiState.isLoading) {
+            // Slight delay so he doesn't hear his own echo or cut the user off instantly
+            kotlinx.coroutines.delay(500)
+            if (micPermissionState.status.isGranted) {
+                voiceToTextManager.startListening()
+            }
+        }
+    }
+
+    // If Dave is in continuous mode and we just finished listening (and we have text), send it!
+    LaunchedEffect(isListening) {
+        if (!isListening && uiState.isContinuousVoiceMode && uiState.inputText.isNotBlank() && !uiState.isLoading) {
+            viewModel.sendMessage()
+        }
+        viewModel.setIsListening(isListening)
     }
 
     DisposableEffect(Unit) {
@@ -479,6 +499,37 @@ fun ChatScreen(
                                 )
                             }
 
+                            // Continuous Voice Toggle
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
+                                    .clickable { viewModel.toggleContinuousVoiceMode() }
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Rounded.Mic, 
+                                        contentDescription = null, 
+                                        tint = if (uiState.isContinuousVoiceMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text("Continuous Voice", style = MaterialTheme.typography.labelLarge)
+                                        Text("Hands-free conversational loop", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                Switch(
+                                    checked = uiState.isContinuousVoiceMode,
+                                    onCheckedChange = { viewModel.toggleContinuousVoiceMode() },
+                                    colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.secondary)
+                                )
+                            }
+
                             // Assistant Settings
                             Row(
                                 modifier = Modifier
@@ -624,41 +675,63 @@ fun ChatScreen(
     ) {
     Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Dave AI", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge)
-                            Spacer(Modifier.width(8.dp))
-                            Surface(
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    "BETA",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                // Glassmorphism Top Bar
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background.copy(alpha = 0.6f),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.background.copy(alpha = 0.9f),
+                                        Color.Transparent
+                                    )
                                 )
+                            )
+                    ) {
+                        TopAppBar(
+                            title = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Dave AI", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleLarge)
+                                    Spacer(Modifier.width(8.dp))
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            "BETA",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("⚡️", style = MaterialTheme.typography.titleMedium)
+                                }
+                            },
+                            navigationIcon = {
+                                BouncyIconButton(icon = Icons.Rounded.Menu) { scope.launch { drawerState.open() } }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent,
+                                scrolledContainerColor = Color.Transparent
+                            ),
+                            actions = {
+                                IconButton(onClick = onEnterLiveMode) {
+                                    Icon(Icons.Rounded.Mic, contentDescription = "Live Voice Mode", tint = MaterialTheme.colorScheme.secondary)
+                                }
+                                IconButton(onClick = onEnterRiddleRoom) {
+                                    Icon(Icons.Rounded.AutoAwesome, contentDescription = "Riddle Room", tint = MaterialTheme.colorScheme.tertiary)
+                                }
+                                BouncyIconButton(icon = Icons.Rounded.Delete) { showDeleteConfirmation = true }
                             }
-                            Spacer(Modifier.width(8.dp))
-                            Text("⚡️", style = MaterialTheme.typography.titleMedium)
-                        }
-                    },
-                    navigationIcon = {
-                        BouncyIconButton(icon = Icons.Rounded.Menu) { scope.launch { drawerState.open() } }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.6f),
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp).copy(alpha = 0.8f)
-                    ),
-                    actions = {
-                        IconButton(onClick = onEnterRiddleRoom) {
-                            Icon(Icons.Rounded.AutoAwesome, contentDescription = "Riddle Room", tint = MaterialTheme.colorScheme.tertiary)
-                        }
-                        BouncyIconButton(icon = Icons.Rounded.Delete) { showDeleteConfirmation = true }
+                        )
                     }
-                )
+                }
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = Color.Transparent
@@ -752,13 +825,19 @@ fun DaveDock(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 QuickActionChip(Icons.Rounded.AttachFile, "File", onAttachClicked)
                 QuickActionChip(Icons.Rounded.Memory, "Vault", onVaultClick)
                 QuickActionChip(Icons.Rounded.Psychology, "Mode") {
                     val nextMode = DaveMode.entries[(uiState.currentMode.ordinal + 1) % DaveMode.entries.size]
                     onModeChange(nextMode)
+                }
+                QuickActionChip(Icons.Rounded.AutoAwesome, "Rewrite") {
+                    if (uiState.inputText.isNotBlank()) {
+                        onTextChanged("rewrite this: ${uiState.inputText}")
+                        onSendClicked()
+                    }
                 }
             }
         }
@@ -969,9 +1048,9 @@ fun MessageBubble(
     }
     
     val shape = if (message.isFromDave) {
-        RoundedCornerShape(24.dp, 24.dp, 24.dp, 4.dp)
+        RoundedCornerShape(4.dp, 24.dp, 24.dp, 24.dp)
     } else {
-        RoundedCornerShape(24.dp, 24.dp, 4.dp, 24.dp)
+        RoundedCornerShape(24.dp, 4.dp, 24.dp, 24.dp)
     }
 
     Column(
@@ -980,9 +1059,9 @@ fun MessageBubble(
     ) {
         Surface(
             shape = shape,
-            shadowElevation = 4.dp,
-            color = bubbleBg.copy(alpha = 0.85f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
+            shadowElevation = 1.dp, // Flow design prefers subtle inner depth rather than harsh drops
+            color = bubbleBg.copy(alpha = if (message.isFromDave) 0.6f else 0.9f), // Glassy for Dave, solid for user
+            border = if (message.isFromDave) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)) else null,
             modifier = Modifier.widthIn(max = 340.dp)
         ) {
             Column(

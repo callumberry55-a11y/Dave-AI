@@ -3,9 +3,11 @@ package com.example.daveai.ui.riddle
 import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
@@ -79,7 +81,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun RiddleScreen(
     viewModel: RiddleViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -240,9 +242,25 @@ fun RiddleScreen(
                                 tint = gold
                             )
                             Spacer(Modifier.height(24.dp))
+                            // Decrypting Text Animation
+                            var textReveal by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+                            LaunchedEffect(uiState.isSolved) {
+                                if (uiState.isSolved) {
+                                    androidx.compose.animation.core.animate(
+                                        initialValue = 0f,
+                                        targetValue = 1f,
+                                        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
+                                    ) { value, _ -> textReveal = value }
+                                } else {
+                                    textReveal = 0f
+                                }
+                            }
+
                             Text(
-                                uiState.currentRiddle!!.question,
-                                color = Color.White,
+                                if (uiState.isSolved) uiState.currentRiddle!!.question else uiState.currentRiddle!!.question.map { c -> 
+                                    if (c.isLetter() && (Math.random() > (1 - textReveal))) '*' else c
+                                }.joinToString(""),
+                                color = Color.White.copy(alpha = if (uiState.isSolved) 0.5f else 1f),
                                 fontSize = 22.sp,
                                 textAlign = TextAlign.Center,
                                 lineHeight = 32.sp,

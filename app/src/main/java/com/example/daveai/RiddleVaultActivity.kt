@@ -28,7 +28,7 @@ class RiddleVaultActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                 ) {
                     val viewModel: RiddleViewModel = viewModel {
-                        RiddleViewModel(riddleDao, voiceManager, riddleSoundManager)
+                        RiddleViewModel(riddleDao, voiceManager, riddleSoundManager, chatRepository)
                     }
                     RiddleScreen(
                         viewModel = viewModel,

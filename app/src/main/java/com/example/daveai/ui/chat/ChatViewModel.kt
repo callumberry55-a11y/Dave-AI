@@ -16,7 +16,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ChatUiState(
-    val messages: List<ChatMessage> = emptyList(),
+    val dbMessages: List<ChatMessage> = emptyList(),
+    val ghostMessages: List<ChatMessage> = emptyList(),
     val sessions: List<ChatSessionEntity> = emptyList(),
     val userProfile: UserProfile? = null,
     val currentSessionId: String? = null,
@@ -26,13 +27,18 @@ data class ChatUiState(
     val isFastMode: Boolean = false,
     val isGodMode: Boolean = false,
     val isGhostMode: Boolean = false,
+    val isContinuousVoiceMode: Boolean = false,
+    val isLiveMode: Boolean = false,
     val userLocation: String? = null,
     val totalAppUsers: Long = 0,
     val attachedFiles: List<AttachedFile> = emptyList(),
     val dynamicSuggestions: List<String> = emptyList(),
     val isVaultOpen: Boolean = false,
     val currentMode: DaveMode = DaveMode.EXPLORER,
-)
+) {
+    val messages: List<ChatMessage>
+        get() = dbMessages + ghostMessages
+}
 
 enum class DaveMode {
     EXPLORER, RESEARCHER, CREATIVE, HACKER, ANALYST, GAMER
@@ -51,6 +57,7 @@ data class ChatMessage(
     val mediaUrl: String? = null,
     val mediaType: MediaType = MediaType.NONE,
     val hasAttachment: Boolean = false,
+    val isLocal: Boolean = false,
     val actions: List<String> = emptyList(),
     val widgetType: WidgetType = WidgetType.NONE,
     val widgetData: String? = null,
@@ -104,6 +111,7 @@ class ChatViewModel(
             }
 
             // Always add some "Elite" features
+            suggestions.add("📝 Write a deep poem about AI")
             suggestions.add("🎸 Write a rock song about coding")
             suggestions.add("🎨 Create a futuristic AI portrait")
             suggestions.add("🛠️ Scan hardware performance")
@@ -142,7 +150,7 @@ class ChatViewModel(
     }
 
     fun selectSession(sessionId: String) {
-        _uiState.update { it.copy(currentSessionId = sessionId) }
+        _uiState.update { it.copy(currentSessionId = sessionId, ghostMessages = emptyList()) }
         messageCollectionJob?.cancel()
         messageCollectionJob = viewModelScope.launch {
             repository.getMessagesForSession(sessionId).collect { entities ->
@@ -154,6 +162,7 @@ class ChatViewModel(
                         mediaUrl = it.mediaUrl,
                         mediaType = try { MediaType.valueOf(it.mediaType) } catch (_: Exception) { MediaType.NONE },
                         hasAttachment = content.contains("[Attached File:"),
+                        isLocal = content.contains("⚡️ ("),
                         actions = buildList {
                             // Legacy auto-actions
                             if (content.contains("battery", ignoreCase = true)) add("Check Battery")
@@ -171,7 +180,7 @@ class ChatViewModel(
                         widgetData = it.widgetData,
                     )
                 }
-                _uiState.update { it.copy(messages = uiMessages) }
+                _uiState.update { it.copy(dbMessages = uiMessages) }
             }
         }
     }
@@ -199,6 +208,10 @@ class ChatViewModel(
         _uiState.update { it.copy(isListening = isListening) }
     }
 
+    fun setLiveMode(isActive: Boolean) {
+        _uiState.update { it.copy(isLiveMode = isActive) }
+    }
+
     fun toggleFastMode() {
         _uiState.update { it.copy(isFastMode = !it.isFastMode) }
     }
@@ -209,6 +222,10 @@ class ChatViewModel(
 
     fun toggleGhostMode() {
         _uiState.update { it.copy(isGhostMode = !it.isGhostMode) }
+    }
+
+    fun toggleContinuousVoiceMode() {
+        _uiState.update { it.copy(isContinuousVoiceMode = !it.isContinuousVoiceMode) }
     }
 
     fun setMode(mode: DaveMode) {
@@ -245,6 +262,17 @@ class ChatViewModel(
         val isGhostMode = _uiState.value.isGhostMode
         val userProfile = _uiState.value.userProfile
         val currentMode = _uiState.value.currentMode
+        val uid = auth?.currentUser?.uid
+        val isLiveMode = _uiState.value.isLiveMode
+
+        if (isGhostMode) {
+            val userMsg = ChatMessage(
+                content = currentInput,
+                isFromDave = false,
+                hasAttachment = attachments.isNotEmpty()
+            )
+            _uiState.update { it.copy(ghostMessages = it.ghostMessages + userMsg) }
+        }
 
         _uiState.update {
             it.copy(
@@ -256,7 +284,7 @@ class ChatViewModel(
 
         viewModelScope.launch {
             try {
-                repository.sendMessage(
+                val responseText = repository.sendMessage(
                     sessionId = sessionId,
                     userContent = currentInput,
                     locationInfo = location,
@@ -265,9 +293,24 @@ class ChatViewModel(
                     isGodMode = isGodMode || currentMode == DaveMode.HACKER,
                     isGhostMode = isGhostMode,
                     userProfile = userProfile,
+                    uid = uid,
                     bypassIntercept = false,
                     mode = currentMode,
+                    isLiveMode = isLiveMode,
                 )
+                
+                // Fetch user profile again in case the background memory extractor found something
+                fetchUserProfile()
+                
+                if (isGhostMode && !responseText.startsWith("Error:")) {
+                    val daveMsg = ChatMessage(
+                        content = responseText,
+                        isFromDave = true,
+                        isLocal = responseText.contains("⚡️ (")
+                    )
+                    _uiState.update { it.copy(ghostMessages = it.ghostMessages + daveMsg) }
+                }
+
                 refreshDynamicSuggestions() // Refresh after Dave responds
             } catch (e: Exception) {
                 android.util.Log.e("ChatViewModel", "Send failed", e)
@@ -281,7 +324,7 @@ class ChatViewModel(
         viewModelScope.launch {
             repository.deleteSession(sessionId)
             if (_uiState.value.currentSessionId == sessionId) {
-                _uiState.update { it.copy(currentSessionId = null, messages = emptyList()) }
+                _uiState.update { it.copy(currentSessionId = null, dbMessages = emptyList(), ghostMessages = emptyList()) }
             }
         }
     }

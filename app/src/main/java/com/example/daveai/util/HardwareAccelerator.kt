@@ -3,8 +3,6 @@ package com.example.daveai.util
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import com.google.ai.client.generativeai.GenerativeModel
-import com.google.ai.client.generativeai.type.generationConfig
 import com.google.mlkit.genai.prompt.Generation
 
 /**
@@ -50,23 +48,22 @@ class HardwareAccelerator(@Suppress("unused") private val context: Context) {
         }
     }
 
-    /**
-     * Returns a GenerativeModel configured to use the TPU when available.
-     * Leveraging Google AI Edge SDK.
-     */
-    fun getOptimizedModel(apiKey: String): GenerativeModel {
-        val config = generationConfig {
-            temperature = 0.7f
-            topK = 40
-            topP = 0.95f
-        }
-
-        return GenerativeModel(
-            modelName = "gemini-1.5-flash", 
-            apiKey = apiKey,
-            generationConfig = config,
-        )
+    suspend fun summarizeLocally(text: String): String? {
+        if (!isAICoreAvailable()) return null
+        return generateOnDevice("Summarize the following text concisely:\n\n$text")
     }
+
+    suspend fun proofreadLocally(text: String): String? {
+        if (!isAICoreAvailable()) return null
+        return generateOnDevice("Proofread and correct the grammar of the following text. Only output the corrected text:\n\n$text")
+    }
+
+    suspend fun rewriteLocally(text: String): String? {
+        if (!isAICoreAvailable()) return null
+        return generateOnDevice("Rewrite the following text to be more professional and clear. Only output the rewritten text:\n\n$text")
+    }
+
+
 
     /**
      * Instructions for Dave to utilize Android System Intelligence for 

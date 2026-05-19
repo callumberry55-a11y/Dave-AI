@@ -13,9 +13,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.media3.common.util.UnstableApi
@@ -29,6 +27,9 @@ import com.example.daveai.ui.auth.AuthViewModel
 import com.example.daveai.ui.chat.ChatScreen
 import com.example.daveai.ui.chat.ChatViewModel
 import com.example.daveai.ui.landing.LandingScreen
+import com.example.daveai.ui.lessons.LessonsScreen
+import com.example.daveai.ui.lessons.LessonsViewModel
+import com.example.daveai.ui.live.LiveVoiceScreen
 import com.example.daveai.ui.navigation.DaveRoute
 import com.example.daveai.ui.riddle.RiddleScreen
 import com.example.daveai.ui.riddle.RiddleViewModel
@@ -110,7 +111,12 @@ fun DaveApp(
             riddleDao = app.chatRepository.getRiddleDao(),
             voiceManager = app.voiceManager,
             soundManager = app.riddleSoundManager,
+            chatRepository = app.chatRepository,
         )
+    }
+
+    val lessonsViewModel: LessonsViewModel = viewModel {
+        LessonsViewModel(app.chatRepository)
     }
 
     val backStack = rememberNavBackStack(startRoute)
@@ -153,8 +159,11 @@ fun DaveApp(
                                     backStack.clear()
                                     backStack.add(DaveRoute.Auth)
                                 },
+                                onEnterRiddleRoom = {
+                                    backStack.add(DaveRoute.Riddle)
+                                }
                             ) {
-                                backStack.add(DaveRoute.Riddle)
+                                backStack.add(DaveRoute.LiveVoice)
                             }
                         }
                     }
@@ -167,9 +176,17 @@ fun DaveApp(
                     }
                     is DaveRoute.Lessons -> {
                         NavEntry(key) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("University Modules coming soon, boss! 📚⚡", color = Color.White)
-                            }
+                            LessonsScreen(
+                                viewModel = lessonsViewModel,
+                            ) { backStack.removeLastOrNull() }
+                        }
+                    }
+                    is DaveRoute.LiveVoice -> {
+                        NavEntry(key) {
+                            LiveVoiceScreen(
+                                viewModel = chatViewModel,
+                                onClose = { backStack.removeLastOrNull() }
+                            )
                         }
                     }
                     else -> NavEntry(key) { Text("Unknown Route") }
