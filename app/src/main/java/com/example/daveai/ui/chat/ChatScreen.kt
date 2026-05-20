@@ -721,9 +721,10 @@ fun ChatScreen(
                                 scrolledContainerColor = Color.Transparent
                             ),
                             actions = {
-                                IconButton(onClick = onEnterLiveMode) {
-                                    Icon(Icons.Rounded.Mic, contentDescription = "Live Voice Mode", tint = MaterialTheme.colorScheme.secondary)
-                                }
+                                // Live mode disabled
+                                // IconButton(onClick = onEnterLiveMode) {
+                                //     Icon(Icons.Rounded.Mic, contentDescription = "Live Voice Mode", tint = MaterialTheme.colorScheme.secondary)
+                                // }
                                 IconButton(onClick = onEnterRiddleRoom) {
                                     Icon(Icons.Rounded.AutoAwesome, contentDescription = "Riddle Room", tint = MaterialTheme.colorScheme.tertiary)
                                 }
@@ -1631,12 +1632,12 @@ private fun getAttachedFileFromUri(context: Context, uri: Uri): AttachedFile? {
     
     return try {
         val inputStream: InputStream? = contentResolver.openInputStream(uri)
-        // Set a 5MB limit to prevent OutOfMemoryError on large files
-        val sizeLimit = 5 * 1024 * 1024
+        // Set a 35MB limit to prevent OutOfMemoryError on extremely large files, but allow most PDFs/images
+        val sizeLimit = 35 * 1024 * 1024
         var bytes = inputStream?.readBytes()
         if (bytes != null && bytes.size > sizeLimit) {
             bytes = null
-            fileName = "$fileName (File too large, skipped)"
+            fileName = "$fileName (File too large, over 35MB)"
         }
         val base64 = bytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
         AttachedFile(uri, fileName, mimeType, base64)

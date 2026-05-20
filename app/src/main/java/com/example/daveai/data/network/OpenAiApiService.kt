@@ -33,7 +33,7 @@ data class TtsRequest(
     @param:Json(name = "model") val model: String = "tts-1",
     @param:Json(name = "input") val input: String,
     @param:Json(name = "voice") val voice: String = "echo", // echo is a balanced, warm male voice
-    @param:Json(name = "response_format") val responseFormat: String = "mp3",
+    @param:Json(name = "response_format") val responseFormat: String = "opus", // Opus streams much faster than MP3
     @param:Json(name = "speed") val speed: Double = 1.05, // Slightly faster, but relaxed for warmth
 )
 

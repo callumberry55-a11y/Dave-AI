@@ -373,7 +373,7 @@ class ChatRepository(
                 }
 
                 if (isLiveMode) {
-                    append("LIVE VOICE MODE ACTIVE: You are speaking in a real-time voice call. KEEP YOUR RESPONSES EXTREMELY SHORT. Maximum 1 or 2 brief sentences. Be casual, fast-paced, and conversational. DO NOT use markdown, bullet points, or code blocks. Speak exactly as a human would in a fast back-and-forth phone call. ")
+                    append("LIVE VOICE MODE ACTIVE: You are speaking in a real-time voice call. KEEP YOUR RESPONSES EXTREMELY SHORT. Maximum 1 or 2 brief sentences. Be casual, fast-paced, and highly conversational. Use filler words like 'Hmm', 'Well', 'Yeah', or 'Got it' naturally. Use contractions (gonna, wanna). DO NOT use markdown, bullet points, or code blocks. Speak exactly as a human would in a fluid, imperfect back-and-forth phone call. ")
                 }
 
                 if (isGhostMode) {

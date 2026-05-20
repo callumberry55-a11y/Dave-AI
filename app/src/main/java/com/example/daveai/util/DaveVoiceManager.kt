@@ -1,6 +1,7 @@
 package com.example.daveai.util
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.util.Log
 import com.example.daveai.BuildConfig
@@ -30,6 +31,14 @@ class DaveVoiceManager(
     private val _isSpeaking = MutableStateFlow(value = false)
     val isSpeaking: StateFlow<Boolean> = _isSpeaking.asStateFlow()
 
+    var onStartSpeaking: (() -> Unit)? = null
+    var onDoneSpeaking: (() -> Unit)? = null
+    var onErrorSpeaking: (() -> Unit)? = null
+
+    init {
+        // Initialization if needed
+    }
+
     suspend fun speak(text: String) = withContext(Dispatchers.IO) {
         val apiKey = BuildConfig.OPENAI_API_KEY
         if (apiKey.isBlank()) return@withContext
@@ -37,8 +46,8 @@ class DaveVoiceManager(
         // Cancel any previous job if we are interrupted
         stop()
 
-        // Simple sentence chunker: split on punctuation followed by space
-        val sentences = text.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
+        // Granular chunker: split on punctuation followed by space, including commas and em-dashes for faster initial TTS
+        val sentences = text.split(Regex("(?<=[.!?,\n-])\\s+")).filter { it.isNotBlank() }
 
         scopeJob = CoroutineScope(Dispatchers.IO).launch {
             for (sentence in sentences) {
@@ -51,7 +60,7 @@ class DaveVoiceManager(
                     if (response.isSuccessful) {
                         val body = response.body()
                         if (body != null) {
-                            val tempFile = File.createTempFile("dave_voice_chunk", ".mp3", context.cacheDir)
+                            val tempFile = File.createTempFile("dave_voice_chunk", ".opus", context.cacheDir)
                             FileOutputStream(tempFile).use { output ->
                                 body.byteStream().use { input ->
                                     input.copyTo(output)
@@ -80,11 +89,22 @@ class DaveVoiceManager(
     private fun playNextInQueue() {
         val nextFile = audioQueue.poll()
         if (nextFile != null) {
+            val wasPlaying = isPlayingQueue
             isPlayingQueue = true
             _isSpeaking.value = true
             
+            if (!wasPlaying) {
+                onStartSpeaking?.invoke()
+            }
+            
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(nextFile.absolutePath)
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                setAudioAttributes(audioAttributes)
+                
                 prepare()
                 start()
                 setOnCompletionListener { 
@@ -95,15 +115,28 @@ class DaveVoiceManager(
                     
                     playNextInQueue()
                 }
+                setOnErrorListener { mp, _, _ -> 
+                    mp.release()
+                    if (mediaPlayer == mp) mediaPlayer = null
+                    try { nextFile.delete() } catch (_: Exception) {}
+                    playNextInQueue()
+                    true
+                }
             }
         } else {
             // Queue is empty
+            val wasPlaying = isPlayingQueue
             isPlayingQueue = false
             _isSpeaking.value = false
+            
+            if (wasPlaying) {
+                onDoneSpeaking?.invoke()
+            }
         }
     }
 
     fun stop() {
+        val wasPlaying = isPlayingQueue
         scopeJob?.cancel()
         mediaPlayer?.stop()
         mediaPlayer?.release()
@@ -111,5 +144,13 @@ class DaveVoiceManager(
         audioQueue.clear()
         isPlayingQueue = false
         _isSpeaking.value = false
+        
+        if (wasPlaying) {
+            onDoneSpeaking?.invoke()
+        }
+    }
+
+    fun destroy() {
+        stop()
     }
 }

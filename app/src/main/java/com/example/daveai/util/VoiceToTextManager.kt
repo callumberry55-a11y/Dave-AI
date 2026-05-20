@@ -98,6 +98,12 @@ class VoiceToTextManager(context: Context) {
         _rmsLevel.value = 0f
     }
 
+    fun cancel() {
+        speechRecognizer.cancel()
+        _isListening.value = false
+        _rmsLevel.value = 0f
+    }
+
     fun destroy() {
         speechRecognizer.destroy()
         _rmsLevel.value = 0f

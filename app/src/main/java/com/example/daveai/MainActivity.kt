@@ -163,7 +163,8 @@ fun DaveApp(
                                     backStack.add(DaveRoute.Riddle)
                                 }
                             ) {
-                                backStack.add(DaveRoute.LiveVoice)
+                                // Live mode disabled
+                                // backStack.add(DaveRoute.LiveVoice)
                             }
                         }
                     }

@@ -1,6 +1,17 @@
 package com.example.daveai.ui.live
 
 import android.Manifest
+import android.app.Activity
+import android.util.Base64
+import android.view.WindowManager
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -11,21 +22,30 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,12 +62,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.daveai.DaveApplication
+import com.example.daveai.ui.chat.AttachedFile
 import com.example.daveai.ui.chat.ChatViewModel
 import com.example.daveai.util.VoiceToTextManager
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -63,6 +88,7 @@ fun LiveVoiceScreen(
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as DaveApplication
+    val activity = context as? Activity
     val voiceManager = remember { VoiceToTextManager(context) }
     val daveVoice = app.voiceManager
 
@@ -74,7 +100,46 @@ fun LiveVoiceScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
+    
     var isMuted by remember { mutableStateOf(false) }
+    var isVisionEnabled by remember { mutableStateOf(false) }
+    
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
+    var previewUseCase: Preview? by remember { mutableStateOf(null) }
+
+    // Initialize CameraX
+    LaunchedEffect(isVisionEnabled, cameraPermissionState.status.isGranted) {
+        if (isVisionEnabled && cameraPermissionState.status.isGranted) {
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                
+                val preview = Preview.Builder().build()
+                val capture = ImageCapture.Builder()
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .build()
+
+                try {
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        capture
+                    )
+                    imageCapture = capture
+                    previewUseCase = preview
+                } catch (e: Exception) {
+                    android.util.Log.e("DaveVision", "Camera bind failed", e)
+                }
+            }, ContextCompat.getMainExecutor(context))
+        } else {
+            imageCapture = null
+            previewUseCase = null
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.setLiveMode(true)
@@ -87,19 +152,81 @@ fun LiveVoiceScreen(
                 daveVoice.stop() // Immediately stop Dave if the user starts talking
             }
         }
+        
+        daveVoice.onStartSpeaking = {
+            activity?.runOnUiThread {
+                voiceManager.cancel()
+            }
+        }
+        daveVoice.onDoneSpeaking = {
+            activity?.runOnUiThread {
+                if (!isMuted) voiceManager.startListening()
+            }
+        }
+        daveVoice.onErrorSpeaking = {
+            activity?.runOnUiThread {
+                if (!isMuted) voiceManager.startListening()
+            }
+        }
     }
 
     LaunchedEffect(finalText) {
         if (finalText.isNotBlank() && !isMuted && !uiState.isLoading) {
-            viewModel.onInputTextChanged(finalText)
-            viewModel.sendMessage()
+            val currentText = finalText
+            
+            val lowerText = currentText.lowercase()
+            val hasVisionTrigger = lowerText.contains("look") || 
+                                   lowerText.contains("see") || 
+                                   lowerText.contains("what is") || 
+                                   lowerText.contains("this") || 
+                                   lowerText.contains("read") || 
+                                   lowerText.contains("camera") || 
+                                   lowerText.contains("vision") || 
+                                   lowerText.contains("watch")
+
+            if (isVisionEnabled && imageCapture != null && hasVisionTrigger) {
+                // If Vision is active AND the user asked about their surroundings, take a photo
+                imageCapture?.takePicture(
+                    ContextCompat.getMainExecutor(context),
+                    object : ImageCapture.OnImageCapturedCallback() {
+                        override fun onCaptureSuccess(image: ImageProxy) {
+                            val buffer = image.planes[0].buffer
+                            val bytes = ByteArray(buffer.remaining())
+                            buffer.get(bytes)
+                            val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                            
+                            viewModel.addAttachment(
+                                AttachedFile(
+                                    uri = android.net.Uri.EMPTY,
+                                    name = "dave_vision_capture.jpg",
+                                    type = "image/jpeg",
+                                    base64Data = base64
+                                )
+                            )
+                            
+                            viewModel.onInputTextChanged(currentText)
+                            viewModel.sendMessage()
+                            image.close()
+                        }
+
+                        override fun onError(exception: ImageCaptureException) {
+                            android.util.Log.e("DaveVision", "Capture failed", exception)
+                            viewModel.onInputTextChanged(currentText)
+                            viewModel.sendMessage()
+                        }
+                    }
+                )
+            } else {
+                viewModel.onInputTextChanged(currentText)
+                viewModel.sendMessage()
+            }
         }
     }
 
     // Main orchestration loop
-    LaunchedEffect(isListening, isDaveSpeaking, uiState.isLoading, isMuted, micPermissionState.status.isGranted) {
+    LaunchedEffect(isListening, uiState.isLoading, isMuted, micPermissionState.status.isGranted) {
         if (micPermissionState.status.isGranted && !isMuted) {
-            if (!isListening && !isDaveSpeaking && !uiState.isLoading) {
+            if (!isListening && !uiState.isLoading) {
                 delay(300) // Brief pause to prevent rapid error looping
                 // Recheck to ensure loading state hasn't changed during the delay
                 if (!uiState.isLoading) {
@@ -112,7 +239,11 @@ fun LiveVoiceScreen(
     }
 
     DisposableEffect(Unit) {
+        // Keep screen awake while in Live Mode
+        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        
         onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             viewModel.setLiveMode(false)
             voiceManager.onSpeechBegan = null
             voiceManager.destroy()
@@ -135,6 +266,23 @@ fun LiveVoiceScreen(
             .background(Color(0xFF0A0A0A)),
         contentAlignment = Alignment.Center
     ) {
+        // Dave Vision Camera Preview
+        if (isVisionEnabled && previewUseCase != null) {
+            AndroidView(
+                factory = { ctx ->
+                    PreviewView(ctx).apply {
+                        scaleType = PreviewView.ScaleType.FILL_CENTER
+                        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                    }.also {
+                        previewUseCase?.surfaceProvider = it.surfaceProvider
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = 0.4f } // Darken/blur it so the UI still pops
+            )
+        }
+
         // Close Button
         IconButton(
             onClick = onClose,
@@ -156,7 +304,8 @@ fun LiveVoiceScreen(
                 isListening = isListening,
                 isThinking = uiState.isLoading,
                 isSpeaking = isDaveSpeaking,
-                rms = rmsLevel
+                rms = rmsLevel,
+                mode = uiState.currentMode
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -171,6 +320,7 @@ fun LiveVoiceScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // User Speech Preview
             Text(
                 text = if (isListening) spokenText else "",
                 color = Color.Gray,
@@ -178,24 +328,85 @@ fun LiveVoiceScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 32.dp).height(48.dp) // Fixed height to prevent bouncing
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Dave Live Transcript
+            val lastDaveMessage = uiState.messages.lastOrNull { it.isFromDave }?.content ?: ""
+            AnimatedVisibility(
+                visible = isDaveSpeaking || uiState.isLoading || (!isListening && lastDaveMessage.isNotBlank()),
+                enter = fadeIn() + slideInVertically(initialOffsetY = { 50 }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { 50 })
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp)
+                        .height(120.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                        .background(Color.DarkGray.copy(alpha = 0.3f))
+                        .padding(16.dp)
+                ) {
+                    val scrollState = rememberScrollState()
+                    LaunchedEffect(lastDaveMessage) {
+                        scrollState.animateScrollTo(scrollState.maxValue)
+                    }
+                    Text(
+                        text = lastDaveMessage,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Start,
+                        lineHeight = 24.sp,
+                        modifier = Modifier.verticalScroll(scrollState)
+                    )
+                }
+            }
         }
 
         // Mute Button
-        IconButton(
-            onClick = { isMuted = !isMuted },
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(48.dp)
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(if (isMuted) MaterialTheme.colorScheme.error else Color.DarkGray.copy(alpha = 0.5f))
+                .padding(48.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Icon(
-                imageVector = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
-                contentDescription = "Mute",
-                tint = Color.White,
-                modifier = Modifier.size(32.dp)
-            )
+            // Vision Toggle Button
+            IconButton(
+                onClick = { 
+                    if (cameraPermissionState.status.isGranted) {
+                        isVisionEnabled = !isVisionEnabled
+                    } else {
+                        cameraPermissionState.launchPermissionRequest()
+                    }
+                },
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(if (isVisionEnabled) MaterialTheme.colorScheme.primary else Color.DarkGray.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    imageVector = if (isVisionEnabled) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                    contentDescription = "Dave Vision",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            // Mute Button
+            IconButton(
+                onClick = { isMuted = !isMuted },
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(if (isMuted) MaterialTheme.colorScheme.error else Color.DarkGray.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    imageVector = if (isMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                    contentDescription = "Mute",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
     }
 }
@@ -205,7 +416,8 @@ fun SiriWaveAnimation(
     isListening: Boolean,
     isThinking: Boolean,
     isSpeaking: Boolean,
-    rms: Float
+    rms: Float,
+    mode: com.example.daveai.ui.chat.DaveMode = com.example.daveai.ui.chat.DaveMode.EXPLORER
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
     val phase by infiniteTransition.animateFloat(
@@ -232,10 +444,19 @@ fun SiriWaveAnimation(
         label = "dynamic_amplitude"
     )
     
-    // Wave colors
-    val color1 by animateColorAsState(targetValue = if (isSpeaking) Color(0xFF18FFFF) else if (isThinking) Color(0xFFFFD54F) else if (isListening) Color(0xFFB388FF) else Color.DarkGray, label = "c1")
-    val color2 by animateColorAsState(targetValue = if (isSpeaking) Color(0xFF00B0FF) else if (isThinking) Color(0xFFFF6F00) else if (isListening) Color(0xFF7C4DFF) else Color.Gray, label = "c2")
-    val color3 by animateColorAsState(targetValue = if (isSpeaking) Color(0xFF00E5FF) else if (isThinking) Color(0xFFFFC107) else if (isListening) Color(0xFF651FFF) else Color.LightGray, label = "c3")
+    // Wave colors based on state AND mode
+    val speakingBaseColor = when (mode) {
+        com.example.daveai.ui.chat.DaveMode.HACKER -> Color(0xFF00E676) // Matrix Green
+        com.example.daveai.ui.chat.DaveMode.CREATIVE -> Color(0xFFFF4081) // Neon Pink
+        com.example.daveai.ui.chat.DaveMode.ANALYST -> Color(0xFFFFB300) // Amber
+        com.example.daveai.ui.chat.DaveMode.GAMER -> Color(0xFFFF5252) // Crimson
+        com.example.daveai.ui.chat.DaveMode.RESEARCHER -> Color(0xFF448AFF) // Light Blue
+        else -> Color(0xFF18FFFF) // Default Cyan
+    }
+
+    val color1 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor else if (isThinking) Color(0xFFFFD54F) else if (isListening) Color(0xFFB388FF) else Color.DarkGray, label = "c1")
+    val color2 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor.copy(alpha = 0.7f) else if (isThinking) Color(0xFFFF6F00) else if (isListening) Color(0xFF7C4DFF) else Color.Gray, label = "c2")
+    val color3 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor.copy(alpha = 0.4f) else if (isThinking) Color(0xFFFFC107) else if (isListening) Color(0xFF651FFF) else Color.LightGray, label = "c3")
 
     androidx.compose.foundation.Canvas(modifier = Modifier.size(300.dp, 200.dp)) {
         val w = size.width
