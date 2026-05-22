@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 data class AuthUiState(
     val email: String = "",
     val password: String = "",
+    val developerCode: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false,
@@ -45,6 +46,10 @@ class AuthViewModel : ViewModel() {
         _uiState.update { it.copy(password = password, error = null) }
     }
 
+    fun onDeveloperCodeChanged(code: String) {
+        _uiState.update { it.copy(developerCode = code, error = null) }
+    }
+
     fun signUp() {
         val state = _uiState.value
         if (state.email.isBlank() || state.password.isBlank()) return
@@ -60,8 +65,9 @@ class AuthViewModel : ViewModel() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = firebaseAuth.currentUser
+                    val isDev = state.developerCode == "1798"
                     viewModelScope.launch {
-                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData)
+                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, isDev)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
                 } else {
@@ -85,12 +91,52 @@ class AuthViewModel : ViewModel() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = firebaseAuth.currentUser
+                    val isDev = state.developerCode == "1798"
                     viewModelScope.launch {
-                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData)
+                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, isDev)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
                 } else {
                     _uiState.update { it.copy(isLoading = false, error = task.exception?.message ?: "Login failed") }
+                }
+            }
+    }
+
+    fun loginAsReviewer() {
+        val firebaseAuth = auth
+        if (firebaseAuth == null) {
+            _uiState.update { it.copy(error = "Firebase not initialized") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        
+        // Dedicated reviewer account
+        val reviewerEmail = "reviewer@daveai.com"
+        val reviewerPassword = "DaveAIReviewer2026!"
+
+        firebaseAuth.signInWithEmailAndPassword(reviewerEmail, reviewerPassword)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val user = firebaseAuth.currentUser
+                    viewModelScope.launch {
+                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, false)
+                        _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+                    }
+                } else {
+                    // If the account doesn't exist, try to create it for the reviewer
+                    firebaseAuth.createUserWithEmailAndPassword(reviewerEmail, reviewerPassword)
+                        .addOnCompleteListener { createCtx ->
+                            if (createCtx.isSuccessful) {
+                                val user = firebaseAuth.currentUser
+                                viewModelScope.launch {
+                                    userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, false)
+                                    _uiState.update { it.copy(isLoading = false, isSuccess = true) }
+                                }
+                            } else {
+                                _uiState.update { it.copy(isLoading = false, error = "Reviewer access unavailable. Please check internet connection.") }
+                            }
+                        }
                 }
             }
     }

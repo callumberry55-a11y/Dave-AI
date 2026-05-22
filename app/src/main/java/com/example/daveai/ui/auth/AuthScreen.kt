@@ -22,9 +22,6 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,8 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -46,6 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.daveai.ui.chat.BouncyButton
+import com.example.daveai.ui.components.NeuralCard
+import com.example.daveai.ui.components.NeuralTextField
 
 @Composable
 fun AuthScreen(
@@ -54,6 +54,7 @@ fun AuthScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var isLoginMode by remember { mutableStateOf(value = true) }
+    var showDeveloperField by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
@@ -61,30 +62,19 @@ fun AuthScreen(
         }
     }
 
-    // A sleek background gradient
-    val backgroundBrush = Brush.linearGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.secondaryContainer,
-        ),
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundBrush)
+            .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding(),
         contentAlignment = Alignment.Center,
     ) {
         // Floating Card
-        Surface(
+        NeuralCard(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .shadow(24.dp, RoundedCornerShape(32.dp)),
             shape = RoundedCornerShape(32.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
         ) {
             Column(
                 modifier = Modifier
@@ -105,7 +95,13 @@ fun AuthScreen(
                 Crossfade(targetState = isLoginMode, label = "title_crossfade") { login ->
                     Text(
                         text = if (login) "Welcome Back" else "Join Dave AI",
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.2f),
+                                offset = Offset(0f, 4f),
+                                blurRadius = 8f
+                            )
+                        ),
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.primary,
                         textAlign = TextAlign.Center
@@ -125,39 +121,40 @@ fun AuthScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                val textFieldColors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                )
-
-                OutlinedTextField(
+                NeuralTextField(
                     value = uiState.email,
                     onValueChange = viewModel::onEmailChanged,
-                    label = { Text("Email") },
+                    label = "Email",
                     leadingIcon = { Icon(Icons.Rounded.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true,
-                    colors = textFieldColors,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
+                NeuralTextField(
                     value = uiState.password,
                     onValueChange = viewModel::onPasswordChanged,
-                    label = { Text("Password") },
+                    label = "Password",
                     leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true,
-                    colors = textFieldColors,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
+
+                AnimatedVisibility(visible = showDeveloperField) {
+                    Column {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        NeuralTextField(
+                            value = uiState.developerCode,
+                            onValueChange = viewModel::onDeveloperCodeChanged,
+                            label = "Developer PIN",
+                            leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+                        )
+                    }
+                }
 
                 AnimatedVisibility(visible = uiState.error != null) {
                     uiState.error?.let {
@@ -204,6 +201,31 @@ fun AuthScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
+                }
+
+                TextButton(
+                    onClick = { showDeveloperField = !showDeveloperField },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = if (showDeveloperField) "Standard User Login" else "Are you my Creator?",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                TextButton(
+                    onClick = { viewModel.loginAsReviewer() },
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text(
+                        text = "Google Play Reviewer Access",
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

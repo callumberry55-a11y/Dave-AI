@@ -27,4 +27,7 @@ data class ChatMessageEntity(
     val widgetType: String = "NONE", // NONE, MAP, HARDWARE
     val widgetData: String? = null, // JSON string for widget specifics
     val timestamp: Long = System.currentTimeMillis(),
+    val mood: String = "NEUTRAL",
+    val hasAttachment: Boolean = false,
+    val attachmentNames: String? = null, // Comma-separated list
 )

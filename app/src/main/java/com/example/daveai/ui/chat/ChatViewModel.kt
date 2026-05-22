@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class ChatUiState(
     val dbMessages: List<ChatMessage> = emptyList(),
@@ -27,7 +28,6 @@ data class ChatUiState(
     val isFastMode: Boolean = false,
     val isGodMode: Boolean = false,
     val isGhostMode: Boolean = false,
-    val isContinuousVoiceMode: Boolean = false,
     val isLiveMode: Boolean = false,
     val userLocation: String? = null,
     val totalAppUsers: Long = 0,
@@ -35,13 +35,28 @@ data class ChatUiState(
     val dynamicSuggestions: List<String> = emptyList(),
     val isVaultOpen: Boolean = false,
     val currentMode: DaveMode = DaveMode.EXPLORER,
+    val semanticMemories: List<com.example.daveai.data.db.SemanticMemory> = emptyList(),
+    val primaryColor: Int = 0xFF00E676.toInt(),
+    val useSystemWallpaper: Boolean = false,
+    val customWallpaperUri: String? = null,
+    val digitalPersona: String = "HACKER",
+    val cyberIntensity: Float = 0.8f,
+    val typographyStyle: String = "MODERN",
+    val isMoodReactive: Boolean = false,
+    val meshAnimationSpeed: Float = 1.0f,
+    val useIrishAccent: Boolean = false,
+    val isBuildingApp: Boolean = false,
+    val buildProgress: Float = 0f,
+    val buildLogs: List<String> = emptyList(),
+    val appBlueprint: List<com.example.daveai.util.BlueprintItem> = emptyList(),
+    val isShowingPreview: Boolean = false,
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
 }
 
 enum class DaveMode {
-    EXPLORER, RESEARCHER, CREATIVE, HACKER, ANALYST, GAMER
+    EXPLORER, RESEARCHER, CREATIVE, HACKER, ANALYST, GAMER, VISIONARY, SOCIOLOGIST, APP_FACTORY
 }
 
 data class AttachedFile(
@@ -61,6 +76,7 @@ data class ChatMessage(
     val actions: List<String> = emptyList(),
     val widgetType: WidgetType = WidgetType.NONE,
     val widgetData: String? = null,
+    val mood: String = "NEUTRAL",
 )
 
 enum class MediaType {
@@ -68,11 +84,12 @@ enum class MediaType {
 }
 
 enum class WidgetType {
-    NONE, MAP, HARDWARE
+    NONE, MAP, HARDWARE, FINANCE, FITNESS, SPOTIFY, NEWS, CALENDAR, USAGE
 }
 
 class ChatViewModel(
     private val repository: ChatRepository,
+    private val settingsRepository: com.example.daveai.data.repository.SettingsRepository
 ) : ViewModel() {
     private val userStatsRepository = UserStatsRepository()
     private val auth = try { FirebaseAuth.getInstance() } catch (_: Exception) { null }
@@ -84,9 +101,65 @@ class ChatViewModel(
 
     init {
         observeSessions()
+        observeMemories()
         fetchUserCount()
         fetchUserProfile()
         refreshDynamicSuggestions()
+
+        // Phase 12: Observe Personalization
+        viewModelScope.launch {
+            settingsRepository.primaryColor.collect { color ->
+                _uiState.update { it.copy(primaryColor = color) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.useSystemWallpaper.collect { use ->
+                _uiState.update { it.copy(useSystemWallpaper = use) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.customWallpaperUri.collect { uri ->
+                _uiState.update { it.copy(customWallpaperUri = uri) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.digitalPersona.collect { persona ->
+                _uiState.update { it.copy(digitalPersona = persona) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.cyberIntensity.collect { intensity ->
+                _uiState.update { it.copy(cyberIntensity = intensity) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.typographyStyle.collect { style ->
+                _uiState.update { it.copy(typographyStyle = style) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.isMoodReactive.collect { reactive ->
+                _uiState.update { it.copy(isMoodReactive = reactive) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.meshAnimationSpeed.collect { speed ->
+                _uiState.update { it.copy(meshAnimationSpeed = speed) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.useIrishAccent.collect { use ->
+                _uiState.update { it.copy(useIrishAccent = use) }
+            }
+        }
+    }
+
+    private fun observeMemories() {
+        viewModelScope.launch {
+            repository.getSemanticMemoryDao().getAllMemories().collect { memories ->
+                _uiState.update { it.copy(semanticMemories = memories) }
+            }
+        }
     }
 
     private fun refreshDynamicSuggestions() {
@@ -178,8 +251,24 @@ class ChatViewModel(
                         },
                         widgetType = try { WidgetType.valueOf(it.widgetType) } catch (_: Exception) { WidgetType.NONE },
                         widgetData = it.widgetData,
+                        mood = it.mood,
                     )
                 }
+                
+                // Phase 16: Mood-Reactive Aura
+                if (_uiState.value.isMoodReactive) {
+                    uiMessages.lastOrNull { it.isFromDave }?.let { lastMsg ->
+                        val newColor = when (lastMsg.mood) {
+                            "HYPED" -> 0xFF00E676.toInt() // DaveGreen
+                            "URGENT" -> 0xFFE53935.toInt() // Red
+                            "EMPATHETIC" -> 0xFFD500F9.toInt() // DavePurple
+                            "CALM" -> 0xFF2979FF.toInt() // DaveBlue
+                            else -> null
+                        }
+                        newColor?.let { updatePrimaryColor(it) }
+                    }
+                }
+
                 _uiState.update { it.copy(dbMessages = uiMessages) }
             }
         }
@@ -224,10 +313,6 @@ class ChatViewModel(
         _uiState.update { it.copy(isGhostMode = !it.isGhostMode) }
     }
 
-    fun toggleContinuousVoiceMode() {
-        _uiState.update { it.copy(isContinuousVoiceMode = !it.isContinuousVoiceMode) }
-    }
-
     fun setMode(mode: DaveMode) {
         _uiState.update { it.copy(currentMode = mode) }
     }
@@ -242,10 +327,6 @@ class ChatViewModel(
 
     fun addAttachment(file: AttachedFile) {
         _uiState.update { it.copy(attachedFiles = it.attachedFiles + file) }
-    }
-
-    fun removeAttachment(file: AttachedFile) {
-        _uiState.update { it.copy(attachedFiles = it.attachedFiles - file) }
     }
 
     fun sendMessage() {
@@ -264,6 +345,8 @@ class ChatViewModel(
         val currentMode = _uiState.value.currentMode
         val uid = auth?.currentUser?.uid
         val isLiveMode = _uiState.value.isLiveMode
+        val persona = _uiState.value.digitalPersona
+        val useIrishAccent = _uiState.value.useIrishAccent
 
         if (isGhostMode) {
             val userMsg = ChatMessage(
@@ -284,20 +367,24 @@ class ChatViewModel(
 
         viewModelScope.launch {
             try {
-                val responseText = repository.sendMessage(
-                    sessionId = sessionId,
-                    userContent = currentInput,
-                    locationInfo = location,
-                    attachments = attachments,
-                    isFastMode = isFastMode,
-                    isGodMode = isGodMode || currentMode == DaveMode.HACKER,
-                    isGhostMode = isGhostMode,
-                    userProfile = userProfile,
-                    uid = uid,
-                    bypassIntercept = false,
-                    mode = currentMode,
-                    isLiveMode = isLiveMode,
-                )
+                val responseText = withTimeoutOrNull(35000) {
+                    repository.sendMessage(
+                        sessionId = sessionId,
+                        userContent = currentInput,
+                        locationInfo = location,
+                        attachments = attachments,
+                        isFastMode = isFastMode,
+                        isGodMode = isGodMode || currentMode == DaveMode.HACKER,
+                        isGhostMode = isGhostMode,
+                        userProfile = userProfile,
+                        uid = uid,
+                        bypassIntercept = false,
+                        mode = currentMode,
+                        isLiveMode = isLiveMode,
+                        persona = persona,
+                        useIrishAccent = useIrishAccent
+                    )
+                } ?: "Error: Dave is deep in thought and taking too long. Try again! ⏳⚡️"
                 
                 // Fetch user profile again in case the background memory extractor found something
                 fetchUserProfile()
@@ -306,7 +393,8 @@ class ChatViewModel(
                     val daveMsg = ChatMessage(
                         content = responseText,
                         isFromDave = true,
-                        isLocal = responseText.contains("⚡️ (")
+                        isLocal = responseText.contains("⚡️ ("),
+                        hasAttachment = attachments.isNotEmpty() // Mark if a file was processed
                     )
                     _uiState.update { it.copy(ghostMessages = it.ghostMessages + daveMsg) }
                 }
@@ -314,6 +402,12 @@ class ChatViewModel(
                 refreshDynamicSuggestions() // Refresh after Dave responds
             } catch (e: Exception) {
                 android.util.Log.e("ChatViewModel", "Send failed", e)
+                val errorMsg = ChatMessage(
+                    content = "Error: Send failed. Check your connection! 📡💥",
+                    isFromDave = true,
+                    mood = "URGENT"
+                )
+                _uiState.update { it.copy(ghostMessages = it.ghostMessages + errorMsg) }
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -338,11 +432,103 @@ class ChatViewModel(
         _uiState.update { it.copy(isVaultOpen = open) }
     }
 
-    fun updateVaultEntry(key: String, value: String) {
-        val uid = auth?.currentUser?.uid ?: return
+    fun addSemanticMemory(key: String, value: String) {
         viewModelScope.launch {
-            userStatsRepository.updatePreference(uid, key, value)
-            fetchUserProfile()
+            val memory = com.example.daveai.data.db.SemanticMemory(
+                memoryType = key,
+                content = value,
+                timestamp = System.currentTimeMillis()
+            )
+            repository.getSemanticMemoryDao().insertMemory(memory)
         }
+    }
+
+    fun deleteSemanticMemory(id: Long) {
+        viewModelScope.launch {
+            repository.getSemanticMemoryDao().deleteMemory(id)
+        }
+    }
+
+    // Personalization Methods
+    fun updatePrimaryColor(color: Int) {
+        viewModelScope.launch { settingsRepository.setPrimaryColor(color) }
+    }
+
+    fun toggleSystemWallpaper(use: Boolean) {
+        viewModelScope.launch { settingsRepository.setUseSystemWallpaper(use) }
+    }
+
+    fun updateCustomWallpaper(uri: String?) {
+        viewModelScope.launch { settingsRepository.setCustomWallpaperUri(uri) }
+    }
+
+    fun updateDigitalPersona(persona: String) {
+        viewModelScope.launch { settingsRepository.setDigitalPersona(persona) }
+    }
+
+    fun updateCyberIntensity(intensity: Float) {
+        viewModelScope.launch { settingsRepository.setCyberIntensity(intensity) }
+    }
+
+    fun updateTypographyStyle(style: String) {
+        viewModelScope.launch { settingsRepository.setTypographyStyle(style) }
+    }
+
+    fun toggleMoodReactivity(reactive: Boolean) {
+        viewModelScope.launch { settingsRepository.setIsMoodReactive(reactive) }
+    }
+
+    fun updateAnimationSpeed(speed: Float) {
+        viewModelScope.launch { settingsRepository.setMeshAnimationSpeed(speed) }
+    }
+
+    fun toggleIrishAccent(use: Boolean) {
+        viewModelScope.launch { settingsRepository.setUseIrishAccent(use) }
+    }
+
+    fun buildProject(appName: String, packageName: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(
+                isBuildingApp = true, 
+                buildProgress = 0f, 
+                buildLogs = listOf("Initializing Dave App Factory..."),
+                appBlueprint = emptyList(),
+                isShowingPreview = false
+            ) }
+            
+            val logs = mutableListOf<String>()
+            val steps = listOf(
+                "Analyzing project requirements...",
+                "Architecting system components...",
+                "Generating MainActivity.kt...",
+                "Generating AndroidManifest.xml...",
+                "Configuring build.gradle.kts...",
+                "Zipping project files...",
+                "Verifying build integrity..."
+            )
+            
+            val architect = com.example.daveai.util.ProjectArchitect(repository.getContext())
+
+            steps.forEachIndexed { index, step ->
+                kotlinx.coroutines.delay(800)
+                logs.add("[DAVE_OS] $step")
+                
+                if (index == 2) {
+                    val blueprint = architect.generateBlueprint(appName)
+                    _uiState.update { it.copy(appBlueprint = blueprint) }
+                }
+
+                _uiState.update { it.copy(buildProgress = (index + 1) / steps.size.toFloat(), buildLogs = logs.toList()) }
+            }
+            
+            val file = architect.generateProject(appName, packageName)
+            
+            logs.add("SUCCESS: Project built at ${file.absolutePath}")
+            _uiState.update { it.copy(isBuildingApp = false, buildProgress = 1.0f, buildLogs = logs.toList(), isShowingPreview = true) }
+        }
+    }
+
+    fun closeAppFactory() {
+        _uiState.update { it.copy(isBuildingApp = false, buildProgress = 0f, isShowingPreview = false) }
     }
 }

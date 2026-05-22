@@ -10,4 +10,6 @@ sealed interface DaveRoute {
     @Serializable data object Riddle : DaveRoute, NavKey
     @Serializable data object Lessons : DaveRoute, NavKey
     @Serializable data object LiveVoice : DaveRoute, NavKey
+    @Serializable data object Terminal : DaveRoute, NavKey
+    @Serializable data object Sanctum : DaveRoute, NavKey
 }

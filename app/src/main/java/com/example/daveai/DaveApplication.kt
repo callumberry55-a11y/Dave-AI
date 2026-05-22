@@ -5,8 +5,10 @@ import com.example.daveai.data.db.DaveDatabase
 import com.example.daveai.data.network.ClaudeApiService
 import com.example.daveai.data.network.CryptoApiService
 import com.example.daveai.data.network.GoogleMapsApiService
+import com.example.daveai.data.network.NewsApiService
 import com.example.daveai.data.network.OpenAiApiService
 import com.example.daveai.data.network.OpenMeteoGeocodingApiService
+import com.example.daveai.data.network.SpotifyApiService
 import com.example.daveai.data.network.SunoApiService
 import com.example.daveai.data.network.WeatherApiService
 import com.example.daveai.data.repository.ChatRepository
@@ -48,6 +50,7 @@ class DaveApplication : Application() {
         val database = DaveDatabase.getDatabase(this)
         val chatDao = database.chatDao()
         val riddleDao = database.riddleDao()
+        val semanticMemoryDao = database.semanticMemoryDao()
 
         val okHttpClient = OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
@@ -109,6 +112,20 @@ class DaveApplication : Application() {
             .build()
         val openMeteoGeocodingService = openMeteoGeocodingRetrofit.create(OpenMeteoGeocodingApiService::class.java)
 
+        val spotifyRetrofit = Retrofit.Builder()
+            .baseUrl(SpotifyApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val spotifyService = spotifyRetrofit.create(SpotifyApiService::class.java)
+
+        val newsRetrofit = Retrofit.Builder()
+            .baseUrl(NewsApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val newsService = newsRetrofit.create(NewsApiService::class.java)
+
         val deviceAssistant = DeviceAssistant(this)
         val hardwareAccelerator = HardwareAccelerator(this)
         voiceManager = DaveVoiceManager(this, openaiService)
@@ -119,17 +136,27 @@ class DaveApplication : Application() {
             apiService = claudeService,
             openaiService = openaiService,
             sunoService = sunoService,
+            spotifyService = spotifyService,
+            newsService = newsService,
             mapsService = mapsService,
             cryptoService = cryptoService,
             weatherService = weatherService,
             openMeteoGeocodingService = openMeteoGeocodingService,
             chatDao = chatDao,
             riddleDao = riddleDao,
+            semanticMemoryDao = semanticMemoryDao,
+            relationshipDao = database.relationshipDao(),
+            notificationDao = database.notificationDao(),
             hardwareAccelerator = hardwareAccelerator,
             deviceAssistant = deviceAssistant,
             voiceManager = voiceManager,
             notificationManager = notificationManager,
         )
+
+        chatRepository.scheduleAgenticCycle()
+
+        // Start Dave's Sanctum Server
+        com.example.daveai.service.DaveServerService.start(this)
 
         // Seed the riddles on startup
         kotlinx.coroutines.MainScope().launch {

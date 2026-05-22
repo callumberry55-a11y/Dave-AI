@@ -24,8 +24,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -33,13 +35,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,11 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.daveai.ui.components.NeuralCard
 import com.example.daveai.ui.riddle.RiddleViewModel
 import kotlinx.coroutines.delay
 
@@ -68,12 +69,10 @@ fun LandingScreen(
 ) {
     val riddleState by riddleViewModel.uiState.collectAsState()
     val gold = MaterialTheme.colorScheme.tertiary
-    val darkBg = MaterialTheme.colorScheme.background
-    val cardBg = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp)
-
-    var showHeader by remember { mutableStateOf(value = false) }
-    var showAura by remember { mutableStateOf(value = false) }
-    var showCards by remember { mutableStateOf(value = false) }
+    
+    var showHeader by remember { mutableStateOf(false) }
+    var showAura by remember { mutableStateOf(false) }
+    var showCards by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         delay(100)
@@ -107,14 +106,8 @@ fun LandingScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        darkBg
-                    )
-                )
-            )
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
@@ -132,6 +125,13 @@ fun LandingScreen(
                 Text(
                     text = "Welcome back, boss",
                     color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.25f),
+                            offset = Offset(0f, 2f),
+                            blurRadius = 4f
+                        )
+                    ),
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-1).sp
@@ -142,12 +142,12 @@ fun LandingScreen(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(gold)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "DAVE IS READY",
-                        color = gold,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
@@ -176,7 +176,7 @@ fun LandingScreen(
                         .size(160.dp)
                         .scale(auraScale)
                         .clip(CircleShape)
-                        .background(gold.copy(alpha = auraAlpha))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = auraAlpha))
                 )
                 
                 // Main Button
@@ -226,10 +226,9 @@ fun LandingScreen(
                 LandingCard(
                     modifier = Modifier.weight(1f),
                     title = "🧩 Vault",
-                    titleColor = gold,
+                    titleColor = MaterialTheme.colorScheme.tertiary,
                     subtitle = "Streak: 🔥 ${riddleState.streak}\nProgress: ${riddleState.solvedCount}/${riddleState.totalCount}",
-                    onClick = onNavigateToRiddle,
-                    cardBg = cardBg
+                    onClick = onNavigateToRiddle
                 )
                 
                 Spacer(Modifier.width(16.dp))
@@ -237,10 +236,9 @@ fun LandingScreen(
                 LandingCard(
                     modifier = Modifier.weight(1f),
                     title = "📚 Lessons",
-                    titleColor = MaterialTheme.colorScheme.onSurface,
+                    titleColor = MaterialTheme.colorScheme.primary,
                     subtitle = "Resume current\nuniversity module",
-                    onClick = onNavigateToLessons,
-                    cardBg = cardBg
+                    onClick = onNavigateToLessons
                 )
             }
         }
@@ -253,8 +251,7 @@ private fun LandingCard(
     title: String,
     titleColor: Color,
     subtitle: String,
-    onClick: () -> Unit,
-    cardBg: Color
+    onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -264,7 +261,7 @@ private fun LandingCard(
         label = "cardScale"
     )
 
-    Card(
+    NeuralCard(
         modifier = modifier
             .height(160.dp)
             .scale(scale)
@@ -273,9 +270,7 @@ private fun LandingCard(
                 indication = null,
                 onClick = onClick
             ),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        shape = RoundedCornerShape(24.dp)
     ) {
         Column(
             modifier = Modifier

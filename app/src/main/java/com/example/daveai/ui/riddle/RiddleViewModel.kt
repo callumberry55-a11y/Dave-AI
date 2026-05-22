@@ -37,6 +37,8 @@ class RiddleViewModel(
 
     private val _uiState = MutableStateFlow(RiddleUiState())
     val uiState: StateFlow<RiddleUiState> = _uiState.asStateFlow()
+    
+    private val skippedIds = mutableListOf<Int>()
 
     init {
         loadProgress()
@@ -56,14 +58,14 @@ class RiddleViewModel(
     fun loadNextRiddle() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, isSolved = false, showHint = false, inputText = "") }
-            var riddle = riddleDao.getNextUnsolvedRiddle()
+            var riddle = riddleDao.getNextUnsolvedRiddle(skippedIds)
             
             if (riddle == null) {
                 // Procedurally generate new riddles!
                 _uiState.update { it.copy(isLoading = true) }
                 voiceManager.speak("Forging new challenges in the depths of the vault...")
                 chatRepository.generateProceduralRiddles(5)
-                riddle = riddleDao.getNextUnsolvedRiddle() // Try fetching again
+                riddle = riddleDao.getNextUnsolvedRiddle(skippedIds) // Try fetching again
             }
 
             _uiState.update { state -> 
@@ -121,6 +123,20 @@ class RiddleViewModel(
             viewModelScope.launch {
                 _uiState.value.currentRiddle?.hint?.let { voiceManager.speak(it) }
             }
+        }
+    }
+
+    fun skipRiddle() {
+        val state = _uiState.value
+        val currentRiddle = state.currentRiddle ?: return
+        skippedIds.add(currentRiddle.id)
+        
+        // Reset streak and move on
+        soundManager.playWrong() // Maybe play a "skip" sound, but wrong works for now
+        _uiState.update { it.copy(streak = 0) }
+        viewModelScope.launch {
+            voiceManager.speak("Skipping that one. The answer was ${currentRiddle.answerKeyword}. Moving on!")
+            loadNextRiddle()
         }
     }
 }

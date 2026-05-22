@@ -5,9 +5,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ShortcutInfo
-import android.content.pm.ShortcutManager
-import android.graphics.drawable.Icon
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
@@ -19,7 +16,6 @@ import com.example.daveai.receiver.NotificationReplyReceiver
 
 class DaveNotificationManager(private val context: Context) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    private val shortcutManager = context.getSystemService(ShortcutManager::class.java)
     private val channelId = "dave_chat_channel"
 
     init {
@@ -114,24 +110,37 @@ class DaveNotificationManager(private val context: Context) {
         notificationManager.notify(sessionId.hashCode(), notification)
     }
 
+    fun showScanningProgress(sessionId: String, title: String) {
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setContentTitle(title)
+            .setContentText("Dave is processing...")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setProgress(0, 0, true)
+            .setOngoing(true)
+            .build()
+
+        notificationManager.notify(sessionId.hashCode(), notification)
+    }
+
+    fun dismissNotification(sessionId: String) {
+        notificationManager.cancel(sessionId.hashCode())
+    }
+
     private fun pushConversationShortcut(sessionId: String, lastMessage: String, shortcutId: String) {
         val intent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             putExtra("sessionId", sessionId)
         }
 
-        val shortcut = ShortcutInfo.Builder(context, shortcutId)
+        val shortcut = androidx.core.content.pm.ShortcutInfoCompat.Builder(context, shortcutId)
             .setShortLabel("Dave Chat")
             .setLongLabel(lastMessage.take(20) + "...")
-            .setIcon(Icon.createWithResource(context, R.mipmap.ic_launcher_round))
+            .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher_round))
             .setIntent(intent)
-            .apply {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    setLongLived(true)
-                }
-            }
+            .setLongLived(true)
             .build()
 
-        shortcutManager.addDynamicShortcuts(listOf(shortcut))
+        androidx.core.content.pm.ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
     }
 }

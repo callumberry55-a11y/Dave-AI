@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.action.actionStartActivity
@@ -30,29 +31,34 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.example.daveai.DaveApplication
 import com.example.daveai.MainActivity
+import com.example.daveai.R
 import com.example.daveai.ui.assistant.AssistantActivity
 import kotlinx.coroutines.flow.first
 
 class DaveMasterWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val repo = (context.applicationContext as DaveApplication).chatRepository
+        val assistant = repo.getDeviceAssistant()
+        val battery = assistant.getBatteryLevel()
+        val connection = assistant.getConnectivityStatus()
+        
         val sessions = repo.allSessions.first()
         val latestSession = sessions.firstOrNull()
         val latestMessage = latestSession?.let { repo.getMessagesForSession(it.sessionId).first().lastOrNull() }
         
         provideContent {
-            MasterContent(latestMessage?.content)
+            MasterContent(latestMessage?.content, battery, connection)
         }
     }
 
     @Composable
-    private fun MasterContent(latestDaveMessage: String?) {
+    private fun MasterContent(latestDaveMessage: String?, battery: Int, connection: String) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
+                .then(DaveWidgetTheme.EliteModifier)
                 .background(DaveWidgetTheme.DarkBg)
-                .padding(12.dp)
-                .cornerRadius(24.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Header
@@ -77,7 +83,7 @@ class DaveMasterWidget : GlanceAppWidget() {
                 )
                 Spacer(GlanceModifier.defaultWeight())
                 Text(
-                    text = "V4.7",
+                    text = "🔋 $battery% | $connection",
                     style = TextStyle(fontSize = 10.sp, color = DaveWidgetTheme.TextSecondary)
                 )
             }
@@ -89,13 +95,13 @@ class DaveMasterWidget : GlanceAppWidget() {
                 modifier = GlanceModifier
                     .fillMaxWidth()
                     .background(DaveWidgetTheme.CardBg)
-                    .cornerRadius(16.dp)
+                    .cornerRadius(12.dp)
                     .clickable(actionStartActivity<AssistantActivity>())
                     .padding(12.dp)
             ) {
                 Column {
                     Text(
-                        text = "SYSTEM STATUS:",
+                        text = "system@dave_ai: ~$",
                         style = TextStyle(
                             fontSize = 8.sp, 
                             fontWeight = FontWeight.Bold,
@@ -106,60 +112,98 @@ class DaveMasterWidget : GlanceAppWidget() {
                     Text(
                         text = latestDaveMessage ?: "Awaiting your command, boss. All systems nominal.",
                         maxLines = 2,
-                        style = TextStyle(fontSize = 11.sp, color = DaveWidgetTheme.TextPrimary),
+                        style = TextStyle(
+                            fontSize = 11.sp, 
+                            color = DaveWidgetTheme.TextPrimary
+                        ),
                     )
                 }
             }
 
             Spacer(GlanceModifier.height(12.dp))
 
-            // Action Grid
-            Column(modifier = GlanceModifier.fillMaxSize()) {
-                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-                    MasterItem("🎤", "VOICE", actionStartActivity<AssistantActivity>())
-                    MasterItem("💬", "CHAT", actionStartActivity<MainActivity>())
-                    MasterItem("🔦", "BEAM", actionStartActivity<MainActivity>())
+            // Asymmetrical Action Grid
+            Row(modifier = GlanceModifier.fillMaxSize()) {
+                // Left Column: Massive Voice Bounding Box
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxHeight()
+                        .defaultWeight()
+                        .background(DaveWidgetTheme.CardBg)
+                        .cornerRadius(16.dp)
+                        .clickable(actionStartActivity<AssistantActivity>()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        androidx.glance.Image(
+                            provider = androidx.glance.ImageProvider(R.drawable.ic_widget_mic),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(DaveWidgetTheme.Gold),
+                            modifier = GlanceModifier.size(36.dp)
+                        )
+                        Spacer(GlanceModifier.height(8.dp))
+                        Text(
+                            text = "VOICE", 
+                            style = TextStyle(
+                                fontSize = 10.sp, 
+                                fontWeight = FontWeight.Bold,
+                                color = DaveWidgetTheme.TextSecondary
+                            )
+                        )
+                    }
                 }
-                Spacer(GlanceModifier.height(8.dp))
-                Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-                    MasterItem("🎸", "FORGE", actionStartActivity<MainActivity>())
-                    MasterItem("🧠", "RIDDLE", actionStartActivity<MainActivity>()) // Changed to Riddle
-                    MasterItem("⚡", "STATUS", actionStartActivity<MainActivity>())
+
+                Spacer(GlanceModifier.width(8.dp))
+
+                // Right Column: Compact 2x2 Grid
+                Column(
+                    modifier = GlanceModifier
+                        .fillMaxHeight()
+                        .defaultWeight()
+                ) {
+                    Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                        MasterItem(R.drawable.ic_widget_chat, "CHAT", actionStartActivity<MainActivity>())
+                        Spacer(GlanceModifier.width(8.dp))
+                        MasterItem(R.drawable.ic_widget_music, "FORGE", actionStartActivity<MainActivity>())
+                    }
+                    Spacer(GlanceModifier.height(8.dp))
+                    Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
+                        MasterItem(R.drawable.ic_widget_brain, "RIDDLE", actionStartActivity<MainActivity>())
+                        Spacer(GlanceModifier.width(8.dp))
+                        MasterItem(R.drawable.ic_widget_settings, "SYSTEM", actionStartActivity<MainActivity>())
+                    }
                 }
             }
         }
     }
 
     @Composable
-    private fun RowScope.MasterItem(icon: String, label: String, action: androidx.glance.action.Action) {
-        Column(
+    private fun RowScope.MasterItem(iconRes: Int, label: String, action: androidx.glance.action.Action) {
+        Box(
             modifier = GlanceModifier
                 .defaultWeight()
                 .fillMaxHeight()
-                .padding(horizontal = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(DaveWidgetTheme.CardBg)
+                .cornerRadius(12.dp)
+                .clickable(action),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .background(DaveWidgetTheme.CardBg)
-                    .cornerRadius(12.dp)
-                    .clickable(action),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = icon, style = TextStyle(fontSize = 20.sp))
-                    Spacer(GlanceModifier.height(4.dp))
-                    Text(
-                        text = label, 
-                        style = TextStyle(
-                            fontSize = 8.sp, 
-                            fontWeight = FontWeight.Bold,
-                            color = DaveWidgetTheme.TextPrimary
-                        )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                androidx.glance.Image(
+                    provider = androidx.glance.ImageProvider(iconRes),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(DaveWidgetTheme.TextPrimary),
+                    modifier = GlanceModifier.size(20.dp)
+                )
+                Spacer(GlanceModifier.height(4.dp))
+                Text(
+                    text = label, 
+                    style = TextStyle(
+                        fontSize = 8.sp, 
+                        fontWeight = FontWeight.Bold,
+                        color = DaveWidgetTheme.TextSecondary
                     )
-                }
+                )
             }
         }
     }

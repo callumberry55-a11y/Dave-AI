@@ -4,14 +4,17 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
@@ -70,9 +73,11 @@ private val DarkColorScheme = darkColorScheme(
 fun DaveAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
+    primaryColorOverride: Color? = null,
+    typographyStyle: String = "MODERN",
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
+    val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -81,13 +86,38 @@ fun DaveAITheme(
         else -> LightColorScheme
     }
 
+    val colorScheme = if (primaryColorOverride != null) {
+        baseColorScheme.copy(
+            primary = primaryColorOverride,
+            outline = primaryColorOverride.copy(alpha = 0.5f)
+        )
+    } else {
+        baseColorScheme
+    }
+
+    // Dynamic Typography (Phase 16)
+    val fontFamily = when (typographyStyle) {
+        "MONO" -> FontFamily.Monospace
+        "SERIF" -> FontFamily.Serif
+        else -> FontFamily.SansSerif
+    }
+
+    val dynamicTypography = Typography(
+        displayLarge = Typography.displayLarge.copy(fontFamily = fontFamily),
+        headlineLarge = Typography.headlineLarge.copy(fontFamily = fontFamily),
+        titleLarge = Typography.titleLarge.copy(fontFamily = fontFamily),
+        bodyLarge = Typography.bodyLarge.copy(fontFamily = fontFamily),
+        labelMedium = Typography.labelMedium.copy(fontFamily = fontFamily),
+        labelSmall = Typography.labelSmall.copy(fontFamily = fontFamily)
+    )
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // In the "Flow" design, we let backgrounds bleed through, but keep status bar icons contrasting.
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            WindowCompat.setDecorFitsSystemWindows(window, false)
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
@@ -95,7 +125,7 @@ fun DaveAITheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = dynamicTypography,
         content = content
     )
 }

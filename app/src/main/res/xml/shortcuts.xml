@@ -2,7 +2,6 @@
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Agentic Action: Ask Dave AI -->
-    <!-- Maps to the standard conversational BII for assistant integrations -->
     <capability android:name="actions.intent.CREATE_MESSAGE">
         <intent
             android:action="com.example.daveai.AGENTIC_ACTION"
@@ -25,6 +24,34 @@
                 android:key="scanType" />
         </intent>
     </capability>
+
+    <!-- Panic Button Shortcut -->
+    <shortcut
+        android:shortcutId="panic_button"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_delete"
+        android:shortcutShortLabel="@string/shortcut_panic_button"
+        android:shortcutLongLabel="@string/shortcut_panic_button_long">
+        <intent
+            android:action="com.example.daveai.PANIC_ACTION"
+            android:targetPackage="com.example.daveai"
+            android:targetClass="com.example.daveai.agent.DaveAgentReceiver" />
+        <categories android:name="android.intent.category.DEFAULT" />
+    </shortcut>
+
+    <!-- Vault Status Shortcut -->
+    <shortcut
+        android:shortcutId="vault_status"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_info_details"
+        android:shortcutShortLabel="@string/shortcut_vault_status"
+        android:shortcutLongLabel="@string/shortcut_vault_status_long">
+        <intent
+            android:action="com.example.daveai.VAULT_ACTION"
+            android:targetPackage="com.example.daveai"
+            android:targetClass="com.example.daveai.MainActivity" />
+        <categories android:name="android.intent.category.DEFAULT" />
+    </shortcut>
 
     <!-- App Links for Web-based Agentic triggers -->
     <shortcut

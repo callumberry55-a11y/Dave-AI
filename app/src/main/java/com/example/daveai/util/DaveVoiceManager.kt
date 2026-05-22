@@ -39,14 +39,14 @@ class DaveVoiceManager(
         // Initialization if needed
     }
 
-    suspend fun speak(text: String) = withContext(Dispatchers.IO) {
+    suspend fun speak(text: String, speed: Double = 1.05) = withContext(Dispatchers.IO) {
         val apiKey = BuildConfig.OPENAI_API_KEY
         if (apiKey.isBlank()) return@withContext
 
         // Cancel any previous job if we are interrupted
         stop()
 
-        // Granular chunker: split on punctuation followed by space, including commas and em-dashes for faster initial TTS
+        // Granular chunker
         val sentences = text.split(Regex("(?<=[.!?,\n-])\\s+")).filter { it.isNotBlank() }
 
         scopeJob = CoroutineScope(Dispatchers.IO).launch {
@@ -54,7 +54,7 @@ class DaveVoiceManager(
                 try {
                     val response = openAiService.generateSpeech(
                         auth = "Bearer $apiKey",
-                        request = TtsRequest(input = sentence)
+                        request = TtsRequest(input = sentence, speed = speed, voice = "alloy")
                     )
 
                     if (response.isSuccessful) {

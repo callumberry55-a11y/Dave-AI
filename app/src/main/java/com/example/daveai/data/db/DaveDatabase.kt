@@ -4,15 +4,22 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import net.sqlcipher.database.SupportFactory
+import java.security.SecureRandom
 
 @Database(
-    entities = [ChatMessageEntity::class, ChatSessionEntity::class, Riddle::class],
-    version = 7,
+    entities = [ChatMessageEntity::class, ChatSessionEntity::class, Riddle::class, SemanticMemory::class, RelationshipEntity::class, NotificationEntity::class],
+    version = 15,
     exportSchema = false
 )
 abstract class DaveDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun riddleDao(): RiddleDao
+    abstract fun semanticMemoryDao(): SemanticMemoryDao
+    abstract fun relationshipDao(): RelationshipDao
+    abstract fun notificationDao(): NotificationDao
 
     companion object {
         @Volatile
@@ -20,12 +27,39 @@ abstract class DaveDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): DaveDatabase {
             return INSTANCE ?: synchronized(this) {
+                // Initialize SQLCipher libraries
+                System.loadLibrary("sqlcipher")
+
+                val masterKey = MasterKey.Builder(context)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+
+                val sharedPreferences = EncryptedSharedPreferences.create(
+                    context,
+                    "dave_secure_prefs",
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+
+                var dbKey = sharedPreferences.getString("db_key", null)
+                if (dbKey == null) {
+                    val random = SecureRandom()
+                    val bytes = ByteArray(32)
+                    random.nextBytes(bytes)
+                    dbKey = android.util.Base64.encodeToString(bytes, android.util.Base64.DEFAULT)
+                    sharedPreferences.edit().putString("db_key", dbKey).apply()
+                }
+                
+                val factory = SupportFactory(dbKey.toByteArray(Charsets.UTF_8))
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     DaveDatabase::class.java,
-                    "dave_database"
+                    "dave_database_encrypted" // Renamed to avoid opening old plaintext DB
                 )
-                .fallbackToDestructiveMigration() // For simplicity in this redesign
+                .openHelperFactory(factory)
+                .fallbackToDestructiveMigration(dropAllTables = true) // Wipes plaintext DB on upgrade
                 .build()
                 INSTANCE = instance
                 instance

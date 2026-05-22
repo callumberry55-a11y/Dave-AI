@@ -41,6 +41,18 @@ android {
         val sunoKey = localProps.getProperty("SUNO_API_KEY") ?: ""
         buildConfigField("String", "SUNO_API_KEY", "\"$sunoKey\"")
 
+        val spotifyId = localProps.getProperty("SPOTIFY_CLIENT_ID") ?: ""
+        buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"$spotifyId\"")
+
+        val spotifySecret = localProps.getProperty("SPOTIFY_CLIENT_SECRET") ?: ""
+        buildConfigField("String", "SPOTIFY_CLIENT_SECRET", "\"$spotifySecret\"")
+
+        val newsKey = localProps.getProperty("NEWS_API_KEY") ?: ""
+        buildConfigField("String", "NEWS_API_KEY", "\"$newsKey\"")
+
+        val elevenKey = localProps.getProperty("ELEVENLABS_API_KEY") ?: ""
+        buildConfigField("String", "ELEVENLABS_API_KEY", "\"$elevenKey\"")
+
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
 
@@ -137,6 +149,12 @@ dependencies {
     // Widgets support (Glance)
     implementation(libs.glance.appwidget)
     implementation(libs.glance.material3)
+
+    // Security & Encryption
+    implementation(libs.sqlcipher.android)
+    implementation(libs.security.crypto)
+    // Removed sqlite-ktx as it's not strictly necessary for basic SQLCipher integration 
+    // unless we need specific KTX features for SupportSQLiteDatabase
 
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.junit)

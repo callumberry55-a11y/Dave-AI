@@ -12,12 +12,13 @@ data class UserProfile(
     val displayName: String? = null,
     val role: String? = "Explorer",
     val preferences: Map<String, String> = emptyMap(),
+    val devId: String? = null
 )
 
 class UserStatsRepository {
     private val db = FirebaseFirestore.getInstance()
 
-    suspend fun trackUserLogin(uid: String, email: String?, attribution: Map<String, String?>) {
+    suspend fun trackUserLogin(uid: String, email: String?, attribution: Map<String, String?>, isDeveloper: Boolean = false) {
         try {
             val userRef = db.collection("users").document(uid)
             val userDoc = userRef.get().await()
@@ -27,8 +28,8 @@ class UserStatsRepository {
                     "email" to email,
                     "createdAt" to FieldValue.serverTimestamp(),
                     "lastLogin" to FieldValue.serverTimestamp(),
-                    "role" to "Elite User",
-                    "displayName" to (email?.split("@")?.get(0) ?: "Dave Fan"),
+                    "role" to if (isDeveloper) "Master Developer" else "Elite User",
+                    "displayName" to if (isDeveloper) "Callum" else (email?.split("@")?.get(0) ?: "Dave Fan"),
                 )
                 
                 attribution.forEach { (key, value) ->
@@ -79,6 +80,21 @@ class UserStatsRepository {
             }.await()
         } catch (e: Exception) {
             Log.e("UserStats", "Failed to update preference", e)
+        }
+    }
+
+    suspend fun elevateToMasterDeveloper(uid: String) {
+        try {
+            val userRef = db.collection("users").document(uid)
+            userRef.update(
+                mapOf(
+                    "role" to "Master Developer",
+                    "displayName" to "Callum"
+                )
+            ).await()
+            Log.d("UserStats", "User $uid elevated to Master Developer: Callum")
+        } catch (e: Exception) {
+            Log.e("UserStats", "Failed to elevate user", e)
         }
     }
 

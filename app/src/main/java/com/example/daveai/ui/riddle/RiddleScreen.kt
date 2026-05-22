@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -16,9 +17,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,20 +38,13 @@ import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicNone
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,8 +55,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -71,6 +69,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.daveai.ui.chat.BouncyButton
+import com.example.daveai.ui.components.NeuralCard
+import com.example.daveai.ui.components.NeuralTextField
+import com.example.daveai.ui.components.NeuralTopBar
 import com.example.daveai.util.VoiceToTextManager
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -87,10 +88,15 @@ fun RiddleScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
-    val gold = Color(0xFFFFD700)
-    val darkBg = Color(0xFF0A0214) // Deep, deep purple/black
-    val cardBg = Color(0xFF1E0B36) // Dark mysterious purple
-    val accentPurple = Color(0xFF4A148C)
+    val gold = MaterialTheme.colorScheme.tertiary
+    val accentPurple = MaterialTheme.colorScheme.primary
+    val progress = if (uiState.totalCount > 0) uiState.solvedCount.toFloat() / uiState.totalCount else 0f
+
+    var entryVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(300)
+        entryVisible = true
+    }
 
     var offsetX by remember { mutableStateOf(0.dp) }
     val animatedOffsetX by animateDpAsState(
@@ -139,22 +145,12 @@ fun RiddleScreen(
 
     Scaffold(
         containerColor = Color.Transparent,
-        modifier = Modifier.background(
-            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                colors = listOf(darkBg, Color.Black)
-            )
-        ),
+        modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text("The Riddle Vault", fontWeight = FontWeight.Black, color = gold, letterSpacing = 2.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = gold)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+            NeuralTopBar(
+                title = "The Riddle Vault",
+                onNavigationClick = onBack,
+                navigationIcon = Icons.AutoMirrored.Rounded.ArrowBack
             )
         }
     ) { padding ->
@@ -162,131 +158,195 @@ fun RiddleScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Scoreboard Dock
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = cardBg.copy(alpha = 0.6f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, accentPurple)
+            AnimatedVisibility(
+                visible = entryVisible,
+                enter = slideInVertically(initialOffsetY = { -100 }) + fadeIn()
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                NeuralCard(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    shape = RoundedCornerShape(16.dp),
                 ) {
-                    Text(
-                        "TIER: ${uiState.tierName}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = gold,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        "STREAK: 🔥 ${uiState.streak}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        "${uiState.solvedCount} / ${uiState.totalCount}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = gold.copy(alpha = 0.7f),
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "TIER: ${uiState.tierName}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = gold,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                "STREAK: 🔥 ${uiState.streak}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                "${uiState.solvedCount} / ${uiState.totalCount}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = gold.copy(alpha = 0.7f),
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        
+                        Spacer(Modifier.height(12.dp))
+                        
+                        // Neural Progress Bar
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(progress)
+                                    .fillMaxHeight()
+                                    .background(
+                                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            colors = listOf(accentPurple, gold)
+                                        )
+                                    )
+                            )
+                        }
+                    }
                 }
             }
 
             Spacer(Modifier.height(24.dp))
 
             // Riddle Display Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .offset { IntOffset(animatedOffsetX.roundToPx(), 0) },
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = cardBg),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
-                border = androidx.compose.foundation.BorderStroke(2.dp, gold.copy(alpha = 0.5f))
+            AnimatedVisibility(
+                visible = entryVisible,
+                enter = slideInVertically(initialOffsetY = { 200 }, animationSpec = spring(dampingRatio = 0.6f)) + fadeIn()
             ) {
-                Box(
+                NeuralCard(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .height(350.dp)
+                        .offset { IntOffset(animatedOffsetX.roundToPx(), 0) },
+                    shape = RoundedCornerShape(24.dp),
+                    isGodMode = uiState.isSolved
                 ) {
-                    if (uiState.isLoading) {
-                        Text("Opening the Vault...", color = Color.White)
-                    } else if (uiState.currentRiddle == null) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color(0xFF4CAF50))
-                            Spacer(Modifier.height(16.dp))
-                            Text("VAULT CONQUERED", color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
-                        }
-                    } else {
-                        Column(
-                            modifier = Modifier.verticalScroll(rememberScrollState()),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Rounded.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = gold
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (uiState.isLoading) {
+                            Text("Opening the Vault...", color = MaterialTheme.colorScheme.onSurface)
+                        } else if (uiState.currentRiddle == null) {
+                            val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
+                            val pulseScale by infiniteTransition.animateFloat(
+                                initialValue = 0.95f,
+                                targetValue = 1.05f,
+                                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                    animation = tween(1000, easing = FastOutSlowInEasing),
+                                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                                ),
+                                label = "pulse_scale"
                             )
-                            Spacer(Modifier.height(24.dp))
-                            // Decrypting Text Animation
-                            var textReveal by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-                            LaunchedEffect(uiState.isSolved) {
-                                if (uiState.isSolved) {
-                                    androidx.compose.animation.core.animate(
-                                        initialValue = 0f,
-                                        targetValue = 1f,
-                                        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
-                                    ) { value, _ -> textReveal = value }
-                                } else {
-                                    textReveal = 0f
-                                }
-                            }
-
-                            Text(
-                                if (uiState.isSolved) uiState.currentRiddle!!.question else uiState.currentRiddle!!.question.map { c -> 
-                                    if (c.isLetter() && (Math.random() > (1 - textReveal))) '*' else c
-                                }.joinToString(""),
-                                color = Color.White.copy(alpha = if (uiState.isSolved) 0.5f else 1f),
-                                fontSize = 22.sp,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 32.sp,
-                                fontWeight = FontWeight.Medium,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
+                            val pulseAlpha by infiniteTransition.animateFloat(
+                                initialValue = 0.7f,
+                                targetValue = 1f,
+                                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                    animation = tween(1000, easing = FastOutSlowInEasing),
+                                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                                ),
+                                label = "pulse_alpha"
                             )
                             
-                            AnimatedVisibility(
-                                visible = uiState.showHint,
-                                enter = fadeIn() + slideInVertically { 20 }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.scale(pulseScale).graphicsLayer(alpha = pulseAlpha)
                             ) {
-                                Surface(
-                                    modifier = Modifier.padding(top = 32.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = darkBg.copy(alpha = 0.8f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, gold.copy(alpha = 0.3f))
+                                Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(72.dp), tint = Color(0xFF4CAF50))
+                                Spacer(Modifier.height(16.dp))
+                                Text("VAULT CONQUERED", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Black, fontSize = 24.sp, letterSpacing = 2.sp)
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier.verticalScroll(rememberScrollState()),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    Icons.Rounded.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = gold
+                                )
+                                Spacer(Modifier.height(24.dp))
+                                // Decrypting Text Animation
+                                var textReveal by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+                                LaunchedEffect(uiState.isSolved) {
+                                    if (uiState.isSolved) {
+                                        androidx.compose.animation.core.animate(
+                                            initialValue = 0f,
+                                            targetValue = 1f,
+                                            animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
+                                        ) { value, _ -> textReveal = value }
+                                    } else {
+                                        textReveal = 0f
+                                    }
+                                }
+
+                                Text(
+                                    text = if (uiState.isSolved) uiState.currentRiddle!!.question else {
+                                        uiState.currentRiddle!!.question.mapIndexed { index, c -> 
+                                            val seed = remember(uiState.currentRiddle!!.id) { (0..100).random() }
+                                            if (c.isLetter() && seed > 70) '?' else c
+                                        }.joinToString("")
+                                    },
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (uiState.isSolved) textReveal.coerceAtLeast(0.5f) else 1f),
+                                    fontSize = 22.sp,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 32.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                    modifier = Modifier.graphicsLayer {
+                                        if (uiState.isSolved) {
+                                            scaleX = 0.95f + (textReveal * 0.05f)
+                                            scaleY = 0.95f + (textReveal * 0.05f)
+                                            shadowElevation = textReveal * 10f
+                                            ambientShadowColor = gold
+                                            spotShadowColor = gold
+                                        }
+                                    }
+                                )
+                                
+                                AnimatedVisibility(
+                                    visible = uiState.showHint,
+                                    enter = fadeIn() + slideInVertically { 20 }
                                 ) {
-                                    Text(
-                                        "\"${uiState.currentRiddle!!.hint}\"",
-                                        modifier = Modifier.padding(16.dp),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
-                                        color = gold.copy(alpha = 0.9f),
-                                        textAlign = TextAlign.Center,
-                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                    )
+                                    NeuralCard(
+                                        modifier = Modifier.padding(top = 32.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                    ) {
+                                        Text(
+                                            "\"${uiState.currentRiddle!!.hint}\"",
+                                            modifier = Modifier.padding(16.dp),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                            color = gold.copy(alpha = 0.9f),
+                                            textAlign = TextAlign.Center,
+                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -299,12 +359,27 @@ fun RiddleScreen(
             // Input Container
             Column(modifier = Modifier.fillMaxWidth()) {
                 if ((!uiState.isSolved) && (uiState.currentRiddle != null)) {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
                         TextButton(
-                            onClick = { viewModel.toggleHint() },
+                            onClick = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                viewModel.toggleHint() 
+                            },
                             colors = ButtonDefaults.textButtonColors(contentColor = gold)
                         ) {
                             Text("💡 Request Hint", fontSize = 12.sp)
+                        }
+                        TextButton(
+                            onClick = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.skipRiddle() 
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                        ) {
+                            Text("⏭️ Skip Riddle", fontSize = 12.sp)
                         }
                     }
                     
@@ -314,26 +389,16 @@ fun RiddleScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedTextField(
+                        NeuralTextField(
                             value = uiState.inputText,
                             onValueChange = viewModel::onInputChanged,
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Speak the password...", color = gold.copy(alpha = 0.4f), fontFamily = androidx.compose.ui.text.font.FontFamily.Serif) },
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = cardBg.copy(alpha = 0.5f),
-                                unfocusedContainerColor = cardBg.copy(alpha = 0.5f),
-                                focusedTextColor = gold,
-                                unfocusedTextColor = gold,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(16.dp),
-                            singleLine = true
+                            label = "Speak the password...",
+                            modifier = Modifier.weight(1f)
                         )
                         
                         Spacer(Modifier.width(12.dp))
 
-                        val micColor by animateColorAsState(if (isListening) Color(0xFFE53935) else cardBg, label = "micColor")
+                        val micColor by animateColorAsState(if (isListening) Color(0xFFE53935) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f), label = "micColor")
                         val micIconTint = if (isListening) Color.White else gold
                         val micScale by animateFloatAsState(if (isListening) 1.2f else 1f, label = "micScale")
 
@@ -369,18 +434,24 @@ fun RiddleScreen(
                     Spacer(Modifier.height(16.dp))
                     
                     BouncyButton(
-                        onClick = { viewModel.submitAnswer() },
+                        onClick = { 
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.submitAnswer() 
+                        },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
-                        containerColor = gold,
-                        contentColor = darkBg
+                        containerColor = gold.copy(alpha = 0.7f),
+                        contentColor = MaterialTheme.colorScheme.onTertiary
                     ) {
                         Text("Speak Friend and Enter", fontWeight = FontWeight.Black, fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, fontSize = 16.sp)
                     }
                 } else if (uiState.isSolved) {
                     BouncyButton(
-                        onClick = { viewModel.loadNextRiddle() },
+                        onClick = { 
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.loadNextRiddle() 
+                        },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
-                        containerColor = accentPurple,
+                        containerColor = accentPurple.copy(alpha = 0.6f),
                         contentColor = gold
                     ) {
                         Icon(Icons.Rounded.SkipNext, contentDescription = null)

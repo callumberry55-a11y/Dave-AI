@@ -9,4 +9,12 @@
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:backgroundDimEnabled">false</item>
     </style>
+
+    <style name="Theme.DaveAI.Widgets.Light" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@android:color/system_accent1_600</item>
+    </style>
+
+    <style name="Theme.DaveAI.Widgets.Dark" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@android:color/system_accent1_200</item>
+    </style>
 </resources>

@@ -4,4 +4,9 @@
     <string name="shortcut_ask_dave_long">Speak with Dave AI</string>
     <string name="shortcut_new_chat">New Chat</string>
     <string name="shortcut_new_chat_long">Start a new elite conversation</string>
+    <string name="shortcut_panic_button">Panic Button</string>
+    <string name="shortcut_panic_button_long">Emergency Silent Ghost Mode</string>
+    <string name="shortcut_vault_status">Vault Status</string>
+    <string name="shortcut_vault_status_long">View permanent AI memory</string>
+    <string name="accessibility_description">Enables Dave AI to perform system actions like Back, Home, and showing notifications on your behalf.</string>
 </resources>

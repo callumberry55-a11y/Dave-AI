@@ -84,7 +84,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun LiveVoiceScreen(
     viewModel: ChatViewModel,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as DaveApplication
@@ -102,8 +102,8 @@ fun LiveVoiceScreen(
     val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     
-    var isMuted by remember { mutableStateOf(false) }
-    var isVisionEnabled by remember { mutableStateOf(false) }
+    var isMuted by remember { mutableStateOf(value = false) }
+    var isVisionEnabled by remember { mutableStateOf(value = false) }
     
     val lifecycleOwner = LocalLifecycleOwner.current
     var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
@@ -111,30 +111,33 @@ fun LiveVoiceScreen(
 
     // Initialize CameraX
     LaunchedEffect(isVisionEnabled, cameraPermissionState.status.isGranted) {
-        if (isVisionEnabled && cameraPermissionState.status.isGranted) {
+        if (isVisionEnabled && (cameraPermissionState.status.isGranted)) {
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-            cameraProviderFuture.addListener({
-                val cameraProvider = cameraProviderFuture.get()
-                
-                val preview = Preview.Builder().build()
-                val capture = ImageCapture.Builder()
-                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                    .build()
+            cameraProviderFuture.addListener(
+                {
+                    val cameraProvider = cameraProviderFuture.get()
+                    
+                    val preview = Preview.Builder().build()
+                    val capture = ImageCapture.Builder()
+                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                        .build()
 
-                try {
-                    cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        capture
-                    )
-                    imageCapture = capture
-                    previewUseCase = preview
-                } catch (e: Exception) {
-                    android.util.Log.e("DaveVision", "Camera bind failed", e)
-                }
-            }, ContextCompat.getMainExecutor(context))
+                    try {
+                        cameraProvider.unbindAll()
+                        cameraProvider.bindToLifecycle(
+                            lifecycleOwner,
+                            CameraSelector.DEFAULT_BACK_CAMERA,
+                            preview,
+                            capture
+                        )
+                        imageCapture = capture
+                        previewUseCase = preview
+                    } catch (e: Exception) {
+                        android.util.Log.e("DaveVision", "Camera bind failed", e)
+                    }
+                },
+                ContextCompat.getMainExecutor(context)
+            )
         } else {
             imageCapture = null
             previewUseCase = null
@@ -192,7 +195,7 @@ fun LiveVoiceScreen(
                         override fun onCaptureSuccess(image: ImageProxy) {
                             val buffer = image.planes[0].buffer
                             val bytes = ByteArray(buffer.remaining())
-                            buffer.get(bytes)
+                            buffer[bytes]
                             val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
                             
                             viewModel.addAttachment(
@@ -228,10 +231,7 @@ fun LiveVoiceScreen(
         if (micPermissionState.status.isGranted && !isMuted) {
             if (!isListening && !uiState.isLoading) {
                 delay(300) // Brief pause to prevent rapid error looping
-                // Recheck to ensure loading state hasn't changed during the delay
-                if (!uiState.isLoading) {
-                    voiceManager.startListening()
-                }
+                voiceManager.startListening()
             }
         } else if (isMuted && isListening) {
             voiceManager.stopListening()
@@ -335,8 +335,8 @@ fun LiveVoiceScreen(
             val lastDaveMessage = uiState.messages.lastOrNull { it.isFromDave }?.content ?: ""
             AnimatedVisibility(
                 visible = isDaveSpeaking || uiState.isLoading || (!isListening && lastDaveMessage.isNotBlank()),
-                enter = fadeIn() + slideInVertically(initialOffsetY = { 50 }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { 50 })
+                enter = fadeIn() + slideInVertically { 50 },
+                exit = fadeOut() + slideOutVertically { 50 }
             ) {
                 Box(
                     modifier = Modifier
@@ -447,16 +447,16 @@ fun SiriWaveAnimation(
     // Wave colors based on state AND mode
     val speakingBaseColor = when (mode) {
         com.example.daveai.ui.chat.DaveMode.HACKER -> Color(0xFF00E676) // Matrix Green
-        com.example.daveai.ui.chat.DaveMode.CREATIVE -> Color(0xFFFF4081) // Neon Pink
-        com.example.daveai.ui.chat.DaveMode.ANALYST -> Color(0xFFFFB300) // Amber
-        com.example.daveai.ui.chat.DaveMode.GAMER -> Color(0xFFFF5252) // Crimson
-        com.example.daveai.ui.chat.DaveMode.RESEARCHER -> Color(0xFF448AFF) // Light Blue
-        else -> Color(0xFF18FFFF) // Default Cyan
+        com.example.daveai.ui.chat.DaveMode.CREATIVE -> Color(0xFFC0CA33) // Lime Gold
+        com.example.daveai.ui.chat.DaveMode.ANALYST -> Color(0xFFFFD600) // Gold
+        com.example.daveai.ui.chat.DaveMode.GAMER -> Color(0xFFF44336) // Red
+        com.example.daveai.ui.chat.DaveMode.RESEARCHER -> Color(0xFF00C853) // Emerald
+        else -> Color(0xFF00E676) // Default Emerald
     }
 
-    val color1 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor else if (isThinking) Color(0xFFFFD54F) else if (isListening) Color(0xFFB388FF) else Color.DarkGray, label = "c1")
-    val color2 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor.copy(alpha = 0.7f) else if (isThinking) Color(0xFFFF6F00) else if (isListening) Color(0xFF7C4DFF) else Color.Gray, label = "c2")
-    val color3 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor.copy(alpha = 0.4f) else if (isThinking) Color(0xFFFFC107) else if (isListening) Color(0xFF651FFF) else Color.LightGray, label = "c3")
+    val color1 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor else if (isThinking) Color(0xFFFFD600) else if (isListening) Color(0xFF00E676) else Color.DarkGray, label = "c1")
+    val color2 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor.copy(alpha = 0.7f) else if (isThinking) Color(0xFFF9A825) else if (isListening) Color(0xFF00C853) else Color.Gray, label = "c2")
+    val color3 by animateColorAsState(targetValue = if (isSpeaking) speakingBaseColor.copy(alpha = 0.4f) else if (isThinking) Color(0xFFFFEB3B) else if (isListening) Color(0xFF69F0AE) else Color.LightGray, label = "c3")
 
     androidx.compose.foundation.Canvas(modifier = Modifier.size(300.dp, 200.dp)) {
         val w = size.width
@@ -486,7 +486,7 @@ fun SiriWaveAnimation(
                 val y = midY + yOffset * maxAmplitude * taper
 
                 if (x == 0) {
-                    path.moveTo(x.toFloat(), y)
+                    path.moveTo(0f, y)
                 } else {
                     path.lineTo(x.toFloat(), y)
                 }
