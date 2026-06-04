@@ -87,21 +87,59 @@ class HardwareAccelerator(@Suppress("unused") private val context: Context) {
     }
 
     /**
+     * Verifies if the user actually intended to trigger a specific tool/action.
+     * Prevents accidental misfires from simple keyword matches.
+     */
+    suspend fun verifyToolIntent(prompt: String, candidateTask: String): Boolean {
+        if (!isAICoreAvailable()) return true // Fallback to keyword match if local AI is unavailable
+        
+        return withTimeoutOrNull(2500) {
+            try {
+                val verificationPrompt = """
+                    User said: "$prompt"
+                    Dave matched this to the task: "$candidateTask"
+                    
+                    Does the user's message EXPLICITLY request to perform this action?
+                    Respond ONLY with 'TRUE' or 'FALSE'. 
+                    If it's just a general mention or part of a normal sentence without active intent, respond 'FALSE'.
+                """.trimIndent()
+                
+                val response = generateOnDevice(verificationPrompt)
+                response?.trim()?.uppercase() == "TRUE"
+            } catch (e: Exception) {
+                Log.e("HardwareAccelerator", "Intent verification failed: ${e.message}")
+                true // Fallback to true to avoid blocking valid tools on error
+            }
+        } ?: true
+    }
+
+    /**
      * Extracts key entities and topics from a user prompt using Gemini Nano.
      * These keywords are used for relevant semantic memory retrieval.
      */
     suspend fun extractKeywords(prompt: String): List<String> {
         if (!isAICoreAvailable()) return emptyList()
         // Optimization: Skip extraction for very short prompts
-        if (prompt.trim().split("\\s+".toRegex()).size < 3) return emptyList()
+        if (prompt.trim().split("\\s+".toRegex()).size < 2) return emptyList()
 
-        return withTimeoutOrNull(3000) {
+        return withTimeoutOrNull(4000) {
             try {
                 Log.d("HardwareAccelerator", "Starting local keyword extraction...")
-                val extractionPrompt = "Extract 3-5 main keywords or entities from the following text. Respond ONLY with a comma-separated list of keywords:\n\n$prompt"
+                val extractionPrompt = """
+                    Analyze the user prompt and extract 5-8 highly relevant keywords or entities. 
+                    Focus on:
+                    - Proper names (people, places)
+                    - Projects or specific technologies
+                    - User preferences or stated goals
+                    - Key subject matters
+                    
+                    Respond ONLY with a comma-separated list.
+                    
+                    Prompt: $prompt
+                """.trimIndent()
                 val response = generateOnDevice(extractionPrompt)
-                Log.d("HardwareAccelerator", "Local extraction complete: $response")
-                response?.split(",")?.map { it.trim().lowercase() }?.filter { it.isNotBlank() }
+                Log.d("HardwareAccelerator", "Local extraction complete: ${response?.take(50)}...")
+                response?.split(",")?.map { it.trim().lowercase() }?.filter { it.length > 2 }
             } catch (e: Exception) {
                 Log.e("HardwareAccelerator", "Keyword extraction failed: ${e.message}")
                 null

@@ -38,6 +38,7 @@ class ChatRoomActivity : ComponentActivity() {
         val riddleDao = chatRepository.getRiddleDao()
         val settingsRepository = com.example.daveai.data.repository.SettingsRepository(this)
         val sessionId = intent.getStringExtra("sessionId")
+        val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (_: Exception) { null }
 
         setContent {
             val primaryColorInt by settingsRepository.primaryColor.collectAsState(initial = com.example.daveai.data.repository.SettingsRepository.DEFAULT_COLOR)
@@ -74,16 +75,24 @@ class ChatRoomActivity : ComponentActivity() {
                                     }
                                     ChatScreen(
                                         viewModel = chatViewModel,
-                                        onLogout = { finish() },
+                                        onLogout = { 
+                                            auth?.signOut()
+                                            finish() 
+                                        },
                                     ) { currentScreen = ChatActivityScreen.RIDDLE }
                                 }
                                 ChatActivityScreen.RIDDLE -> {
                                     val riddleViewModel: RiddleViewModel = viewModel {
-                                        RiddleViewModel(riddleDao, voiceManager, riddleSoundManager, chatRepository)
+                                        RiddleViewModel(riddleDao, voiceManager, riddleSoundManager, chatRepository, settingsRepository)
                                     }
                                     RiddleScreen(
                                         viewModel = riddleViewModel,
-                                    ) { currentScreen = ChatActivityScreen.CHAT }
+                                        onBack = { currentScreen = ChatActivityScreen.CHAT },
+                                        onLogout = {
+                                            auth?.signOut()
+                                            finish()
+                                        }
+                                    )
                                 }
                             }
                         }

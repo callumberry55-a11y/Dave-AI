@@ -2,6 +2,7 @@ package com.example.daveai.ui.landing
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -11,28 +12,22 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Icon
@@ -41,204 +36,209 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.daveai.ui.components.NeuralCard
-import com.example.daveai.ui.riddle.RiddleViewModel
 import kotlinx.coroutines.delay
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun LandingScreen(
-    riddleViewModel: RiddleViewModel,
     onNavigateToChat: () -> Unit,
     onNavigateToRiddle: () -> Unit,
-    onNavigateToLessons: () -> Unit,
 ) {
-    val riddleState by riddleViewModel.uiState.collectAsState()
-    val gold = MaterialTheme.colorScheme.tertiary
-    
-    var showHeader by remember { mutableStateOf(false) }
-    var showAura by remember { mutableStateOf(false) }
-    var showCards by remember { mutableStateOf(false) }
+    var isCoreActive by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(100)
-        showHeader = true
-        delay(150)
-        showAura = true
-        delay(150)
-        showCards = true
+        delay(300)
+        isCoreActive = true
     }
 
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Background Glow
+        val glowStrength = com.example.daveai.ui.components.LocalGlowStrength.current
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f * glowStrength * 2f), Color.Transparent),
+                        radius = 1000f
+                    )
+                )
+        )
+
+        // Orbits
+        OrbitingElement(
+            angleOffset = 0f,
+            label = "VAULT",
+            isActive = isCoreActive,
+            onClick = onNavigateToRiddle,
+            color = MaterialTheme.colorScheme.tertiary,
+            radius = 200.dp // Increased radius for more space
+        )
+
+        OrbitingElement(
+            angleOffset = 180f,
+            label = "SYSTEM",
+            isActive = isCoreActive,
+            onClick = onNavigateToChat,
+            color = MaterialTheme.colorScheme.primary,
+            radius = 200.dp
+        )
+
+        // Central Aura Core
+        AuraCore(
+            isActive = isCoreActive,
+            onClick = onNavigateToChat
+        )
+
+        // Bottom Identification
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 64.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "NEURAL LINK ESTABLISHED",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 4.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "DAVE OS :: V1.4.0",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Black,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun AuraCore(
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "aura")
-    val auraScale by infiniteTransition.animateFloat(
+    val glowStrength = com.example.daveai.ui.components.LocalGlowStrength.current
+    
+    val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.3f,
+        targetValue = 1.15f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
+            animation = tween(3000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "pulse"
     )
-    val auraAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+
+    val coreAlpha by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0f,
+        animationSpec = tween(1000),
         label = "alpha"
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp)
-    ) {
-        Spacer(Modifier.height(32.dp))
-        
-        // Header
-        AnimatedVisibility(
-            visible = showHeader,
-            enter = slideInVertically(
-                initialOffsetY = { -50 },
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-            ) + fadeIn(tween(500))
-        ) {
-            Column {
-                Text(
-                    text = "Welcome back, boss",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.25f),
-                            offset = Offset(0f, 2f),
-                            blurRadius = 4f
-                        )
-                    ),
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-1).sp
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "DAVE IS READY",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
-        }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.9f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy),
+        label = "pressScale"
+    )
 
-        // Central Aura Button
-        AnimatedVisibility(
-            visible = showAura,
-            enter = slideInVertically(
-                initialOffsetY = { 50 },
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-            ) + fadeIn(tween(500))
-        ) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .scale(pressScale)
+            .alpha(coreAlpha)
+    ) {
+        // Outer Glow Layers
+        repeat(3) { index ->
+            val glowScale by infiniteTransition.animateFloat(
+                initialValue = 1.2f + (index * 0.2f),
+                targetValue = 1.6f + (index * 0.3f),
+                animationSpec = infiniteRepeatable(
+                    animation = tween(4000 + (index * 1000), easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "glowScale$index"
+            )
+            
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(320.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Pulsing Aura
-                Box(
-                    modifier = Modifier
-                        .size(160.dp)
-                        .scale(auraScale)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = auraAlpha))
-                )
-                
-                // Main Button
-                val interactionSource = remember { MutableInteractionSource() }
-                val isPressed by interactionSource.collectIsPressedAsState()
-                val btnScale by animateFloatAsState(
-                    targetValue = if (isPressed) 0.9f else 1f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy),
-                    label = "btnScale"
-                )
-
-                Surface(
-                    modifier = Modifier
-                        .size(140.dp)
-                        .scale(btnScale)
-                        .clip(CircleShape)
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClick = onNavigateToChat
-                        ),
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = CircleShape,
-                    shadowElevation = 16.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = "Tap to talk to Dave",
-                            modifier = Modifier.size(56.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                    .size(180.dp)
+                    .scale(glowScale)
+                    .graphicsLayer { alpha = (0.1f * glowStrength * 1.5f) / (index + 1) } // Softened glow
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(MaterialTheme.colorScheme.primary, Color.Transparent)
                         )
-                    }
-                }
-            }
+                    )
+            )
         }
 
-        // Grid
-        AnimatedVisibility(
-            visible = showCards,
-            enter = slideInVertically(
-                initialOffsetY = { 100 },
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-            ) + fadeIn(tween(500))
+        // Main Interaction Surface
+        Surface(
+            modifier = Modifier
+                .size(160.dp)
+                .scale(pulseScale)
+                .clip(CircleShape)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                ),
+            color = Color.Transparent,
+            shape = CircleShape
         ) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                LandingCard(
-                    modifier = Modifier.weight(1f),
-                    title = "🧩 Vault",
-                    titleColor = MaterialTheme.colorScheme.tertiary,
-                    subtitle = "Streak: 🔥 ${riddleState.streak}\nProgress: ${riddleState.solvedCount}/${riddleState.totalCount}",
-                    onClick = onNavigateToRiddle
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.sweepGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                            )
+                        )
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(0.92f)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.background)
                 )
                 
-                Spacer(Modifier.width(16.dp))
-
-                LandingCard(
-                    modifier = Modifier.weight(1f),
-                    title = "📚 Lessons",
-                    titleColor = MaterialTheme.colorScheme.primary,
-                    subtitle = "Resume current\nuniversity module",
-                    onClick = onNavigateToLessons
+                Icon(
+                    imageVector = Icons.Rounded.AutoAwesome,
+                    contentDescription = "Initialize Dave",
+                    modifier = Modifier.size(56.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -246,50 +246,63 @@ fun LandingScreen(
 }
 
 @Composable
-private fun LandingCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    titleColor: Color,
-    subtitle: String,
-    onClick: () -> Unit
+fun OrbitingElement(
+    angleOffset: Float,
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    color: Color,
+    radius: androidx.compose.ui.unit.Dp = 160.dp
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy),
-        label = "cardScale"
+    val infiniteTransition = rememberInfiniteTransition(label = "orbit")
+    val orbitDuration = 12000
+    
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(orbitDuration, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "angle"
     )
 
-    NeuralCard(
-        modifier = modifier
-            .height(160.dp)
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        shape = RoundedCornerShape(24.dp)
+    val currentAngle = (angle + angleOffset) * (Math.PI / 180f).toFloat()
+    
+    val xOffset = radius * cos(currentAngle)
+    val yOffset = radius * sin(currentAngle)
+
+    AnimatedVisibility(
+        visible = isActive,
+        enter = fadeIn(tween(1500)) + scaleIn(tween(1000)),
+        exit = fadeOut() + scaleOut()
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .offset(x = xOffset, y = yOffset)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = title,
-                color = titleColor,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Text(
-                text = subtitle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .graphicsLayer {
+                            shadowElevation = 10f
+                            spotShadowColor = color
+                        }
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = color.copy(alpha = 0.8f),
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+            }
         }
     }
 }

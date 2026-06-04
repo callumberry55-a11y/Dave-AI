@@ -75,51 +75,51 @@ fun AnimatedMeshBackground(
             // Blob 1: Primary
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(color1.copy(alpha = 0.3f * blobAlphaMultiplier), Color.Transparent),
+                    colors = listOf(color1.copy(alpha = 0.4f * blobAlphaMultiplier), Color.Transparent),
                     center = Offset(
-                        x = (canvasWidth / 2f) + ((canvasWidth / 3f) * cos(angle)),
-                        y = (canvasHeight / 2f) + ((canvasHeight / 4f) * sin(angle))
+                        x = (canvasWidth / 2f) + ((canvasWidth / 2.5f) * cos(angle)),
+                        y = (canvasHeight / 2f) + ((canvasHeight / 3.5f) * sin(angle))
                     ),
-                    radius = canvasWidth * 0.8f
+                    radius = canvasWidth * 1.2f
                 ),
-                radius = canvasWidth,
+                radius = canvasWidth * 1.2f,
                 center = Offset(
-                    x = (canvasWidth / 2f) + ((canvasWidth / 3f) * cos(angle)),
-                    y = (canvasHeight / 2f) + ((canvasHeight / 4f) * sin(angle))
+                    x = (canvasWidth / 2f) + ((canvasWidth / 2.5f) * cos(angle)),
+                    y = (canvasHeight / 2f) + ((canvasHeight / 3.5f) * sin(angle))
                 )
             )
 
             // Blob 2: Derived secondary
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(color2.copy(alpha = 0.2f * blobAlphaMultiplier), Color.Transparent),
+                    colors = listOf(color2.copy(alpha = 0.3f * blobAlphaMultiplier), Color.Transparent),
                     center = Offset(
-                        x = (canvasWidth / 2f) + ((canvasWidth / 4f) * sin(angle * 1.5f)),
-                        y = (canvasHeight / 2f) + ((canvasHeight / 3f) * cos(angle * 0.5f))
+                        x = (canvasWidth / 2f) + ((canvasWidth / 3f) * sin(angle * 1.2f)),
+                        y = (canvasHeight / 2f) + ((canvasHeight / 2.5f) * cos(angle * 0.8f))
                     ),
-                    radius = canvasWidth * 0.7f
+                    radius = canvasWidth * 1.0f
                 ),
-                radius = canvasWidth,
+                radius = canvasWidth * 1.0f,
                 center = Offset(
-                    x = (canvasWidth / 2f) + ((canvasWidth / 4f) * sin(angle * 1.5f)),
-                    y = (canvasHeight / 2f) + ((canvasHeight / 3f) * cos(angle * 0.5f))
+                    x = (canvasWidth / 2f) + ((canvasWidth / 3f) * sin(angle * 1.2f)),
+                    y = (canvasHeight / 2f) + ((canvasHeight / 2.5f) * cos(angle * 0.8f))
                 )
             )
 
-            // Blob 3: Accent
+            // Blob 3: Accent (Intelligence Glow)
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.1f * blobAlphaMultiplier), Color.Transparent),
+                    colors = listOf(Color(0xFF00F2FF).copy(alpha = 0.15f * blobAlphaMultiplier), Color.Transparent),
                     center = Offset(
-                        x = (canvasWidth / 2f) + ((canvasWidth / 2.5f) * cos(angle * 0.7f + 1f)),
-                        y = (canvasHeight / 2f) + ((canvasHeight / 2.5f) * sin(angle * 1.2f - 2f))
+                        x = (canvasWidth / 2f) + ((canvasWidth / 2f) * cos(angle * 0.5f + 2f)),
+                        y = (canvasHeight / 2f) + ((canvasHeight / 2f) * sin(angle * 1.5f - 1f))
                     ),
-                    radius = canvasWidth * 0.9f
+                    radius = canvasWidth * 0.8f
                 ),
-                radius = canvasWidth,
+                radius = canvasWidth * 0.8f,
                 center = Offset(
-                    x = (canvasWidth / 2f) + ((canvasWidth / 2.5f) * cos(angle * 0.7f + 1f)),
-                    y = (canvasHeight / 2f) + ((canvasHeight / 2.5f) * sin(angle * 1.2f - 2f))
+                    x = (canvasWidth / 2f) + ((canvasWidth / 2f) * cos(angle * 0.5f + 2f)),
+                    y = (canvasHeight / 2f) + ((canvasHeight / 2f) * sin(angle * 1.5f - 1f))
                 )
             )
         }

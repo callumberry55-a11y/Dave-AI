@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="AppInsightsSettings">
-    <option name="selectedTabId" value="Android vitals" />
+    <option name="selectedTabId" value="Firebase Crashlytics" />
     <option name="tabSettings">
       <map>
         <entry key="Android vitals">
@@ -18,8 +18,8 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.example.daveai" />
-                  <option name="mobileSdkAppId" value="1:895901729935:android:103a1cba33bfaee96b9cfa" />
+                  <option name="appId" value="com.example.daveai.beta" />
+                  <option name="mobileSdkAppId" value="1:895901729935:android:beta-dummy-id" />
                   <option name="projectId" value="dave-ai-f959d" />
                   <option name="projectNumber" value="895901729935" />
                 </ConnectionSetting>

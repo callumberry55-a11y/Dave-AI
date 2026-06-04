@@ -1,0 +1,21 @@
+- [x] Investigate disappearance of university courses
+- [/] Implement expanded data sources, memory optimizations, and navigation fixes
+	- [ ] Create GeminiApiService and PoetryDbApiService with models
+	- [ ] Update DaveApplication to initialize new services
+	- [ ] Update ChatRepository:
+		- [ ] Integrate Gemini and PoetryDB
+		- [ ] Implement Neural Consolidation logic
+		- [ ] Implement Temporal Conflict Resolution
+		- [ ] Add dynamic thinking status state
+	- [ ] Update ChatScreen:
+		- [ ] Add University button and fix navigation
+		- [ ] Upgrade thinking indicator UI and logic
+	- [ ] Update SanctumScreen with memory health metrics
+	- [ ] Update MainActivity to handle Lessons navigation
+- [ ] Verify implementation
+	- [ ] Build the app
+	- [ ] Verify University button and navigation
+	- [ ] Verify Gemini "pull info" capability
+	- [ ] Verify PoetryDB search capability
+	- [ ] Verify semantic memory optimization (conflict/consolidation)
+	- [ ] Verify contemporary dynamic thinking indicator

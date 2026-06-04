@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
@@ -77,6 +79,15 @@ fun DaveAITheme(
     typographyStyle: String = "MODERN",
     content: @Composable () -> Unit
 ) {
+    if (com.example.daveai.BuildConfig.FLAVOR == "developer") {
+        MaterialTheme(
+            colorScheme = BetaColorScheme,
+            typography = BetaTypography,
+            content = content
+        )
+        return
+    }
+
     val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
@@ -103,12 +114,37 @@ fun DaveAITheme(
     }
 
     val dynamicTypography = Typography(
-        displayLarge = Typography.displayLarge.copy(fontFamily = fontFamily),
-        headlineLarge = Typography.headlineLarge.copy(fontFamily = fontFamily),
-        titleLarge = Typography.titleLarge.copy(fontFamily = fontFamily),
-        bodyLarge = Typography.bodyLarge.copy(fontFamily = fontFamily),
-        labelMedium = Typography.labelMedium.copy(fontFamily = fontFamily),
-        labelSmall = Typography.labelSmall.copy(fontFamily = fontFamily)
+        displayLarge = Typography.displayLarge.copy(
+            fontFamily = fontFamily,
+            fontWeight = FontWeight.ExtraLight,
+            letterSpacing = 2.sp
+        ),
+        headlineLarge = Typography.headlineLarge.copy(
+            fontFamily = fontFamily,
+            fontWeight = FontWeight.Light,
+            letterSpacing = 1.sp
+        ),
+        titleLarge = Typography.titleLarge.copy(
+            fontFamily = fontFamily,
+            fontWeight = FontWeight.Normal,
+            letterSpacing = 1.sp
+        ),
+        bodyLarge = Typography.bodyLarge.copy(
+            fontFamily = fontFamily,
+            fontWeight = FontWeight.Light,
+            lineHeight = 28.sp,
+            letterSpacing = 0.5.sp
+        ),
+        labelMedium = Typography.labelMedium.copy(
+            fontFamily = fontFamily,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 1.5.sp
+        ),
+        labelSmall = Typography.labelSmall.copy(
+            fontFamily = fontFamily,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 3.sp
+        )
     )
 
     val view = LocalView.current

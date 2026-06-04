@@ -3,11 +3,19 @@ package com.example.daveai
 import android.app.Application
 import com.example.daveai.data.db.DaveDatabase
 import com.example.daveai.data.network.ClaudeApiService
+import com.example.daveai.data.network.CloudModelApiService
 import com.example.daveai.data.network.CryptoApiService
+import com.example.daveai.data.network.ElevenLabsApiService
+import com.example.daveai.data.network.GeminiApiService
 import com.example.daveai.data.network.GoogleMapsApiService
+import com.example.daveai.data.network.GroqApiService
+import com.example.daveai.data.network.MediaWikiApiService
 import com.example.daveai.data.network.NewsApiService
 import com.example.daveai.data.network.OpenAiApiService
 import com.example.daveai.data.network.OpenMeteoGeocodingApiService
+import com.example.daveai.data.network.PerplexityApiService
+import com.example.daveai.data.network.PoetryApiService
+import com.example.daveai.data.network.PoetryDbApiService
 import com.example.daveai.data.network.SpotifyApiService
 import com.example.daveai.data.network.SunoApiService
 import com.example.daveai.data.network.WeatherApiService
@@ -126,18 +134,82 @@ class DaveApplication : Application() {
             .build()
         val newsService = newsRetrofit.create(NewsApiService::class.java)
 
+        val poetryRetrofit = Retrofit.Builder()
+            .baseUrl(PoetryApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val poetryService = poetryRetrofit.create(PoetryApiService::class.java)
+
+        val cloudModelRetrofit = Retrofit.Builder()
+            .baseUrl(CloudModelApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val cloudModelService = cloudModelRetrofit.create(CloudModelApiService::class.java)
+
+        val geminiRetrofit = Retrofit.Builder()
+            .baseUrl(GeminiApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val geminiService = geminiRetrofit.create(GeminiApiService::class.java)
+
+        val poetryDbRetrofit = Retrofit.Builder()
+            .baseUrl(PoetryDbApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val poetryDbService = poetryDbRetrofit.create(PoetryDbApiService::class.java)
+
+        val wikiRetrofit = Retrofit.Builder()
+            .baseUrl(MediaWikiApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val wikiService = wikiRetrofit.create(MediaWikiApiService::class.java)
+
+        val elevenLabsRetrofit = Retrofit.Builder()
+            .baseUrl(ElevenLabsApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val elevenLabsService = elevenLabsRetrofit.create(ElevenLabsApiService::class.java)
+
+        val groqRetrofit = Retrofit.Builder()
+            .baseUrl(GroqApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val groqService = groqRetrofit.create(GroqApiService::class.java)
+
+        val perplexityRetrofit = Retrofit.Builder()
+            .baseUrl(PerplexityApiService.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+        val perplexityService = perplexityRetrofit.create(PerplexityApiService::class.java)
+
+        val settingsRepository = com.example.daveai.data.repository.SettingsRepository(this)
         val deviceAssistant = DeviceAssistant(this)
         val hardwareAccelerator = HardwareAccelerator(this)
-        voiceManager = DaveVoiceManager(this, openaiService)
+        voiceManager = DaveVoiceManager(this, openaiService, elevenLabsService, settingsRepository)
         notificationManager = DaveNotificationManager(this)
         riddleSoundManager = RiddleSoundManager(this)
         
         chatRepository = ChatRepository(
             apiService = claudeService,
             openaiService = openaiService,
+            groqService = groqService,
+            perplexityService = perplexityService,
             sunoService = sunoService,
             spotifyService = spotifyService,
             newsService = newsService,
+            poetryService = poetryService,
+            poetryDbService = poetryDbService,
+            wikiService = wikiService,
+            geminiService = geminiService,
+            cloudModelService = cloudModelService,
             mapsService = mapsService,
             cryptoService = cryptoService,
             weatherService = weatherService,
@@ -151,12 +223,10 @@ class DaveApplication : Application() {
             deviceAssistant = deviceAssistant,
             voiceManager = voiceManager,
             notificationManager = notificationManager,
+            settingsRepository = settingsRepository
         )
 
         chatRepository.scheduleAgenticCycle()
-
-        // Start Dave's Sanctum Server
-        com.example.daveai.service.DaveServerService.start(this)
 
         // Seed the riddles on startup
         kotlinx.coroutines.MainScope().launch {

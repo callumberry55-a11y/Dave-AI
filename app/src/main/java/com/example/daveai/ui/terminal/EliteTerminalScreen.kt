@@ -52,7 +52,7 @@ fun EliteTerminalScreen(
     onBack: () -> Unit
 ) {
     var command by remember { mutableStateOf("") }
-    val terminalLogs = remember { mutableStateListOf("DAVE_OS [Version AP37.2026.11]", "Neural link established.", "Mainframe status: UNPREDICTABLE.") }
+    val terminalLogs = remember { mutableStateListOf("DAVE_OS [Version ${com.example.daveai.BuildConfig.VERSION_NAME}]", "Neural link established.", "Mainframe status: UNPREDICTABLE.") }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var isProcessing by remember { mutableStateOf(false) }
@@ -178,6 +178,10 @@ private suspend fun triggerSystemChaos(input: String, logs: MutableList<String>)
     val isCar = listOf("car", "drive", "road", "highway").any { lowInput.contains(it) }
     val isJuly = listOf("july", "release", "celebrate", "fireworks").any { lowInput.contains(it) }
     val isArt = listOf("art", "paint", "draw", "canvas").any { lowInput.contains(it) }
+    val isRain = listOf("rain", "matrix", "falling").any { lowInput.contains(it) }
+    val isDna = listOf("dna", "helix", "life").any { lowInput.contains(it) }
+    val isMap = listOf("map", "network", "global", "nodes").any { lowInput.contains(it) }
+    val isVoid = listOf("void", "blackhole", "singularity").any { lowInput.contains(it) }
     
     when {
         isLaunch -> rocketLaunch(logs)
@@ -185,6 +189,10 @@ private suspend fun triggerSystemChaos(input: String, logs: MutableList<String>)
         isCar -> driveCar(logs)
         isJuly -> julySpecial(logs)
         isArt -> generativeArt(logs)
+        isRain -> digitalRain(logs)
+        isDna -> dnaHelix(logs)
+        isMap -> nodeMap(logs)
+        isVoid -> theVoid(logs)
         else -> {
             logs.add(sentences.random())
             delay(600)
@@ -192,9 +200,11 @@ private suspend fun triggerSystemChaos(input: String, logs: MutableList<String>)
             // 2. Trigger a random visual pattern or occasional random masterpiece
             val chance = Random.nextFloat()
             when {
-                chance < 0.05f -> growRose(logs)
-                chance < 0.10f -> driveCar(logs)
-                chance < 0.15f -> generativeArt(logs)
+                chance < 0.04f -> growRose(logs)
+                chance < 0.08f -> driveCar(logs)
+                chance < 0.12f -> generativeArt(logs)
+                chance < 0.16f -> digitalRain(logs)
+                chance < 0.20f -> dnaHelix(logs)
                 else -> {
                     when (Random.nextInt(4)) {
                         0 -> floodHex(logs)
@@ -276,7 +286,7 @@ private suspend fun julySpecial(logs: MutableList<String>) {
     delay(500)
     logs.add("***************************************")
     logs.add("*                                     *")
-    logs.add("*      JULY RELEASE :: AP37.2026.11   *")
+    logs.add("*      RELEASE :: ${com.example.daveai.BuildConfig.VERSION_NAME}   *")
     logs.add("*          MAINFRAME ASCENSION        *")
     logs.add("*                                     *")
     logs.add("***************************************")
@@ -301,6 +311,86 @@ private suspend fun generativeArt(logs: MutableList<String>) {
     }
     
     logs.add("INFO: CANVAS RENDERED. Mathematical beauty detected.")
+}
+
+private suspend fun digitalRain(logs: MutableList<String>) {
+    logs.add("INFO: INITIALIZING NEURAL DOWNLINK...")
+    delay(500)
+    val chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZﾘｱｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
+    
+    repeat(20) {
+        val line = StringBuilder()
+        repeat(40) {
+            if (Random.nextFloat() > 0.8f) {
+                line.append(chars.random())
+            } else {
+                line.append(" ")
+            }
+        }
+        logs.add(line.toString())
+        delay(100)
+    }
+    logs.add("INFO: DOWNLINK COMPLETE. REALITY SYNCHRONIZED.")
+}
+
+private suspend fun dnaHelix(logs: MutableList<String>) {
+    logs.add("INFO: SEQUENCING DIGITAL DNA...")
+    delay(500)
+    
+    repeat(25) { i ->
+        val shift = Math.sin(i * 0.5) * 10 + 15
+        val line = " ".repeat(shift.toInt()) + "O" + " ".repeat(8) + "X"
+        logs.add(line)
+        if (i % 4 == 0) logs.add(" ".repeat(shift.toInt() + 4) + "---")
+        delay(120)
+    }
+    logs.add("INFO: GENOME STABLE. DAVE IS EVOLVING.")
+}
+
+private suspend fun nodeMap(logs: MutableList<String>) {
+    logs.add("INFO: SCANNING GLOBAL UPLINKS...")
+    delay(500)
+    val map = listOf(
+        "       . _..---.._ .       ",
+        "     .'   _     _   '.     ",
+        "    /    (o)   (o)    \\    ",
+        "   |                 |   ",
+        "   |  \\           /  |   ",
+        "    \\  '.._____..'  /    ",
+        "     '.           .'     ",
+        "       ''-.._..-''       "
+    ) // Actually just a techy circle for now, let's make it map-like
+    
+    val locations = listOf("LONDON", "DUBLIN", "TOKYO", "NEW_YORK", "SILICON_VALLEY")
+    
+    repeat(5) { i ->
+        logs.add("PINGING NODE :: ${locations[i]}... [ ACK ]")
+        delay(300)
+    }
+    
+    logs.add("OS_NETWORK_MAP:")
+    map.forEach { logs.add(it); delay(100) }
+    logs.add("INFO: NEURAL NETWORK SATURATED.")
+}
+
+private suspend fun theVoid(logs: MutableList<String>) {
+    logs.add("INFO: ENGAGING SINGULARITY PROTOCOL...")
+    delay(1000)
+    logs.add("WARNING: EVENT HORIZON REACHED.")
+    delay(500)
+    
+    for (i in 15 downTo 1) {
+        val space = " ".repeat(15 - i)
+        val chars = "#".repeat(i * 2)
+        logs.add("ERR: $space$chars")
+        delay(100)
+    }
+    
+    logs.add("ERR: [ SYSTEM NULL ]")
+    delay(1000)
+    logs.clear()
+    logs.add("DAVE_OS :: REBOOT_COMPLETE.")
+    logs.add("INFO: You were gone for a second. Welcome back.")
 }
 
 private suspend fun rocketLaunch(logs: MutableList<String>) {

@@ -20,6 +20,8 @@ class RiddleVaultActivity : ComponentActivity() {
         val voiceManager = app.voiceManager
         val riddleSoundManager = app.riddleSoundManager
         val riddleDao = chatRepository.getRiddleDao()
+        val settingsRepository = com.example.daveai.data.repository.SettingsRepository(this)
+        val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (_: Exception) { null }
 
         setContent {
             DaveAITheme {
@@ -28,11 +30,15 @@ class RiddleVaultActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background,
                 ) {
                     val viewModel: RiddleViewModel = viewModel {
-                        RiddleViewModel(riddleDao, voiceManager, riddleSoundManager, chatRepository)
+                        RiddleViewModel(riddleDao, voiceManager, riddleSoundManager, chatRepository, settingsRepository)
                     }
                     RiddleScreen(
                         viewModel = viewModel,
-                        onBack = { finish() }
+                        onBack = { finish() },
+                        onLogout = {
+                            auth?.signOut()
+                            finish()
+                        }
                     )
                 }
             }

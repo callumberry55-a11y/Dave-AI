@@ -13,17 +13,15 @@ class RiddleSoundManager(context: Context) {
     private val handler = Handler(Looper.getMainLooper())
 
     fun playCorrect() {
-        // Fast ascending C Major arpeggio (C, E, G, C) using available DTMF tones to simulate 8-bit success
-        toneGenerator.startTone(ToneGenerator.TONE_DTMF_1, 80)
-        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_3, 80) }, 100)
-        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_5, 80) }, 200)
-        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_A, 150) }, 300)
+        toneGenerator.startTone(ToneGenerator.TONE_DTMF_1, 100)
+        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_3, 100) }, 150)
+        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_5, 100) }, 300)
+        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_A, 250) }, 450)
     }
 
     fun playWrong() {
-        // Descending dissonant notes for failure
-        toneGenerator.startTone(ToneGenerator.TONE_DTMF_8, 120)
-        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_4, 180) }, 150)
+        toneGenerator.startTone(ToneGenerator.TONE_DTMF_8, 200)
+        handler.postDelayed({ toneGenerator.startTone(ToneGenerator.TONE_DTMF_B, 300) }, 250)
     }
 
     fun playTierUnlock() {

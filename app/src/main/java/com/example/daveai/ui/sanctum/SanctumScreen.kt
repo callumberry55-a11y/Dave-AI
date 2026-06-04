@@ -1,5 +1,6 @@
 package com.example.daveai.ui.sanctum
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,16 +14,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,11 +54,14 @@ import kotlin.random.Random
 @Composable
 fun SanctumScreen(
     viewModel: ChatViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onEnterVault: () -> Unit
 ) {
     var neuralRam by remember { mutableFloatStateOf(0.4f) }
     var coreTemp by remember { mutableIntStateOf(42) }
     var vaultSync by remember { mutableFloatStateOf(0.98f) }
+
+    val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -64,10 +75,9 @@ fun SanctumScreen(
     Scaffold(
         topBar = {
             NeuralTopBar(
-                title = "THE SANCTUM",
+                title = "SANCTUM",
                 onNavigationClick = onBack,
-                navigationIcon = Icons.AutoMirrored.Rounded.ArrowBack,
-                isProactive = true
+                navigationIcon = Icons.AutoMirrored.Rounded.ArrowBack
             )
         },
         containerColor = Color.Transparent
@@ -80,7 +90,7 @@ fun SanctumScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "NEURAL SERVER CORE",
+                "SERVER CORE :: STATUS ACTIVE",
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Black,
@@ -89,57 +99,107 @@ fun SanctumScreen(
             
             Spacer(Modifier.height(32.dp))
 
-            MetricCard(
-                icon = Icons.Rounded.Memory,
-                label = "NEURAL RAM USAGE",
-                value = "${(neuralRam * 100).toInt()}%",
-                progress = neuralRam,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                MetricCard(
+                    icon = Icons.Rounded.Memory,
+                    label = "NEURAL RAM",
+                    value = "${(neuralRam * 100).toInt()}%",
+                    progress = neuralRam,
+                    color = MaterialTheme.colorScheme.primary
+                )
 
-            Spacer(Modifier.height(16.dp))
+                MetricCard(
+                    icon = Icons.Rounded.Speed,
+                    label = "CORE TEMP",
+                    value = "$coreTemp°C",
+                    progress = (coreTemp - 30) / 30f,
+                    color = if (coreTemp > 50) Color.Red else MaterialTheme.colorScheme.tertiary
+                )
 
-            MetricCard(
-                icon = Icons.Rounded.Speed,
-                label = "TPU CORE TEMP",
-                value = "$coreTemp°C",
-                progress = (coreTemp - 30) / 30f,
-                color = if (coreTemp > 50) Color.Red else MaterialTheme.colorScheme.tertiary
-            )
+                MetricCard(
+                    icon = Icons.Rounded.Storage,
+                    label = "VAULT SYNC",
+                    value = "${(vaultSync * 100).toInt()}%",
+                    progress = vaultSync,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
 
-            Spacer(Modifier.height(16.dp))
-
-            MetricCard(
-                icon = Icons.Rounded.Storage,
-                label = "VAULT SYNC",
-                value = "${(vaultSync * 100).toInt()}%",
-                progress = vaultSync,
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(24.dp))
 
             NeuralCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        "SERVER LOGS",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.Security,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "OS_INIT :: SUCCESS\n" +
-                        "ENCRYPTION_LAYER :: ACTIVE\n" +
-                        "NEURAL_LINK :: STABLE\n" +
-                        "AURA_EMITTER :: MODULATING",
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp,
-                        lineHeight = 16.sp,
-                        color = Color.LightGray
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "DIGITAL ASSETS",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    Button(
+                        onClick = onEnterVault,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.secondary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("VAULT", fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.SmartToy,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "AUTO-REPLY",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Switch(
+                        checked = uiState.isAutoReplyEnabled,
+                        onCheckedChange = { viewModel.toggleAutoReply(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.Transparent
+                        )
                     )
                 }
             }

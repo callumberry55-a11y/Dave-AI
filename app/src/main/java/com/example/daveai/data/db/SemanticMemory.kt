@@ -16,5 +16,7 @@ data class SemanticMemory(
     @ColumnInfo(name = "access_count")
     val accessCount: Int = 0,
     @ColumnInfo(name = "is_archived")
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
+    @ColumnInfo(name = "is_locked")
+    val isLocked: Boolean = false
 )

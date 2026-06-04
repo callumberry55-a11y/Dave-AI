@@ -50,6 +50,24 @@ data class ChatUiState(
     val buildLogs: List<String> = emptyList(),
     val appBlueprint: List<com.example.daveai.util.BlueprintItem> = emptyList(),
     val isShowingPreview: Boolean = false,
+    val isAutoReplyEnabled: Boolean = false,
+    val isSpeaking: Boolean = false,
+    val partnerId: String? = null,
+    val partnerName: String? = null,
+    val pairingCode: String? = null,
+    val userClaudeApiKey: String? = null,
+    val userOpenAiApiKey: String? = null,
+    val userSpotifyClientId: String? = null,
+    val userSpotifyClientSecret: String? = null,
+    val userNewsApiKey: String? = null,
+    val userMapsApiKey: String? = null,
+    val userGroqApiKey: String? = null,
+    val userPerplexityApiKey: String? = null,
+    val userElevenLabsApiKey: String? = null,
+    val userWeatherApiKey: String? = null,
+    val userFinanceApiKey: String? = null,
+    val blurIntensity: Float = 0.5f,
+    val glowStrength: Float = 0.5f,
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
@@ -96,6 +114,7 @@ class ChatViewModel(
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    val thinkingStatus = repository.thinkingStatus
 
     private var messageCollectionJob: Job? = null
 
@@ -152,6 +171,90 @@ class ChatViewModel(
                 _uiState.update { it.copy(useIrishAccent = use) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.partnerId.collect { id ->
+                _uiState.update { it.copy(partnerId = id) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.partnerName.collect { name ->
+                _uiState.update { it.copy(partnerName = name) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.isAutoReplyEnabled.collect { enabled ->
+                _uiState.update { it.copy(isAutoReplyEnabled = enabled) }
+            }
+        }
+
+        // API Keys Observation
+        viewModelScope.launch {
+            settingsRepository.userClaudeApiKey.collect { key ->
+                _uiState.update { it.copy(userClaudeApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userOpenAiApiKey.collect { key ->
+                _uiState.update { it.copy(userOpenAiApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userSpotifyClientSecret.collect { secret ->
+                _uiState.update { it.copy(userSpotifyClientSecret = secret) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userNewsApiKey.collect { key ->
+                _uiState.update { it.copy(userNewsApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userMapsApiKey.collect { key ->
+                _uiState.update { it.copy(userMapsApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userGroqApiKey.collect { key ->
+                _uiState.update { it.copy(userGroqApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userPerplexityApiKey.collect { key ->
+                _uiState.update { it.copy(userPerplexityApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userElevenLabsApiKey.collect { key ->
+                _uiState.update { it.copy(userElevenLabsApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userWeatherApiKey.collect { key ->
+                _uiState.update { it.copy(userWeatherApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userFinanceApiKey.collect { key ->
+                _uiState.update { it.copy(userFinanceApiKey = key) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.blurIntensity.collect { intensity ->
+                _uiState.update { it.copy(blurIntensity = intensity) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.glowStrength.collect { strength ->
+                _uiState.update { it.copy(glowStrength = strength) }
+            }
+        }
+
+        viewModelScope.launch {
+            repository.isSpeaking.collect { speaking ->
+                _uiState.update { it.copy(isSpeaking = speaking) }
+            }
+        }
     }
 
     private fun observeMemories() {
@@ -164,17 +267,12 @@ class ChatViewModel(
 
     private fun refreshDynamicSuggestions() {
         viewModelScope.launch {
-            val battery = repository.getDeviceAssistant().getBatteryLevel()
             val connectivity = repository.getDeviceAssistant().getConnectivityStatus()
             val hour = java.util.Calendar.getInstance()[java.util.Calendar.HOUR_OF_DAY]
             
             val suggestions = mutableListOf<String>()
             
             // Context-based suggestions
-            if (battery < 30) {
-                suggestions.add("🔋 Check battery health")
-            }
-            
             if (connectivity.contains("offline")) {
                 suggestions.add("🌐 Troubleshoot connection")
             }
@@ -184,6 +282,8 @@ class ChatViewModel(
             }
 
             // Always add some "Elite" features
+            suggestions.add("🌐 Scan world news")
+            suggestions.add("📚 Search Wiki for something")
             suggestions.add("📝 Write a deep poem about AI")
             suggestions.add("🎸 Write a rock song about coding")
             suggestions.add("🎨 Create a futuristic AI portrait")
@@ -238,7 +338,6 @@ class ChatViewModel(
                         isLocal = content.contains("⚡️ ("),
                         actions = buildList {
                             // Legacy auto-actions
-                            if (content.contains("battery", ignoreCase = true)) add("Check Battery")
                             if (content.contains("flashlight", ignoreCase = true)) add("Toggle Light")
                             if (content.contains("hardware", ignoreCase = true)) add("Scan Specs")
                             if (content.contains("location", ignoreCase = true) || content.contains("near me", ignoreCase = true)) add("Find Nearby")
@@ -285,12 +384,17 @@ class ChatViewModel(
                 "FINANCE" -> "💰 Finance Room"
                 "TRAVEL" -> "✈️ Travel Room"
                 "GAMING" -> "🎮 Gaming Room"
-                "LESSONS" -> "🎓 Lesson Room"
                 else -> "New Chat"
             }
             val id = repository.createNewSession("$titlePrefix ${System.currentTimeMillis() / 1000}", projectType)
             selectSession(id)
         }
+    }
+
+    fun reset() {
+        _uiState.update { ChatUiState() }
+        messageCollectionJob?.cancel()
+        messageCollectionJob = null
     }
 
     fun setIsListening(isListening: Boolean) {
@@ -329,7 +433,17 @@ class ChatViewModel(
         _uiState.update { it.copy(attachedFiles = it.attachedFiles + file) }
     }
 
-    fun sendMessage() {
+    fun speak(text: String) {
+        viewModelScope.launch {
+            repository.speak(text)
+        }
+    }
+
+    fun stopSpeaking() {
+        repository.stopSpeaking()
+    }
+
+    fun sendMessage(muteVoice: Boolean = false) {
         val currentInput = _uiState.value.inputText.trim()
         val sessionId = _uiState.value.currentSessionId ?: return
         val attachments = _uiState.value.attachedFiles
@@ -382,7 +496,8 @@ class ChatViewModel(
                         mode = currentMode,
                         isLiveMode = isLiveMode,
                         persona = persona,
-                        useIrishAccent = useIrishAccent
+                        useIrishAccent = useIrishAccent,
+                        muteVoice = muteVoice
                     )
                 } ?: "Error: Dave is deep in thought and taking too long. Try again! ⏳⚡️"
                 
@@ -449,6 +564,46 @@ class ChatViewModel(
         }
     }
 
+    fun strengthenSemanticMemory(id: Long) {
+        viewModelScope.launch {
+            val memories = _uiState.value.semanticMemories
+            memories.find { it.id == id }?.let { memory ->
+                val updated = memory.copy(importance = (memory.importance + 1).coerceAtMost(10))
+                repository.getSemanticMemoryDao().updateMemory(updated)
+            }
+        }
+    }
+
+    fun archiveSemanticMemory(id: Long, archive: Boolean) {
+        viewModelScope.launch {
+            val memories = _uiState.value.semanticMemories
+            memories.find { it.id == id }?.let { memory ->
+                val updated = memory.copy(isArchived = archive)
+                repository.getSemanticMemoryDao().updateMemory(updated)
+            }
+        }
+    }
+
+    fun editSemanticMemory(id: Long, newContent: String) {
+        viewModelScope.launch {
+            val memories = _uiState.value.semanticMemories
+            memories.find { it.id == id }?.let { memory ->
+                val updated = memory.copy(content = newContent)
+                repository.getSemanticMemoryDao().updateMemory(updated)
+            }
+        }
+    }
+
+    fun toggleMemoryLock(id: Long) {
+        viewModelScope.launch {
+            val memories = _uiState.value.semanticMemories
+            memories.find { it.id == id }?.let { memory ->
+                val updated = memory.copy(isLocked = !memory.isLocked)
+                repository.getSemanticMemoryDao().updateMemory(updated)
+            }
+        }
+    }
+
     // Personalization Methods
     fun updatePrimaryColor(color: Int) {
         viewModelScope.launch { settingsRepository.setPrimaryColor(color) }
@@ -484,6 +639,59 @@ class ChatViewModel(
 
     fun toggleIrishAccent(use: Boolean) {
         viewModelScope.launch { settingsRepository.setUseIrishAccent(use) }
+    }
+
+    fun toggleAutoReply(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setIsAutoReplyEnabled(enabled) }
+    }
+
+    // API Key Updates
+    fun updateClaudeApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserClaudeApiKey(key) }
+    }
+
+    fun updateOpenAiApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserOpenAiApiKey(key) }
+    }
+
+    fun updateSpotifyClientSecret(secret: String?) {
+        viewModelScope.launch { settingsRepository.setUserSpotifyClientSecret(secret) }
+    }
+
+    fun updateNewsApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserNewsApiKey(key) }
+    }
+
+    fun updateMapsApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserMapsApiKey(key) }
+    }
+
+    fun updateGroqApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserGroqApiKey(key) }
+    }
+
+    fun updatePerplexityApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserPerplexityApiKey(key) }
+    }
+
+    fun updateElevenLabsApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserElevenLabsApiKey(key) }
+    }
+
+    fun updateWeatherApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserWeatherApiKey(key) }
+    }
+
+    fun updateFinanceApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserFinanceApiKey(key) }
+    }
+
+    fun updateBlurIntensity(intensity: Float) {
+        viewModelScope.launch { settingsRepository.setBlurIntensity(intensity) }
+    }
+
+    fun updateGlowStrength(strength: Float) {
+        viewModelScope.launch { settingsRepository.setGlowStrength(strength) }
     }
 
     fun buildProject(appName: String, packageName: String) {
@@ -530,5 +738,56 @@ class ChatViewModel(
 
     fun closeAppFactory() {
         _uiState.update { it.copy(isBuildingApp = false, buildProgress = 0f, isShowingPreview = false) }
+    }
+
+    fun syncIntelligence() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val partnerId = _uiState.value.partnerId
+            if (partnerId != null) {
+                repository.speak("Establishing neural link with partner shadow... Standby.")
+            }
+            val importedCount = repository.syncIntelligence()
+            _uiState.update { it.copy(isLoading = false) }
+            
+            if (importedCount > 0) {
+                _uiState.update { state ->
+                    state.copy(ghostMessages = state.ghostMessages + ChatMessage(
+                        content = "Neural link established. Synchronized $importedCount intelligence signals from the cloud mainframe. 🧠⚡️",
+                        isFromDave = true
+                    ))
+                }
+                repository.speak("Synchronized $importedCount signals.")
+            } else if (partnerId != null) {
+                repository.speak("Reality is already synchronized, boss.")
+            }
+        }
+    }
+
+    fun generatePairingCode() {
+        viewModelScope.launch {
+            val code = repository.requestPairingCode()
+            _uiState.update { it.copy(pairingCode = code) }
+        }
+    }
+
+    fun linkPartner(code: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val partnerName = repository.linkPartner(code)
+            _uiState.update { it.copy(isLoading = false) }
+            if (partnerName != null) {
+                repository.speak("Handshake successful. Dave is now linked with $partnerName.")
+            } else {
+                repository.speak("Handshake failed. Verify the code and try again.")
+            }
+        }
+    }
+
+    fun unlinkPartner() {
+        viewModelScope.launch {
+            settingsRepository.setPartnerInfo(null, null)
+            repository.speak("Neural link severed.")
+        }
     }
 }

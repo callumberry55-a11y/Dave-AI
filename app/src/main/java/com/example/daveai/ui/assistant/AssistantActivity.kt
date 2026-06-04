@@ -90,6 +90,9 @@ class AssistantActivity : ComponentActivity() {
         val chatRepository = (application as DaveApplication).chatRepository
         val settingsRepository = SettingsRepository(this)
 
+        // Start Dave's Sanctum Server
+        com.example.daveai.service.DaveServerService.start(this)
+
         setContent {
             val primaryColorInt by settingsRepository.primaryColor.collectAsState(initial = SettingsRepository.DEFAULT_COLOR)
             val cyberIntensity by settingsRepository.cyberIntensity.collectAsState(initial = 0.8f)

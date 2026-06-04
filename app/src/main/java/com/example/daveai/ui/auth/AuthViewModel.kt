@@ -34,6 +34,11 @@ class AuthViewModel : ViewModel() {
 
     private var referralData: Map<String, String?> = emptyMap()
 
+    fun logout() {
+        auth?.signOut()
+        _uiState.update { AuthUiState() }
+    }
+
     fun setReferralData(data: Map<String, String?>) {
         this.referralData = data
     }

@@ -5,14 +5,18 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.util.Log
 import com.example.daveai.BuildConfig
+import com.example.daveai.data.network.ElevenLabsApiService
+import com.example.daveai.data.network.ElevenLabsTtsRequest
 import com.example.daveai.data.network.OpenAiApiService
 import com.example.daveai.data.network.TtsRequest
+import com.example.daveai.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -22,6 +26,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 class DaveVoiceManager(
     private val context: Context,
     private val openAiService: OpenAiApiService,
+    private val elevenLabsService: ElevenLabsApiService,
+    private val settingsRepository: SettingsRepository
 ) {
     private var mediaPlayer: MediaPlayer? = null
     private val audioQueue = ConcurrentLinkedQueue<File>()
@@ -40,9 +46,11 @@ class DaveVoiceManager(
     }
 
     suspend fun speak(text: String, speed: Double = 1.05) = withContext(Dispatchers.IO) {
-        val apiKey = BuildConfig.OPENAI_API_KEY
-        if (apiKey.isBlank()) return@withContext
-
+        val userOpenAiKey = settingsRepository.userOpenAiApiKey.firstOrNull()
+        val userElevenKey = settingsRepository.userElevenLabsApiKey.firstOrNull()
+        
+        val openAiKey = if (!userOpenAiKey.isNullOrBlank()) userOpenAiKey else BuildConfig.OPENAI_API_KEY
+        
         // Cancel any previous job if we are interrupted
         stop()
 
@@ -52,10 +60,19 @@ class DaveVoiceManager(
         scopeJob = CoroutineScope(Dispatchers.IO).launch {
             for (sentence in sentences) {
                 try {
-                    val response = openAiService.generateSpeech(
-                        auth = "Bearer $apiKey",
-                        request = TtsRequest(input = sentence, speed = speed, voice = "alloy")
-                    )
+                    val response = if (!userElevenKey.isNullOrBlank()) {
+                        elevenLabsService.generateSpeech(
+                            apiKey = userElevenKey,
+                            voiceId = ElevenLabsApiService.DEFAULT_VOICE_ID,
+                            request = ElevenLabsTtsRequest(text = sentence)
+                        )
+                    } else {
+                        if (openAiKey.isBlank()) continue
+                        openAiService.generateSpeech(
+                            auth = "Bearer $openAiKey",
+                            request = TtsRequest(input = sentence, speed = speed, voice = "alloy")
+                        )
+                    }
 
                     if (response.isSuccessful) {
                         val body = response.body()

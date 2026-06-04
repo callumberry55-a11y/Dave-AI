@@ -3,10 +3,14 @@ package com.example.daveai.ui.riddle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.daveai.data.db.AnswerResult
+import com.example.daveai.data.db.ChatSessionEntity
 import com.example.daveai.data.db.Riddle
 import com.example.daveai.data.db.RiddleDao
 import com.example.daveai.data.db.verifyUserAnswer
 import com.example.daveai.data.repository.ChatRepository
+import com.example.daveai.data.repository.SettingsRepository
+import com.example.daveai.data.repository.UserProfile
+import com.example.daveai.data.repository.UserStatsRepository
 import com.example.daveai.util.DaveVoiceManager
 import com.example.daveai.util.RiddleSoundManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,14 +30,20 @@ data class RiddleUiState(
     val streak: Int = 0,
     val tierName: String = "CASUAL",
     val errorTrigger: Int = 0,
+    val userProfile: UserProfile? = null,
+    val sessions: List<ChatSessionEntity> = emptyList(),
+    val glowStrength: Float = 0.5f,
+    val blurIntensity: Float = 0.5f,
 )
 
 class RiddleViewModel(
     private val riddleDao: RiddleDao,
     private val voiceManager: DaveVoiceManager,
     private val soundManager: RiddleSoundManager,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+    private val userStatsRepository = UserStatsRepository()
 
     private val _uiState = MutableStateFlow(RiddleUiState())
     val uiState: StateFlow<RiddleUiState> = _uiState.asStateFlow()
@@ -42,6 +52,28 @@ class RiddleViewModel(
 
     init {
         loadProgress()
+        viewModelScope.launch {
+            chatRepository.allSessions.collect { sessions ->
+                _uiState.update { it.copy(sessions = sessions) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.glowStrength.collect { strength ->
+                _uiState.update { it.copy(glowStrength = strength) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.blurIntensity.collect { intensity ->
+                _uiState.update { it.copy(blurIntensity = intensity) }
+            }
+        }
+        viewModelScope.launch {
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            auth.currentUser?.uid?.let { uid ->
+                val profile = userStatsRepository.getUserProfile(uid)
+                _uiState.update { it.copy(userProfile = profile) }
+            }
+        }
     }
 
     private fun loadProgress() {
@@ -138,5 +170,27 @@ class RiddleViewModel(
             voiceManager.speak("Skipping that one. The answer was ${currentRiddle.answerKeyword}. Moving on!")
             loadNextRiddle()
         }
+    }
+
+    fun updateGlowStrength(strength: Float) {
+        viewModelScope.launch {
+            settingsRepository.setGlowStrength(strength)
+        }
+    }
+
+    fun updateBlurIntensity(intensity: Float) {
+        viewModelScope.launch {
+            settingsRepository.setBlurIntensity(intensity)
+        }
+    }
+
+    fun createNewChat() {
+        viewModelScope.launch {
+            chatRepository.createNewSession("New Neural Thread", "Initialize")
+        }
+    }
+
+    fun logout() {
+        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
     }
 }

@@ -62,6 +62,7 @@ fun GlassCard(
 fun GlassButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(16.dp),
     containerColor: Color? = null,
     contentColor: Color = Color.White,
@@ -71,7 +72,7 @@ fun GlassButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
+        targetValue = if (isPressed && enabled) 0.92f else 1f,
         animationSpec = spring(),
         label = "scale"
     )
@@ -82,13 +83,16 @@ fun GlassButton(
 
     Surface(
         onClick = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            onClick()
+            if (enabled) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
         },
+        enabled = enabled,
         modifier = modifier.scale(scale),
         shape = shape,
-        color = baseColor,
-        contentColor = contentColor,
+        color = if (enabled) baseColor else baseColor.copy(alpha = 0.3f),
+        contentColor = if (enabled) contentColor else contentColor.copy(alpha = 0.5f),
         interactionSource = interactionSource,
     ) {
         Box(

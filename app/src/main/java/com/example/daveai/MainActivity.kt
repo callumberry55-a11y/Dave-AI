@@ -3,9 +3,17 @@ package com.example.daveai
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -18,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.IntentCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.media3.common.util.UnstableApi
@@ -34,9 +43,8 @@ import com.example.daveai.ui.chat.ChatScreen
 import com.example.daveai.ui.chat.ChatViewModel
 import com.example.daveai.ui.components.AnimatedMeshBackground
 import com.example.daveai.ui.components.LocalCyberIntensity
+import com.example.daveai.ui.landing.BetaLandingScreen
 import com.example.daveai.ui.landing.LandingScreen
-import com.example.daveai.ui.lessons.LessonsScreen
-import com.example.daveai.ui.lessons.LessonsViewModel
 import com.example.daveai.ui.live.LiveVoiceScreen
 import com.example.daveai.ui.navigation.DaveRoute
 import com.example.daveai.ui.riddle.RiddleScreen
@@ -44,9 +52,13 @@ import com.example.daveai.ui.riddle.RiddleViewModel
 import com.example.daveai.ui.sanctum.SanctumScreen
 import com.example.daveai.ui.terminal.EliteTerminalScreen
 import com.example.daveai.ui.theme.DaveAITheme
+import com.example.daveai.ui.vault.SecuritySetupScreen
+import com.example.daveai.ui.vault.SecurityViewModel
+import com.example.daveai.ui.vault.VaultAuthScreen
+import com.example.daveai.ui.vault.VaultScreen
 import com.google.firebase.auth.FirebaseAuth
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     @UnstableApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,16 +72,25 @@ class MainActivity : ComponentActivity() {
         val chatRepository = (application as DaveApplication).chatRepository
         val settingsRepository = SettingsRepository(this)
 
+        // Start Dave's Sanctum Server
+        com.example.daveai.service.DaveServerService.start(this)
+
         setContent {
             val primaryColorInt by settingsRepository.primaryColor.collectAsState(initial = SettingsRepository.DEFAULT_COLOR)
             val useSystemWallpaper by settingsRepository.useSystemWallpaper.collectAsState(initial = false)
             val customWallpaperUri by settingsRepository.customWallpaperUri.collectAsState(initial = null)
             val cyberIntensity by settingsRepository.cyberIntensity.collectAsState(initial = 0.8f)
+            val glowStrength by settingsRepository.glowStrength.collectAsState(initial = 0.5f)
+            val blurIntensity by settingsRepository.blurIntensity.collectAsState(initial = 0.5f)
             val typographyStyle by settingsRepository.typographyStyle.collectAsState(initial = "MODERN")
             val meshAnimationSpeed by settingsRepository.meshAnimationSpeed.collectAsState(initial = 1.0f)
             val primaryColor = Color(primaryColorInt)
 
-            CompositionLocalProvider(LocalCyberIntensity provides cyberIntensity) {
+            CompositionLocalProvider(
+                LocalCyberIntensity provides cyberIntensity,
+                com.example.daveai.ui.components.LocalGlowStrength provides glowStrength,
+                com.example.daveai.ui.components.LocalBlurIntensity provides blurIntensity
+            ) {
                 DaveAITheme(
                     primaryColorOverride = primaryColor,
                     typographyStyle = typographyStyle
@@ -168,106 +189,180 @@ fun DaveApp(
             voiceManager = app.voiceManager,
             soundManager = app.riddleSoundManager,
             chatRepository = app.chatRepository,
+            settingsRepository = settingsRepository
         )
     }
 
-    val lessonsViewModel: LessonsViewModel = viewModel {
-        LessonsViewModel(app.chatRepository)
+    val securityViewModel: SecurityViewModel = viewModel {
+        SecurityViewModel(settingsRepository)
     }
 
     val backStack = rememberNavBackStack(startRoute)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NavDisplay(
-            backStack = backStack,
-            onBack = { backStack.removeLastOrNull() },
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-            entryProvider = { key ->
-                when (key) {
-                    is DaveRoute.Auth -> {
-                        NavEntry(key) {
-                            AuthScreen(
-                                viewModel = authViewModel,
-                            ) {
-                                backStack.clear()
-                                backStack.add(DaveRoute.Landing)
-                            }
-                        }
-                    }
-                    is DaveRoute.Landing -> {
-                        NavEntry(key) {
-                            LandingScreen(
-                                riddleViewModel = riddleViewModel,
-                                onNavigateToChat = { backStack.add(DaveRoute.Chat) },
-                                onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
-                            ) { backStack.add(DaveRoute.Lessons) }
-                        }
-                    }
-                    is DaveRoute.Chat -> {
-                        NavEntry(key) {
-                            ChatScreen(
-                                viewModel = chatViewModel,
-                                onLogout = {
-                                    auth?.signOut()
-                                    backStack.clear()
-                                    backStack.add(DaveRoute.Auth)
-                                },
-                                onEnterRiddleRoom = {
-                                    backStack.add(DaveRoute.Riddle)
-                                },
-                                onEnterTerminal = {
-                                    backStack.add(DaveRoute.Terminal)
-                                },
-                                onEnterSanctum = {
-                                    backStack.add(DaveRoute.Sanctum)
-                                },
-                                onEnterLiveMode = {
-                                    // backStack.add(DaveRoute.LiveVoice)
+        AnimatedContent<DaveRoute?>(
+            targetState = backStack.lastOrNull() as? DaveRoute,
+            transitionSpec = {
+                val duration = 700
+                (fadeIn(animationSpec = tween(duration, easing = FastOutSlowInEasing)) + 
+                 scaleIn(initialScale = 0.92f, animationSpec = tween(duration, easing = FastOutSlowInEasing)))
+                    .togetherWith(fadeOut(animationSpec = tween(duration / 2)) + 
+                                  scaleOut(targetScale = 1.08f, animationSpec = tween(duration / 2)))
+                    .using(SizeTransform(clip = false))
+            },
+            label = "nav_transition",
+            modifier = Modifier.fillMaxSize()
+        ) { targetKey ->
+            NavDisplay(
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+                entryProvider = { key ->
+                    // Filter entries to only show the one matching the current targetState of AnimatedContent
+                    // to prevent rendering multiple screens during transition if NavDisplay handles its own internal state.
+                    // However, NavDisplay typically only renders the last entry anyway.
+                    if (key == targetKey) {
+                        when (key) {
+                            is DaveRoute.Auth -> {
+                                NavEntry(key) {
+                                    AuthScreen(
+                                        viewModel = authViewModel,
+                                    ) {
+                                        backStack.clear()
+                                        backStack.add(DaveRoute.Landing)
+                                    }
                                 }
-                            )
+                            }
+                            is DaveRoute.Landing -> {
+                                NavEntry(key) {
+                                    if (com.example.daveai.BuildConfig.FLAVOR == "developer") {
+                                        BetaLandingScreen(
+                                            onNavigateToChat = { backStack.add(DaveRoute.Chat) },
+                                            intelligenceVersion = com.example.daveai.BuildConfig.INTELLIGENCE_VERSION
+                                        )
+                                    } else {
+                                        LandingScreen(
+                                            onNavigateToChat = { backStack.add(DaveRoute.Chat) },
+                                            onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
+                                    )
+                                }
+                                }
+                            }
+                            is DaveRoute.Chat -> {
+                                NavEntry(key) {
+                                    ChatScreen(
+                                        viewModel = chatViewModel,
+                                        onLogout = {
+                                            android.widget.Toast.makeText(context, "Logging out...", android.widget.Toast.LENGTH_SHORT).show()
+                                            authViewModel.logout()
+                                            chatViewModel.reset()
+                                            backStack.clear()
+                                            backStack.add(DaveRoute.Auth)
+                                        },
+                                        onEnterRiddleRoom = {
+                                            backStack.add(DaveRoute.Riddle)
+                                        },
+                                        onEnterTerminal = {
+                                            backStack.add(DaveRoute.Terminal)
+                                        },
+                                        onEnterSanctum = {
+                                            backStack.add(DaveRoute.Sanctum)
+                                        },
+                                        onEnterVault = {
+                                            backStack.add(DaveRoute.VaultAuth)
+                                        },
+                                        onEnterLiveMode = {
+                                            // backStack.add(DaveRoute.LiveVoice)
+                                        },
+                                        onBackToHub = {
+                                            backStack.removeLastOrNull()
+                                        }
+                                    )
+                                }
+                            }
+                            is DaveRoute.Riddle -> {
+                                NavEntry(key) {
+                                    RiddleScreen(
+                                        viewModel = riddleViewModel,
+                                        onBack = { backStack.removeLastOrNull() },
+                                        onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
+                                        onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
+                                        onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
+                                        onLogout = {
+                                            authViewModel.logout()
+                                            chatViewModel.reset()
+                                            backStack.clear()
+                                            backStack.add(DaveRoute.Auth)
+                                        }
+                                    )
+                                }
+                            }
+                            is DaveRoute.LiveVoice -> {
+                                NavEntry(key) {
+                                    LiveVoiceScreen(
+                                        viewModel = chatViewModel,
+                                    ) { backStack.removeLastOrNull() }
+                                }
+                            }
+                            is DaveRoute.Terminal -> {
+                                NavEntry(key) {
+                                    EliteTerminalScreen(
+                                        viewModel = chatViewModel,
+                                    ) { backStack.removeLastOrNull() }
+                                }
+                            }
+                            is DaveRoute.Sanctum -> {
+                                NavEntry(key) {
+                                    SanctumScreen(
+                                        viewModel = chatViewModel,
+                                        onBack = { backStack.removeLastOrNull() },
+                                        onEnterVault = {
+                                            backStack.add(DaveRoute.VaultAuth)
+                                        }
+                                    )
+                                }
+                            }
+                            is DaveRoute.Vault -> {
+                                NavEntry(key) {
+                                    VaultScreen(
+                                        viewModel = chatViewModel,
+                                        onBack = { backStack.removeLastOrNull() },
+                                        onNavigateToSecurity = { backStack.add(DaveRoute.SecuritySetup) }
+                                    )
+                                }
+                            }
+                            is DaveRoute.VaultAuth -> {
+                                NavEntry(key) {
+                                    VaultAuthScreen(
+                                        viewModel = securityViewModel,
+                                        onBack = { backStack.removeLastOrNull() },
+                                        onAuthSuccess = {
+                                            backStack.removeLastOrNull()
+                                            backStack.add(DaveRoute.Vault)
+                                        }
+                                    )
+                                }
+                            }
+                            is DaveRoute.SecuritySetup -> {
+                                NavEntry(key) {
+                                    SecuritySetupScreen(
+                                        viewModel = securityViewModel,
+                                        onBack = { backStack.removeLastOrNull() },
+                                        onComplete = { backStack.removeLastOrNull() }
+                                    )
+                                }
+                            }
+                            else -> NavEntry(key) { Text("Unknown Route") }
                         }
+                    } else {
+                        // Empty NavEntry for non-matching keys to satisfy NavDisplay
+                        NavEntry(key) { Box(Modifier.fillMaxSize()) }
                     }
-                    is DaveRoute.Riddle -> {
-                        NavEntry(key) {
-                            RiddleScreen(
-                                viewModel = riddleViewModel,
-                            ) { backStack.removeLastOrNull() }
-                        }
-                    }
-                    is DaveRoute.Lessons -> {
-                        NavEntry(key) {
-                            LessonsScreen(
-                                viewModel = lessonsViewModel,
-                            ) { backStack.removeLastOrNull() }
-                        }
-                    }
-                    is DaveRoute.LiveVoice -> {
-                        NavEntry(key) {
-                            LiveVoiceScreen(
-                                viewModel = chatViewModel,
-                            ) { backStack.removeLastOrNull() }
-                        }
-                    }
-                    is DaveRoute.Terminal -> {
-                        NavEntry(key) {
-                            EliteTerminalScreen(
-                                viewModel = chatViewModel,
-                            ) { backStack.removeLastOrNull() }
-                        }
-                    }
-                    is DaveRoute.Sanctum -> {
-                        NavEntry(key) {
-                            SanctumScreen(
-                                viewModel = chatViewModel,
-                            ) { backStack.removeLastOrNull() }
-                        }
-                    }
-                    else -> NavEntry(key) { Text("Unknown Route") }
                 }
-            }
-        )
+            )
+        }
     }
 }

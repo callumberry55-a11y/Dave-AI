@@ -3,6 +3,7 @@ package com.example.daveai.util
 import android.app.NotificationManager
 import android.app.WallpaperManager
 import android.app.usage.UsageStatsManager
+import android.bluetooth.BluetoothManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -13,6 +14,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.provider.AlarmClock
@@ -22,6 +24,7 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
+import java.io.File
 import java.util.Calendar
 
 class DeviceAssistant(private val context: Context) {
@@ -106,7 +109,9 @@ class DeviceAssistant(private val context: Context) {
         val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
             context.registerReceiver(null, ifilter)
         }
-        return batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        Log.d("DeviceAssistant", "Battery level requested: $level")
+        return level
     }
 
     fun toggleFlashlight(on: Boolean): Boolean {
@@ -191,10 +196,46 @@ class DeviceAssistant(private val context: Context) {
         context.startActivity(intent)
     }
 
+    fun toggleWifi(enable: Boolean): Boolean {
+        return try {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                @Suppress("DEPRECATION")
+                wifiManager.isWifiEnabled = enable
+                true
+            } else {
+                // Direct toggle not possible on Q+, must open panel
+                openWifiSettings()
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("DeviceAssistant", "Wifi toggle failed", e)
+            false
+        }
+    }
+
     fun openBluetoothSettings() {
         val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+    }
+
+    fun toggleBluetooth(enable: Boolean): Boolean {
+        return try {
+            val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            val adapter = bluetoothManager.adapter
+            if (enable) {
+                adapter.enable()
+            } else {
+                adapter.disable()
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("DeviceAssistant", "Bluetooth toggle failed", e)
+            // Fallback
+            openBluetoothSettings()
+            false
+        }
     }
 
     fun openDataSettings() {
@@ -469,6 +510,44 @@ class DeviceAssistant(private val context: Context) {
         val ext = name.substringAfterLast(".", "").lowercase()
         return mime.contains("pdf") || mime.contains("text") || 
                listOf("kt", "java", "py", "js", "html", "json", "log").contains(ext)
+    }
+
+    fun moveFile(sourcePath: String, destPath: String): Boolean {
+        return try {
+            val source = File(sourcePath)
+            val dest = File(destPath)
+            if (source.exists()) {
+                source.renameTo(dest)
+            } else false
+        } catch (e: Exception) {
+            Log.e("DeviceAssistant", "Move file failed", e)
+            false
+        }
+    }
+
+    fun renameFile(path: String, newName: String): Boolean {
+        return try {
+            val file = File(path)
+            if (file.exists()) {
+                val newFile = File(file.parent, newName)
+                file.renameTo(newFile)
+            } else false
+        } catch (e: Exception) {
+            Log.e("DeviceAssistant", "Rename file failed", e)
+            false
+        }
+    }
+
+    fun deleteFile(path: String): Boolean {
+        return try {
+            val file = File(path)
+            if (file.exists()) {
+                file.delete()
+            } else false
+        } catch (e: Exception) {
+            Log.e("DeviceAssistant", "Delete file failed", e)
+            false
+        }
     }
 
     fun setVolume(percent: Int) {

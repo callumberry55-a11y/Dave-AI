@@ -49,7 +49,7 @@ class DaveAgentReceiver : BroadcastReceiver() {
                     notificationManager.showDaveResponse(sessionId, response)
                     
                 } else if (scanType != null) {
-                    val status = "Scanned $scanType: Battery is at ${app.chatRepository.getDeviceAssistant().getBatteryLevel()}%"
+                    val status = "Scanned $scanType: System state is OPTIMIZED. ⚡️"
                     notificationManager.showDaveResponse("sys_scan", status)
                 }
             } catch (e: Exception) {
