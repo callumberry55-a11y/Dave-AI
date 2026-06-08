@@ -2,7 +2,6 @@ package com.example.daveai.data.repository
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -12,11 +11,18 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-class SettingsRepository(private val context: Context) {
+class SettingsRepository(
+    private val context: Context,
+    val securityRepository: SecurityRepository
+) {
 
     companion object {
         private val PRIMARY_COLOR = intPreferencesKey("primary_color")
@@ -33,26 +39,53 @@ class SettingsRepository(private val context: Context) {
         private val PARTNER_NAME = stringPreferencesKey("partner_name")
         private val LAST_SYNC_TIMESTAMP = longPreferencesKey("last_sync_timestamp")
 
-        // API Keys
-        private val USER_CLAUDE_API_KEY = stringPreferencesKey("user_claude_api_key")
-        private val USER_OPENAI_API_KEY = stringPreferencesKey("user_openai_api_key")
-        private val USER_SPOTIFY_CLIENT_SECRET = stringPreferencesKey("user_spotify_client_secret")
-        private val USER_NEWS_API_KEY = stringPreferencesKey("user_news_api_key")
-        private val USER_MAPS_API_KEY = stringPreferencesKey("user_maps_api_key")
-        private val USER_GROQ_API_KEY = stringPreferencesKey("user_groq_api_key")
-        private val USER_PERPLEXITY_API_KEY = stringPreferencesKey("user_perplexity_api_key")
-        private val USER_ELEVENLABS_API_KEY = stringPreferencesKey("user_elevenlabs_api_key")
-        private val USER_WEATHER_API_KEY = stringPreferencesKey("user_weather_api_key")
-        private val USER_FINANCE_API_KEY = stringPreferencesKey("user_finance_api_key")
-
-        // Vault Security
-        private val VAULT_SECURITY_CODE = stringPreferencesKey("vault_security_code")
-        private val USE_BIOMETRICS_FOR_VAULT = booleanPreferencesKey("use_biometrics_for_vault")
+        // Legacy API Keys in DataStore (for migration)
+        private val LEGACY_CLAUDE_KEY = stringPreferencesKey("user_claude_api_key")
+        private val LEGACY_OPENAI_KEY = stringPreferencesKey("user_openai_api_key")
+        private val LEGACY_VAULT_CODE = stringPreferencesKey("vault_security_code")
         
+        private val USE_BIOMETRICS_FOR_VAULT = booleanPreferencesKey("use_biometrics_for_vault")
         private val BLUR_INTENSITY = floatPreferencesKey("blur_intensity")
         private val GLOW_STRENGTH = floatPreferencesKey("glow_strength")
         
         const val DEFAULT_COLOR = 0xFF00E676.toInt() // DaveGreen
+    }
+
+    private val _claudeKeyFlow = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_CLAUDE_API))
+    val userClaudeApiKey = _claudeKeyFlow.asStateFlow()
+
+    private val _openaiKeyFlow = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_OPENAI_API))
+    val userOpenAiApiKey = _openaiKeyFlow.asStateFlow()
+
+    private val _vaultCodeFlow = MutableStateFlow(securityRepository.getVaultSecurityCode())
+    val vaultSecurityCode = _vaultCodeFlow.asStateFlow()
+
+    init {
+        migrateSensitiveData()
+    }
+
+    private fun migrateSensitiveData() {
+        runBlocking {
+            val prefs = context.dataStore.data.first()
+            
+            prefs[LEGACY_CLAUDE_KEY]?.let {
+                securityRepository.setEncryptedString(SecurityRepository.KEY_CLAUDE_API, it)
+                _claudeKeyFlow.value = it
+                context.dataStore.edit { it.remove(LEGACY_CLAUDE_KEY) }
+            }
+            
+            prefs[LEGACY_OPENAI_KEY]?.let {
+                securityRepository.setEncryptedString(SecurityRepository.KEY_OPENAI_API, it)
+                _openaiKeyFlow.value = it
+                context.dataStore.edit { it.remove(LEGACY_OPENAI_KEY) }
+            }
+
+            prefs[LEGACY_VAULT_CODE]?.let {
+                securityRepository.setVaultSecurityCode(it)
+                _vaultCodeFlow.value = it
+                context.dataStore.edit { it.remove(LEGACY_VAULT_CODE) }
+            }
+        }
     }
 
     val primaryColor: Flow<Int> = context.dataStore.data.map { preferences ->
@@ -107,20 +140,17 @@ class SettingsRepository(private val context: Context) {
         preferences[LAST_SYNC_TIMESTAMP] ?: 0L
     }
 
-    val userClaudeApiKey: Flow<String?> = context.dataStore.data.map { it[USER_CLAUDE_API_KEY] }
-    val userOpenAiApiKey: Flow<String?> = context.dataStore.data.map { it[USER_OPENAI_API_KEY] }
-    val userSpotifyClientSecret: Flow<String?> = context.dataStore.data.map { it[USER_SPOTIFY_CLIENT_SECRET] }
-    val userNewsApiKey: Flow<String?> = context.dataStore.data.map { it[USER_NEWS_API_KEY] }
-    val userMapsApiKey: Flow<String?> = context.dataStore.data.map { it[USER_MAPS_API_KEY] }
-    val userGroqApiKey: Flow<String?> = context.dataStore.data.map { it[USER_GROQ_API_KEY] }
-    val userPerplexityApiKey: Flow<String?> = context.dataStore.data.map { it[USER_PERPLEXITY_API_KEY] }
-    val userElevenLabsApiKey: Flow<String?> = context.dataStore.data.map { it[USER_ELEVENLABS_API_KEY] }
-    val userWeatherApiKey: Flow<String?> = context.dataStore.data.map { it[USER_WEATHER_API_KEY] }
-    val userFinanceApiKey: Flow<String?> = context.dataStore.data.map { it[USER_FINANCE_API_KEY] }
+    // New flows for encrypted data
+    val userSpotifyClientSecret: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_SPOTIFY_SECRET))
+    val userNewsApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_NEWS_API))
+    val userMapsApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_MAPS_API))
+    val userGroqApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_GROQ_API))
+    val userPerplexityApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_PERPLEXITY_API))
+    val userElevenLabsApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_ELEVENLABS_API))
+    val userWeatherApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_WEATHER_API))
+    val userFinanceApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_FINANCE_API))
 
-    val vaultSecurityCode: Flow<String?> = context.dataStore.data.map { it[VAULT_SECURITY_CODE] }
     val useBiometricsForVault: Flow<Boolean> = context.dataStore.data.map { it[USE_BIOMETRICS_FOR_VAULT] ?: false }
-
     val blurIntensity: Flow<Float> = context.dataStore.data.map { it[BLUR_INTENSITY] ?: 0.5f }
     val glowStrength: Flow<Float> = context.dataStore.data.map { it[GLOW_STRENGTH] ?: 0.5f }
 
@@ -199,47 +229,50 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setUserClaudeApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_CLAUDE_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_CLAUDE_API, key)
+        _claudeKeyFlow.value = key
     }
 
     suspend fun setUserOpenAiApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_OPENAI_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_OPENAI_API, key)
+        _openaiKeyFlow.value = key
     }
 
     suspend fun setUserSpotifyClientSecret(secret: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_SPOTIFY_CLIENT_SECRET, secret) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_SPOTIFY_SECRET, secret)
     }
 
     suspend fun setUserNewsApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_NEWS_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_NEWS_API, key)
     }
 
     suspend fun setUserMapsApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_MAPS_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_MAPS_API, key)
     }
 
     suspend fun setUserGroqApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_GROQ_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_GROQ_API, key)
     }
 
     suspend fun setUserPerplexityApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_PERPLEXITY_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_PERPLEXITY_API, key)
     }
 
     suspend fun setUserElevenLabsApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_ELEVENLABS_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_ELEVENLABS_API, key)
     }
 
     suspend fun setUserWeatherApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_WEATHER_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_WEATHER_API, key)
     }
 
     suspend fun setUserFinanceApiKey(key: String?) {
-        context.dataStore.edit { it.updateOrRemove(USER_FINANCE_API_KEY, key) }
+        securityRepository.setEncryptedString(SecurityRepository.KEY_FINANCE_API, key)
     }
 
     suspend fun setVaultSecurityCode(code: String?) {
-        context.dataStore.edit { it.updateOrRemove(VAULT_SECURITY_CODE, code) }
+        securityRepository.setVaultSecurityCode(code)
+        _vaultCodeFlow.value = code
     }
 
     suspend fun setUseBiometricsForVault(use: Boolean) {
@@ -252,9 +285,5 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setGlowStrength(strength: Float) {
         context.dataStore.edit { it[GLOW_STRENGTH] = strength }
-    }
-
-    private fun MutablePreferences.updateOrRemove(key: Preferences.Key<String>, value: String?) {
-        if (value.isNullOrBlank()) remove(key) else this[key] = value
     }
 }

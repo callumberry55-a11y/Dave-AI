@@ -13,6 +13,7 @@ import com.example.daveai.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,7 @@ class DaveVoiceManager(
     private var mediaPlayer: MediaPlayer? = null
     private val audioQueue = ConcurrentLinkedQueue<File>()
     private var isPlayingQueue = false
+    private var isFetching = false
     private var scopeJob: Job? = null
     
     private val _isSpeaking = MutableStateFlow(value = false)
@@ -54,53 +56,104 @@ class DaveVoiceManager(
         // Cancel any previous job if we are interrupted
         stop()
 
-        // Granular chunker
-        val sentences = text.split(Regex("(?<=[.!?,\n-])\\s+")).filter { it.isNotBlank() }
+        // Granular chunker - split by punctuation or long pauses
+        val chunks = splitIntoChunks(text)
 
         scopeJob = CoroutineScope(Dispatchers.IO).launch {
-            for (sentence in sentences) {
-                try {
-                    val response = if (!userElevenKey.isNullOrBlank()) {
-                        elevenLabsService.generateSpeech(
-                            apiKey = userElevenKey,
-                            voiceId = ElevenLabsApiService.DEFAULT_VOICE_ID,
-                            request = ElevenLabsTtsRequest(text = sentence)
-                        )
-                    } else {
-                        if (openAiKey.isBlank()) continue
-                        openAiService.generateSpeech(
-                            auth = "Bearer $openAiKey",
-                            request = TtsRequest(input = sentence, speed = speed, voice = "alloy")
-                        )
-                    }
-
-                    if (response.isSuccessful) {
-                        val body = response.body()
-                        if (body != null) {
-                            val tempFile = File.createTempFile("dave_voice_chunk", ".opus", context.cacheDir)
-                            FileOutputStream(tempFile).use { output ->
-                                body.byteStream().use { input ->
-                                    input.copyTo(output)
-                                }
+            isFetching = true
+            try {
+                // Use parallel fetching for chunks to eliminate gaps
+                chunks.map { chunk ->
+                    async {
+                        try {
+                            val response = if (!userElevenKey.isNullOrBlank()) {
+                                elevenLabsService.generateSpeech(
+                                    apiKey = userElevenKey,
+                                    voiceId = ElevenLabsApiService.DEFAULT_VOICE_ID,
+                                    request = ElevenLabsTtsRequest(text = chunk)
+                                )
+                            } else {
+                                if (openAiKey.isBlank()) return@async null
+                                openAiService.generateSpeech(
+                                    auth = "Bearer $openAiKey",
+                                    request = TtsRequest(input = chunk, speed = speed, voice = "alloy")
+                                )
                             }
-                            
-                            audioQueue.offer(tempFile)
-                            
-                            // If not already playing, start the queue immediately
-                            if (!isPlayingQueue) {
-                                withContext(Dispatchers.Main) {
-                                    playNextInQueue()
+
+                            if (response.isSuccessful) {
+                                val body = response.body()
+                                if (body != null) {
+                                    val tempFile = File.createTempFile("dave_voice_chunk", ".opus", context.cacheDir)
+                                    FileOutputStream(tempFile).use { output ->
+                                        body.byteStream().use { input ->
+                                            input.copyTo(output)
+                                        }
+                                    }
+                                    return@async tempFile
                                 }
+                            } else {
+                                Log.e("DaveVoice", "TTS failed: ${response.errorBody()?.string()}")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("DaveVoice", "TTS error for chunk: $chunk", e)
+                        }
+                        null
+                    }
+                }.forEach { deferred ->
+                    val tempFile = deferred.await()
+                    if (tempFile != null) {
+                        audioQueue.offer(tempFile)
+                        
+                        // If not already playing, start the queue immediately
+                        if (!isPlayingQueue) {
+                            withContext(Dispatchers.Main) {
+                                playNextInQueue()
                             }
                         }
-                    } else {
-                        Log.e("DaveVoice", "TTS failed: ${response.errorBody()?.string()}")
                     }
-                } catch (e: Exception) {
-                    Log.e("DaveVoice", "TTS error", e)
+                }
+            } finally {
+                isFetching = false
+                // Final check to see if we need to kickstart the queue
+                if (!isPlayingQueue && audioQueue.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        playNextInQueue()
+                    }
                 }
             }
         }
+    }
+
+    private fun splitIntoChunks(text: String): List<String> {
+        // Split by sentences first, avoid splitting on commas initially to reduce network requests
+        val baseChunks = text.split(Regex("(?<=[.!?\n])\\s+")).filter { it.isNotBlank() }
+        val result = mutableListOf<String>()
+        for (chunk in baseChunks) {
+            if (chunk.length > 300) {
+                // Split very long chunks by commas, semicolons or just max length
+                val subChunks = chunk.split(Regex("(?<=[,;:])\\s+")).filter { it.isNotBlank() }
+                for (sub in subChunks) {
+                    if (sub.length > 300) {
+                        // Hard split by words if still too long
+                        val words = sub.split(" ")
+                        val sb = StringBuilder()
+                        for (word in words) {
+                            if (sb.length + word.length > 300) {
+                                result.add(sb.toString().trim())
+                                sb.clear()
+                            }
+                            sb.append(word).append(" ")
+                        }
+                        if (sb.isNotBlank()) result.add(sb.toString().trim())
+                    } else {
+                        result.add(sub)
+                    }
+                }
+            } else {
+                result.add(chunk)
+            }
+        }
+        return result
     }
 
     private fun playNextInQueue() {
@@ -115,33 +168,47 @@ class DaveVoiceManager(
             }
             
             mediaPlayer = MediaPlayer().apply {
-                setDataSource(nextFile.absolutePath)
-                val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-                setAudioAttributes(audioAttributes)
-                
-                prepare()
-                start()
-                setOnCompletionListener { 
-                    it.release()
-                    if (mediaPlayer == it) mediaPlayer = null
-                    // Delete temp file after playing
-                    try { nextFile.delete() } catch (_: Exception) {}
+                try {
+                    setDataSource(nextFile.absolutePath)
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                    setAudioAttributes(audioAttributes)
                     
+                    setOnPreparedListener { 
+                        it.start()
+                    }
+                    
+                    setOnCompletionListener { 
+                        it.release()
+                        if (mediaPlayer == it) mediaPlayer = null
+                        try { nextFile.delete() } catch (_: Exception) {}
+                        playNextInQueue()
+                    }
+                    
+                    setOnErrorListener { mp, what, extra -> 
+                        Log.e("DaveVoice", "MediaPlayer error: $what, $extra")
+                        mp.release()
+                        if (mediaPlayer == mp) mediaPlayer = null
+                        try { nextFile.delete() } catch (_: Exception) {}
+                        playNextInQueue()
+                        true
+                    }
+                    
+                    prepareAsync()
+                } catch (e: Exception) {
+                    Log.e("DaveVoice", "Error setting up MediaPlayer", e)
                     playNextInQueue()
-                }
-                setOnErrorListener { mp, _, _ -> 
-                    mp.release()
-                    if (mediaPlayer == mp) mediaPlayer = null
-                    try { nextFile.delete() } catch (_: Exception) {}
-                    playNextInQueue()
-                    true
                 }
             }
         } else {
-            // Queue is empty
+            // Queue is empty. If we are still fetching chunks, don't signal end of speaking yet.
+            if (isFetching) {
+                isPlayingQueue = false
+                return
+            }
+
             val wasPlaying = isPlayingQueue
             isPlayingQueue = false
             _isSpeaking.value = false
@@ -153,8 +220,9 @@ class DaveVoiceManager(
     }
 
     fun stop() {
-        val wasPlaying = isPlayingQueue
+        val wasPlaying = isPlayingQueue || _isSpeaking.value
         scopeJob?.cancel()
+        isFetching = false
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null

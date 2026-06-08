@@ -87,8 +87,9 @@ class AssistantActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        val chatRepository = (application as DaveApplication).chatRepository
-        val settingsRepository = SettingsRepository(this)
+        val app = application as DaveApplication
+        val chatRepository = app.chatRepository
+        val settingsRepository = app.settingsRepository
 
         // Start Dave's Sanctum Server
         com.example.daveai.service.DaveServerService.start(this)

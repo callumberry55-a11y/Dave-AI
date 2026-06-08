@@ -36,6 +36,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.data.repository.SettingsRepository
+import com.example.daveai.ui.aura.AuraMarketplaceScreen
+import com.example.daveai.ui.aura.PersonalityEditorScreen
 import com.example.daveai.ui.auth.AuthScreen
 import com.example.daveai.ui.auth.AuthViewModel
 import com.example.daveai.ui.chat.AttachedFile
@@ -43,7 +45,6 @@ import com.example.daveai.ui.chat.ChatScreen
 import com.example.daveai.ui.chat.ChatViewModel
 import com.example.daveai.ui.components.AnimatedMeshBackground
 import com.example.daveai.ui.components.LocalCyberIntensity
-import com.example.daveai.ui.landing.BetaLandingScreen
 import com.example.daveai.ui.landing.LandingScreen
 import com.example.daveai.ui.live.LiveVoiceScreen
 import com.example.daveai.ui.navigation.DaveRoute
@@ -69,8 +70,9 @@ class MainActivity : FragmentActivity() {
         val initialPrompt = intent.getStringExtra("initialPrompt")
         val initialImageUri = IntentCompat.getParcelableExtra(intent, "initialImageUri", Uri::class.java)
 
-        val chatRepository = (application as DaveApplication).chatRepository
-        val settingsRepository = SettingsRepository(this)
+        val app = application as DaveApplication
+        val chatRepository = app.chatRepository
+        val settingsRepository = app.settingsRepository
 
         // Start Dave's Sanctum Server
         com.example.daveai.service.DaveServerService.start(this)
@@ -239,16 +241,40 @@ fun DaveApp(
                             is DaveRoute.Landing -> {
                                 NavEntry(key) {
                                     if (com.example.daveai.BuildConfig.FLAVOR == "developer") {
-                                        BetaLandingScreen(
+                                        LandingScreen(
+                                            viewModel = chatViewModel,
                                             onNavigateToChat = { backStack.add(DaveRoute.Chat) },
-                                            intelligenceVersion = com.example.daveai.BuildConfig.INTELLIGENCE_VERSION
+                                            onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
+                                            onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
+                                            onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
+                                            onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
+                                            onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
+                                            onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
+                                            onLogout = {
+                                                authViewModel.logout()
+                                                chatViewModel.reset()
+                                                backStack.clear()
+                                                backStack.add(DaveRoute.Auth)
+                                            }
                                         )
                                     } else {
                                         LandingScreen(
+                                            viewModel = chatViewModel,
                                             onNavigateToChat = { backStack.add(DaveRoute.Chat) },
                                             onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
-                                    )
-                                }
+                                            onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
+                                            onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
+                                            onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
+                                            onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
+                                            onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
+                                            onLogout = {
+                                                authViewModel.logout()
+                                                chatViewModel.reset()
+                                                backStack.clear()
+                                                backStack.add(DaveRoute.Auth)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                             is DaveRoute.Chat -> {
@@ -267,6 +293,12 @@ fun DaveApp(
                                         },
                                         onEnterTerminal = {
                                             backStack.add(DaveRoute.Terminal)
+                                        },
+                                        onEnterMarketplace = {
+                                            backStack.add(DaveRoute.AuraMarketplace)
+                                        },
+                                        onEnterPersonaEditor = {
+                                            backStack.add(DaveRoute.PersonalityEditor)
                                         },
                                         onEnterSanctum = {
                                             backStack.add(DaveRoute.Sanctum)
@@ -291,6 +323,8 @@ fun DaveApp(
                                         onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
                                         onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
                                         onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
+                                        onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
+                                        onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
                                         onLogout = {
                                             authViewModel.logout()
                                             chatViewModel.reset()
@@ -352,6 +386,22 @@ fun DaveApp(
                                         viewModel = securityViewModel,
                                         onBack = { backStack.removeLastOrNull() },
                                         onComplete = { backStack.removeLastOrNull() }
+                                    )
+                                }
+                            }
+                            is DaveRoute.AuraMarketplace -> {
+                                NavEntry(key) {
+                                    AuraMarketplaceScreen(
+                                        viewModel = chatViewModel,
+                                        onBack = { backStack.removeLastOrNull() }
+                                    )
+                                }
+                            }
+                            is DaveRoute.PersonalityEditor -> {
+                                NavEntry(key) {
+                                    PersonalityEditorScreen(
+                                        viewModel = chatViewModel,
+                                        onBack = { backStack.removeLastOrNull() }
                                     )
                                 }
                             }

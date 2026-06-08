@@ -19,26 +19,38 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,18 +60,36 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.daveai.ui.chat.ChatViewModel
+import com.example.daveai.ui.components.GlassSidebar
+import com.example.daveai.ui.components.NeuralTopBar
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LandingScreen(
+    viewModel: ChatViewModel,
     onNavigateToChat: () -> Unit,
     onNavigateToRiddle: () -> Unit,
+    onEnterVault: () -> Unit,
+    onEnterSanctum: () -> Unit,
+    onEnterTerminal: () -> Unit,
+    onEnterMarketplace: () -> Unit,
+    onEnterPersonaEditor: () -> Unit,
+    onLogout: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val context = LocalContext.current
+
     var isCoreActive by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -67,70 +97,178 @@ fun LandingScreen(
         isCoreActive = true
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            GlassSidebar(
+                userProfile = uiState.userProfile,
+                sessions = uiState.sessions,
+                currentSessionId = null,
+                glowStrength = uiState.glowStrength,
+                blurIntensity = uiState.blurIntensity,
+                onSessionSelected = { sessionId ->
+                    viewModel.selectSession(sessionId)
+                    onNavigateToChat()
+                    scope.launch { drawerState.close() }
+                },
+                onCreateNewChat = {
+                    viewModel.createNewChat()
+                    onNavigateToChat()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterVault = {
+                    onEnterVault()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterSanctum = {
+                    onEnterSanctum()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterRiddleRoom = {
+                    onNavigateToRiddle()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterTerminal = {
+                    onEnterTerminal()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterMarketplace = {
+                    onEnterMarketplace()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterPersonaEditor = {
+                    onEnterPersonaEditor()
+                    scope.launch { drawerState.close() }
+                },
+                onUpdateGlowStrength = viewModel::updateGlowStrength,
+                onUpdateBlurIntensity = viewModel::updateBlurIntensity,
+                onLogout = {
+                    scope.launch { drawerState.close() }
+                    onLogout()
+                }
+            )
+        }
     ) {
-        // Background Glow
-        val glowStrength = com.example.daveai.ui.components.LocalGlowStrength.current
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f * glowStrength * 2f), Color.Transparent),
-                        radius = 1000f
-                    )
+        Scaffold(
+            topBar = {
+                NeuralTopBar(
+                    title = "DAVE HUB",
+                    onNavigationClick = { scope.launch { drawerState.open() } },
+                    navigationIcon = Icons.Rounded.Menu
                 )
-        )
+            },
+            containerColor = Color.Transparent
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                // Background Glow
+                val glowStrength = com.example.daveai.ui.components.LocalGlowStrength.current
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f * glowStrength * 2f),
+                                    Color.Transparent
+                                ),
+                                radius = 1000f
+                            )
+                        )
+                )
 
-        // Orbits
-        OrbitingElement(
-            angleOffset = 0f,
-            label = "VAULT",
-            isActive = isCoreActive,
-            onClick = onNavigateToRiddle,
-            color = MaterialTheme.colorScheme.tertiary,
-            radius = 200.dp // Increased radius for more space
-        )
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .height(450.dp)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Orbits
+                            OrbitingElement(
+                                angleOffset = 0f,
+                                label = "VAULT",
+                                isActive = isCoreActive,
+                                onClick = onNavigateToRiddle,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                radius = 160.dp
+                            )
 
-        OrbitingElement(
-            angleOffset = 180f,
-            label = "SYSTEM",
-            isActive = isCoreActive,
-            onClick = onNavigateToChat,
-            color = MaterialTheme.colorScheme.primary,
-            radius = 200.dp
-        )
+                            OrbitingElement(
+                                angleOffset = 180f,
+                                label = "SYSTEM",
+                                isActive = isCoreActive,
+                                onClick = onNavigateToChat,
+                                color = MaterialTheme.colorScheme.primary,
+                                radius = 160.dp
+                            )
 
-        // Central Aura Core
-        AuraCore(
-            isActive = isCoreActive,
-            onClick = onNavigateToChat
-        )
+                            // Central Aura Core
+                            AuraCore(
+                                isActive = isCoreActive,
+                                onClick = onNavigateToChat
+                            )
+                        }
+                    }
 
-        // Bottom Identification
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 64.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "NEURAL LINK ESTABLISHED",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 4.sp
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "DAVE OS :: V1.4.0",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Black,
-                fontSize = 10.sp
-            )
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            QuickActionsWidget(
+                                onToggleFlashlight = { viewModel.toggleFlashlight() },
+                                onToggleDnd = { viewModel.toggleDnd() },
+                                onOpenTerminal = onEnterTerminal
+                            )
+
+                            SystemStatsWidget(
+                                cpuUsage = 0.42f, // Mock for now
+                                ramUsage = 0.68f,
+                                batteryLevel = 85
+                            )
+
+                            NewsBriefingWidget(
+                                headlines = listOf(
+                                    "Quantum Neural Networks achieved 99% accuracy.",
+                                    "New cybersecurity protocol AXON_77_SIGMA deployed.",
+                                    "Dave OS Kernel upgrade finalized."
+                                )
+                            )
+                        }
+                    }
+
+                    item {
+                        Spacer(Modifier.height(32.dp))
+                        Text(
+                            text = "NEURAL LINK ESTABLISHED",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 4.sp
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "DAVE OS :: V1.4.0",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
         }
     }
 }

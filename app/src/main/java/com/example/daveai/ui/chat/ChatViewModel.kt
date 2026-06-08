@@ -790,4 +790,19 @@ class ChatViewModel(
             repository.speak("Neural link severed.")
         }
     }
+
+    fun toggleFlashlight() {
+        viewModelScope.launch {
+            val sessionId = _uiState.value.currentSessionId ?: "dashboard_system"
+            val currentState = false // TODO: Track flashlight state in UI
+            repository.handleFlashlight(sessionId, !currentState)
+        }
+    }
+
+    fun toggleDnd() {
+        viewModelScope.launch {
+            val sessionId = _uiState.value.currentSessionId ?: "dashboard_system"
+            repository.handleDNDTask(sessionId, "toggle")
+        }
+    }
 }

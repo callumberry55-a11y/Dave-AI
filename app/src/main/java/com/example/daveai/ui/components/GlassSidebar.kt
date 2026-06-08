@@ -24,9 +24,11 @@ import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.Face
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Store
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +71,8 @@ fun GlassSidebar(
     onEnterSanctum: () -> Unit,
     onEnterRiddleRoom: () -> Unit,
     onEnterTerminal: () -> Unit,
+    onEnterMarketplace: () -> Unit,
+    onEnterPersonaEditor: () -> Unit,
     onUpdateGlowStrength: (Float) -> Unit,
     onUpdateBlurIntensity: (Float) -> Unit,
     onLogout: () -> Unit,
@@ -210,6 +214,24 @@ fun GlassSidebar(
 
                 // Section: SYSTEM
                 item { SidebarSectionHeader("AURA CONFIGURATION") }
+
+                item {
+                    SidebarItem(
+                        icon = Icons.Rounded.Store,
+                        label = "Aura Marketplace",
+                        onClick = onEnterMarketplace,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                item {
+                    SidebarItem(
+                        icon = Icons.Rounded.Face,
+                        label = "Digital Persona",
+                        onClick = onEnterPersonaEditor,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
 
                 item {
                     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {

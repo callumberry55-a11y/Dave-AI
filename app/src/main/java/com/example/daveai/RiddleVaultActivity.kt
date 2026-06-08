@@ -20,7 +20,7 @@ class RiddleVaultActivity : ComponentActivity() {
         val voiceManager = app.voiceManager
         val riddleSoundManager = app.riddleSoundManager
         val riddleDao = chatRepository.getRiddleDao()
-        val settingsRepository = com.example.daveai.data.repository.SettingsRepository(this)
+        val settingsRepository = app.settingsRepository
         val auth = try { com.google.firebase.auth.FirebaseAuth.getInstance() } catch (_: Exception) { null }
 
         setContent {

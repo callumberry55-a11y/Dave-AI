@@ -22,7 +22,7 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "BP42.2026.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -68,7 +68,7 @@ android {
         create("developer") {
             dimension = "version"
             applicationId = "com.example.daveai.beta"
-            versionName = "BP41.2026.12"
+            versionName = "BP42.2026.13"
             manifestPlaceholders["intelligenceAuthority"] = "com.example.daveai.beta.intelligence"
             manifestPlaceholders["appPackageName"] = "com.example.daveai.beta"
             buildConfigField("String", "INTELLIGENCE_VERSION", "\"V13.1.1\"")

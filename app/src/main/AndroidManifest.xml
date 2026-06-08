@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:sharedUserId="com.example.daveai"
-    android:sharedUserMaxSdkVersion="37">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <permission android:name="com.example.daveai.permission.ACCESS_INTELLIGENCE"
         android:protectionLevel="signature" />
@@ -335,6 +333,7 @@
         <receiver
             android:name=".agent.DaveAgentReceiver"
             android:exported="true"
+            android:permission="com.example.daveai.permission.ACCESS_INTELLIGENCE"
             tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="com.example.daveai.AGENTIC_ACTION" />

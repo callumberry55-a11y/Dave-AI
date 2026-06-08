@@ -174,6 +174,8 @@ fun ChatScreen(
     onEnterTerminal: () -> Unit = {},
     onEnterSanctum: () -> Unit = {},
     onEnterVault: () -> Unit = {},
+    onEnterMarketplace: () -> Unit = {},
+    onEnterPersonaEditor: () -> Unit = {},
     onBackToHub: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -327,6 +329,14 @@ fun ChatScreen(
                 },
                 onEnterTerminal = {
                     onEnterTerminal()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterMarketplace = {
+                    onEnterMarketplace()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterPersonaEditor = {
+                    onEnterPersonaEditor()
                     scope.launch { drawerState.close() }
                 },
                 onUpdateGlowStrength = viewModel::updateGlowStrength,

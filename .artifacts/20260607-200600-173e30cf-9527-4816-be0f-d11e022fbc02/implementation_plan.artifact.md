@@ -1,47 +1,72 @@
-# Background Blur on Sidebar Open
+# Option 4: UI & Aesthetic Enhancements Implementation Plan
 
-Add a background blur effect to the main content when the navigation drawer (sidebar) is open. This will enhance the "glass" aesthetic of the application and improve focus on the sidebar items.
+Transform the `LandingScreen` into a functional Dashboard Hub and introduce the "Aura Marketplace" for advanced theme and persona management.
+
+## User Review Required
+
+- **Dashboard Layout**: Should the widgets be fixed or user-reorderable? (Starting with fixed).
+- **Aura Presets**: Any specific community themes you'd like to see pre-installed? (e.g., "Cyberpunk", "Minimalist").
 
 ## Proposed Changes
 
-### UI Components
+### Dashboard Hub
 
-#### [ChatScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/chat/ChatScreen.kt)
+#### [LandingScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/landing/LandingScreen.kt)
 
-- Add necessary imports: `androidx.compose.ui.draw.blur`, `androidx.compose.animation.core.animateDpAsState`, `androidx.compose.animation.core.tween`.
-- Define a `blurRadius` state that animates based on `drawerState.targetValue`.
-- The maximum blur will be 16dp, scaled by `uiState.blurIntensity`.
-- Apply `Modifier.blur(blurRadius)` to the `Scaffold` (main content).
+- Refactor `LandingScreen` to include a scrollable list of interactive widgets below the orbiting elements.
+- Integrate existing data like hardware stats, current news, and weather into these widgets.
+- Add a "Quick Action" section for one-tap system controls (Flashlight, DND, etc.).
 
-```kotlin
-val blurRadius by animateDpAsState(
-    targetValue = if (drawerState.targetValue == DrawerValue.Open) (16 * uiState.blurIntensity).dp else 0.dp,
-    animationSpec = tween(durationMillis = 300),
-    label = "background_blur"
-)
+#### [NEW] [DashboardWidgets.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/landing/DashboardWidgets.kt)
 
-// ... inside ModalNavigationDrawer content:
-Scaffold(
-    modifier = Modifier
-        .fillMaxSize()
-        .blur(radius = blurRadius),
-    // ...
-)
-```
+- Create modular widget components: `NewsWidget`, `FinanceWidget`, `SystemStatsWidget`, `WeatherWidget`.
+- Ensure widgets match the "Glass" aesthetic used in the rest of the app.
 
-#### [RiddleScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/riddle/RiddleScreen.kt)
+---
 
-- Apply the same logic as in `ChatScreen.kt`.
-- Use `uiState.blurIntensity` for the max radius.
+### Aura Marketplace & Personality Editor
 
-> [!NOTE]
-> `Modifier.blur` only works on Android 12 (API 31) and above. On older devices, the content will remain sharp, which is the standard fallback behavior of Compose.
+#### [GlassSidebar.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/components/GlassSidebar.kt)
+
+- Add "Aura Marketplace" and "Digital Persona" as interactive items under the "AURA CONFIGURATION" section.
+- Use distinct icons (e.g., `Icons.Rounded.Store` and `Icons.Rounded.Face`).
+
+#### [ChatScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/chat/ChatScreen.kt) & [RiddleScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/riddle/RiddleScreen.kt)
+
+- Update `GlassSidebar` callbacks to include `onEnterMarketplace` and `onEnterPersonaEditor`.
+- Wire these callbacks to the navigation controller in `MainActivity`.
+
+#### [MainActivity.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/MainActivity.kt)
+
+- Define navigation logic for `DaveRoute.AuraMarketplace` and `DaveRoute.PersonalityEditor`.
+
+#### [NEW] [AuraMarketplaceScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/aura/AuraMarketplaceScreen.kt)
+
+- A screen to browse and apply predefined Aura presets.
+- Each preset modifies: `primaryColor`, `meshAnimationSpeed`, `glowStrength`, `blurIntensity`, and `digitalPersona`.
+
+#### [NEW] [PersonalityEditorScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/aura/PersonalityEditorScreen.kt)
+
+- A granular editor for the `digitalPersona` string.
+- Sliders for "Sarcasm", "Technical Depth", and "Empathy" that Dave uses to adjust his response style.
+
+---
+
+### Navigation & Data
+
+#### [DaveRoute.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/navigation/DaveRoute.kt)
+
+- Add `AuraMarketplace` and `PersonalityEditor` objects to `DaveRoute`.
+
+#### [ChatViewModel.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/chat/ChatViewModel.kt)
+
+- Add functions to apply full Aura presets.
+- Add granular state updates for personality traits.
 
 ## Verification Plan
 
 ### Manual Verification
-1. Open the sidebar in the Chat screen.
-2. Observe if the background (conversation, input field, etc.) blurs smoothly.
-3. Close the sidebar and ensure the blur disappears.
-4. Repeat for the Riddle screen.
-5. Adjust the "NEURAL BLUR" slider in the sidebar and verify it affects the background blur intensity.
+1. **Dashboard**: Navigate to the Landing Screen and verify widgets display live or mock data correctly.
+2. **Preset Application**: Apply a "Cyberpunk" preset from the Marketplace and ensure all UI elements and background animations update instantly.
+3. **Personality Shift**: Change sarcasm levels in the Editor and verify Dave's responses in the Chat screen reflect the change.
+4. **Persistence**: Restart the app and ensure selected Aura and Dashboard settings remain.

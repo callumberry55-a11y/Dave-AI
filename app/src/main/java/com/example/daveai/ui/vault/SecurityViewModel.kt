@@ -90,8 +90,17 @@ class SecurityViewModel(
         viewModelScope.launch {
             val savedCode = settingsRepository.vaultSecurityCode.first()
             if (_uiState.value.authInput == savedCode) {
+                settingsRepository.securityRepository.logSecurityEvent(
+                    type = "VAULT_AUTH_SUCCESS",
+                    details = "Code authentication successful"
+                )
                 _uiState.update { it.copy(isAuthSuccessful = true) }
             } else {
+                settingsRepository.securityRepository.logSecurityEvent(
+                    type = "VAULT_AUTH_FAILURE",
+                    details = "Incorrect code attempt",
+                    severity = "WARNING"
+                )
                 _uiState.update { it.copy(errorMessage = "Incorrect security code") }
             }
         }
@@ -108,11 +117,20 @@ class SecurityViewModel(
 
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
+                    settingsRepository.securityRepository.logSecurityEvent(
+                        type = "VAULT_AUTH_SUCCESS",
+                        details = "Biometric authentication successful"
+                    )
                     _uiState.update { it.copy(isAuthSuccessful = true) }
                 }
 
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
+                    settingsRepository.securityRepository.logSecurityEvent(
+                        type = "VAULT_AUTH_FAILURE",
+                        details = "Biometric authentication failed",
+                        severity = "WARNING"
+                    )
                     _uiState.update { it.copy(errorMessage = "Authentication failed") }
                 }
             })

@@ -11,7 +11,6 @@ import com.example.daveai.DaveApplication
 import com.example.daveai.data.db.DaveDatabase
 import com.example.daveai.data.db.NotificationEntity
 import com.example.daveai.data.repository.ChatRepository
-import com.example.daveai.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -19,6 +18,8 @@ import kotlinx.coroutines.launch
 
 class DaveNotificationService : NotificationListenerService() {
     private val serviceScope = CoroutineScope(Dispatchers.IO)
+    private val lastReplyTimestamps = mutableMapOf<String, Long>()
+    private val cooldownMs = 60_000L // 1 minute
 
     override fun onCreate() {
         super.onCreate()
@@ -38,7 +39,7 @@ class DaveNotificationService : NotificationListenerService() {
             
             val app = applicationContext as DaveApplication
             val chatRepository = app.chatRepository
-            val settingsRepository = SettingsRepository(this)
+            val settingsRepository = app.settingsRepository
 
             serviceScope.launch {
                 // Save to DB
@@ -89,6 +90,15 @@ class DaveNotificationService : NotificationListenerService() {
         // Skip if text is empty
         if (text.isBlank()) return
 
+        // Rate limiting: 1 reply per 60 seconds per package/sender
+        val replyKey = "${sbn.packageName}_$title"
+        val now = System.currentTimeMillis()
+        val lastTime = lastReplyTimestamps[replyKey] ?: 0L
+        if (now - lastTime < cooldownMs) {
+            Log.d("DaveNotification", "Rate limiting auto-reply for $replyKey. Time remaining: ${(cooldownMs - (now - lastTime)) / 1000}s")
+            return
+        }
+
         var replyAction: Notification.Action? = null
         var remoteInput: RemoteInput? = null
 
@@ -119,6 +129,9 @@ class DaveNotificationService : NotificationListenerService() {
                     )
 
                     if (replyText.isNotBlank() && !replyText.startsWith("Error:")) {
+                        // Update timestamp BEFORE sending to prevent race conditions during long API calls
+                        lastReplyTimestamps[replyKey] = System.currentTimeMillis()
+
                         val intent = Intent()
                         val bundle = Bundle()
                         bundle.putCharSequence(remoteInput.resultKey, replyText)

@@ -13,6 +13,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -208,6 +209,7 @@ fun NeuralCard(
     shape: Shape = RoundedCornerShape(28.dp),
     containerColor: Color? = null,
     isGodMode: Boolean = false,
+    onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
@@ -267,6 +269,7 @@ fun NeuralCard(
                 ambientShadowColor = Color.Black.copy(alpha = 0.1f)
             }
             .clip(shape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .background(baseBgColor)
             .drawWithContent {
                 drawContent()

@@ -10,8 +10,8 @@ import net.sqlcipher.database.SupportFactory
 import java.security.SecureRandom
 
 @Database(
-    entities = [ChatMessageEntity::class, ChatSessionEntity::class, Riddle::class, SemanticMemory::class, RelationshipEntity::class, NotificationEntity::class],
-    version = 16,
+    entities = [ChatMessageEntity::class, ChatSessionEntity::class, Riddle::class, SemanticMemory::class, RelationshipEntity::class, NotificationEntity::class, SecurityEvent::class],
+    version = 17,
     exportSchema = false
 )
 abstract class DaveDatabase : RoomDatabase() {
@@ -20,6 +20,7 @@ abstract class DaveDatabase : RoomDatabase() {
     abstract fun semanticMemoryDao(): SemanticMemoryDao
     abstract fun relationshipDao(): RelationshipDao
     abstract fun notificationDao(): NotificationDao
+    abstract fun securityEventDao(): SecurityEventDao
 
     companion object {
         @Volatile

@@ -39,6 +39,12 @@ class DaveApplication : Application() {
     lateinit var chatRepository: ChatRepository
         private set
 
+    lateinit var settingsRepository: com.example.daveai.data.repository.SettingsRepository
+        private set
+
+    lateinit var securityRepository: com.example.daveai.data.repository.SecurityRepository
+        private set
+
     lateinit var notificationManager: DaveNotificationManager
         private set
 
@@ -59,6 +65,8 @@ class DaveApplication : Application() {
         val chatDao = database.chatDao()
         val riddleDao = database.riddleDao()
         val semanticMemoryDao = database.semanticMemoryDao()
+        val securityEventDao = database.securityEventDao()
+        securityRepository = com.example.daveai.data.repository.SecurityRepository(this, securityEventDao)
 
         val okHttpClient = OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
@@ -190,7 +198,7 @@ class DaveApplication : Application() {
             .build()
         val perplexityService = perplexityRetrofit.create(PerplexityApiService::class.java)
 
-        val settingsRepository = com.example.daveai.data.repository.SettingsRepository(this)
+        settingsRepository = com.example.daveai.data.repository.SettingsRepository(this, securityRepository)
         val deviceAssistant = DeviceAssistant(this)
         val hardwareAccelerator = HardwareAccelerator(this)
         voiceManager = DaveVoiceManager(this, openaiService, elevenLabsService, settingsRepository)
