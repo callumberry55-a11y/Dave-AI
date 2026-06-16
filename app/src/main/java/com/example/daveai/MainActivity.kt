@@ -1,10 +1,18 @@
 package com.example.daveai
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.google.android.gms.tasks.OnCompleteListener
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -77,6 +85,33 @@ class MainActivity : FragmentActivity() {
 
         // Start Dave's Sanctum Server
         com.example.daveai.service.DaveServerService.start(this)
+
+        // Request notification permission (Required for Android 13+)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != 
+            PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+        }
+
+        // Retrieve the current FCM registration token
+        FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("FCM_DEBUG", "Fetching FCM registration token failed", task.exception)
+                return@OnCompleteListener
+            }
+
+            // Get new FCM registration token
+            val token = task.result
+
+            // Log and Sync Token
+            Log.d("FCM_DEBUG", "FCM Registration Token: $token")
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser != null) {
+                app.chatRepository.getScope().launch {
+                    val userStatsRepo = com.example.daveai.data.repository.UserStatsRepository()
+                    userStatsRepo.saveFcmToken(currentUser.uid, token)
+                }
+            }
+        })
 
         setContent {
             val primaryColorInt by settingsRepository.primaryColor.collectAsState(initial = SettingsRepository.DEFAULT_COLOR)

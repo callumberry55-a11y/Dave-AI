@@ -19,9 +19,9 @@ android {
 
     defaultConfig {
         applicationId = "com.example.daveai"
-        minSdk = 26
+        minSdk = 34
         targetSdk = 37
-        versionCode = 1
+        versionCode = 12
         versionName = "BP42.2026.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -106,6 +106,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.messaging)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.analytics)
     implementation(libs.accompanist.permissions)

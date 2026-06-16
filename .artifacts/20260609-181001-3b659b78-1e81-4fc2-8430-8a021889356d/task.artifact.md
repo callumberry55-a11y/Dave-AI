@@ -7,11 +7,13 @@
 - [x] Implement GDPR Data Deletion & ID Verification
 - [x] Integrate Preferred Firebase Network URL
 - [x] Fix Regression: Message Blocking & ID Screen Missing
-- [/] Create Personalized Dev ID Registration Flow
-	- [/] Research command interception and ID generation
-	- [ ] Implement `setDevId` in `UserStatsRepository`
-	- [ ] Add `DaveTask.CREATE_DEV_ID` and handle it in `ChatRepository`
-	- [ ] Update `handleDevVerifyTask` to check user's personal `devId` from profile
-	- [ ] Update `identifyCandidateTask` to recognize "axon id" or "create my dev id"
-	- [ ] Verify flow by creating an ID and then verifying it
-- [ ] Notify user of completion
+- [x] Create Personalized Dev ID Registration Flow
+- [x] Fix GDPR Deletion Error (Thread Safety & Flow)
+- [x] Integrate Firebase Cloud Messaging (FCM)
+- [x] Finalize Notification UI & Permissions
+- [x] Fix Build and Run Failure
+- [/] Consolidate FCM Messaging Service
+	- [ ] Review `DaveMessagingService` and `DaveNotificationManager`
+	- [ ] Ensure all FCM notification logic is handled in `DaveMessagingService`
+	- [ ] Verify `AndroidManifest.xml` registration
+- [x] Notify user of completion

@@ -108,11 +108,14 @@ class ChatRepository(
     private val MASTER_DEV_ID = "AXON_88_VANGUARD_SIGMA"
     private val EMERGENCY_BYPASS_CODE = "VANGUARD_EXTREME_99"
 
+    private val repositoryScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+
     fun getDeviceAssistant() = deviceAssistant
     fun getRiddleDao() = riddleDao
     fun getSemanticMemoryDao() = semanticMemoryDao
     fun getContext() = deviceAssistant.getContext()
     fun getHardwareAccelerator() = hardwareAccelerator
+    fun getScope() = repositoryScope
 
     val isSpeaking = voiceManager.isSpeaking
 

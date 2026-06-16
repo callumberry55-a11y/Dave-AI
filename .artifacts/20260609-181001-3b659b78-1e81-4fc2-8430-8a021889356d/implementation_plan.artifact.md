@@ -1,56 +1,39 @@
-# Personalized Dev ID Registration Flow
+# Consolidate FCM Messaging Service
 
-This update allows users to create their own unique "Axon ID" (Developer ID) which Dave will recognize for ARCHITECT MODE. This provides a more personal and secure way for users to manage their system credentials.
+Incorporate the standard FCM notification handling logic into the existing `DaveMessagingService` while leveraging the specialized `DaveNotificationManager`.
 
 ## Proposed Changes
 
-### [User Data Infrastructure]
+### [Messaging Service]
 
-#### [UserStatsRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/UserStatsRepository.kt)
+#### [DaveMessagingService.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/service/DaveMessagingService.kt)
 
-- Add `setDevId(uid: String, devId: String)` to persist the custom ID to Firestore.
-- Update `trackUserLogin` to ensure `devId` is retrieved during profile fetch.
+- Refine `onMessageReceived` to ensure robust notification handling.
+- It already uses `DaveNotificationManager.showGenericNotification`, which creates the necessary channel and builds the notification using `android.app.Notification.Builder`.
 
 ```kotlin
-suspend fun setDevId(uid: String, devId: String) {
-    try {
-        db.collection("users").document(uid).update("devId", devId).await()
-    } catch (e: Exception) {
-        Log.e("UserStats", "Failed to set devId", e)
+// DaveMessagingService.kt already has:
+override fun onMessageReceived(remoteMessage: RemoteMessage) {
+    // ...
+    remoteMessage.notification?.let {
+        notificationManager.showGenericNotification(
+            it.title ?: "Dave AI Alert",
+            it.body ?: ""
+        )
     }
 }
 ```
 
-### [Agentic Logic]
+### [Notification Management]
 
-#### [ChatRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/ChatRepository.kt)
+#### [DaveNotificationManager.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/util/DaveNotificationManager.kt)
 
-- **New Task**: Add `DaveTask.CREATE_DEV_ID`.
-- **Trigger**: Update `identifyCandidateTask` to catch "axon id", "create my dev id", or "register my id".
-- **Handler**: Implement `handleCreateDevIdTask(sessionId, uid)`:
-    - Generate a random 13-character string with prefix `AXON_` and suffix `_SIGMA`.
-    - Store it in Firestore via `userStatsRepository`.
-    - Respond to the user with the new ID and instructions to save it.
-- **Verification Update**: Modify `handleDevVerifyTask` to also check the `userProfile?.devId` if the hardcoded ones fail.
-
-```kotlin
-// Example handler logic:
-private suspend fun handleCreateDevIdTask(sessionId: String, uid: String?): String {
-    val uidValue = uid ?: return "You need to be logged in to register a Dev ID, boss. 🛡️"
-    val randomId = "AXON_" + (1000..9999).random() + "_VANGUARD_" + (10..99).random() + "_SIGMA"
-    userStatsRepository.setDevId(uidValue, randomId)
-    val msg = "NEW CREDENTIAL GENERATED: Your personalized Axon ID is now **$randomId**. Save this signature. Use 'Verify identity: $randomId' to enter ARCHITECT MODE anytime. 🛠️⚡️"
-    chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg))
-    return msg
-}
-```
+- Verify `showGenericNotification` uses the `default_notification_channel`. (Completed)
+- Ensure the channel is created during initialization. (Completed)
 
 ## Verification Plan
 
-### Automated Tests
-- None, verified via manual interaction.
-
 ### Manual Verification
-- **Creation Flow**: Say "axon id" to Dave. Verify he generates a new ID and confirms storage.
-- **Verification Flow**: Log out/reset and then type "Verify identity: [NEW_ID]". Dave should recognize it and grant access.
-- **Profile Integrity**: Verify in Firestore (or via logs) that the `devId` field is correctly updated for the user.
+- **Code Review**: Confirm `DaveMessagingService` is registered with the `com.google.firebase.MESSAGING_EVENT` intent filter in `AndroidManifest.xml`.
+- **FCM Delivery**: Send a notification payload from the Firebase console.
+- **Visual Check**: Verify the notification appears in the "Default Alerts" channel with the correct title and body.

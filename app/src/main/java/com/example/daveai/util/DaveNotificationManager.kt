@@ -17,9 +17,11 @@ import com.example.daveai.receiver.NotificationReplyReceiver
 class DaveNotificationManager(private val context: Context) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     private val channelId = "dave_chat_channel"
+    private val defaultChannelId = "default_notification_channel"
 
     init {
         createNotificationChannel()
+        createDefaultAlertChannel()
     }
 
     private fun createNotificationChannel() {
@@ -31,6 +33,16 @@ class DaveNotificationManager(private val context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 setAllowBubbles(true)
             }
+        }
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun createDefaultAlertChannel() {
+        val name = "Default Alerts"
+        val descriptionText = "System and network level alerts for Dave AI"
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(defaultChannelId, name, importance).apply {
+            description = descriptionText
         }
         notificationManager.createNotificationChannel(channel)
     }
@@ -125,6 +137,16 @@ class DaveNotificationManager(private val context: Context) {
 
     fun dismissNotification(sessionId: String) {
         notificationManager.cancel(sessionId.hashCode())
+    }
+
+    fun showGenericNotification(title: String, body: String) {
+        val notification = android.app.Notification.Builder(context, defaultChannelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setAutoCancel(true)
+            .build()
+        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
     }
 
     private fun pushConversationShortcut(sessionId: String, lastMessage: String, shortcutId: String) {

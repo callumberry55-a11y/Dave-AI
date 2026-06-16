@@ -1,6 +1,7 @@
 package com.example.daveai.ui.auth
 
 import android.content.Context
+import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.CustomCredential
@@ -12,11 +13,15 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 data class AuthUiState(
     val email: String = "",
@@ -82,6 +87,7 @@ class AuthViewModel : ViewModel() {
                     val isDev = state.developerCode == "1798"
                     viewModelScope.launch {
                         userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, isDev)
+                        syncFcmToken(user?.uid)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
                 } else {
@@ -108,6 +114,7 @@ class AuthViewModel : ViewModel() {
                     val isDev = state.developerCode == "1798"
                     viewModelScope.launch {
                         userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, isDev)
+                        syncFcmToken(user?.uid)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
                 } else {
@@ -135,6 +142,7 @@ class AuthViewModel : ViewModel() {
                     val user = firebaseAuth.currentUser
                     viewModelScope.launch {
                         userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, false)
+                        syncFcmToken(user?.uid)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
                 } else {
@@ -190,6 +198,7 @@ class AuthViewModel : ViewModel() {
                                 val user = firebaseAuth.currentUser
                                 viewModelScope.launch {
                                     userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, false)
+                                    syncFcmToken(user?.uid)
                                     _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                                 }
                             } else {
@@ -207,30 +216,55 @@ class AuthViewModel : ViewModel() {
 
     fun deleteAccount(context: Context) {
         val firebaseAuth = auth ?: return
-        val user = firebaseAuth.currentUser ?: return
+        val user = firebaseAuth.currentUser ?: run {
+            _uiState.update { it.copy(error = "No active session detected.") }
+            return
+        }
         val uid = user.uid
 
         _uiState.update { it.copy(isLoading = true, error = null) }
 
         viewModelScope.launch {
             try {
-                // 1. Delete from Firestore
+                // 1. Delete from Firestore (Remote Cloud)
                 userStatsRepository.deleteUserData(uid)
 
-                // 2. Wipe Local Database
-                val db = com.example.daveai.data.db.DaveDatabase.getDatabase(context)
-                db.clearAllTables()
-
-                // 3. Delete Firebase Auth Account
-                user.delete().addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        _uiState.update { it.copy(isLoading = false, isDeleted = true) }
-                    } else {
-                        _uiState.update { it.copy(isLoading = false, error = task.exception?.message ?: "Failed to delete auth account") }
+                // 2. Wipe Local Database (Device)
+                withContext(Dispatchers.IO) {
+                    try {
+                        val db = com.example.daveai.data.db.DaveDatabase.getDatabase(context)
+                        db.clearAllTables()
+                    } catch (e: Exception) {
+                        android.util.Log.e("AuthViewModel", "Local DB wipe failed", e)
                     }
                 }
+
+                // 3. Delete Firebase Auth Account (Identity)
+                try {
+                    user.delete().await()
+                    _uiState.update { it.copy(isLoading = false, isDeleted = true) }
+                } catch (e: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                    _uiState.update { it.copy(
+                        isLoading = false, 
+                        error = "CRITICAL: Re-authentication required for identity deletion. Please log out and sign in again to complete erasure. (Cloud and Local data already purged)"
+                    ) }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(isLoading = false, error = "Partial Deletion: Identity record remains. Error: ${e.message}") }
+                }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Partial deletion failure: ${e.message}") }
+                _uiState.update { it.copy(isLoading = false, error = "Deletion Protocol Failed: ${e.message}") }
+            }
+        }
+    }
+
+    private fun syncFcmToken(uid: String?) {
+        if (uid == null) return
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                viewModelScope.launch {
+                    userStatsRepository.saveFcmToken(uid, token)
+                }
             }
         }
     }

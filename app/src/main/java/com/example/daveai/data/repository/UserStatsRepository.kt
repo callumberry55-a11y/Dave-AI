@@ -137,4 +137,19 @@ class UserStatsRepository {
             throw e
         }
     }
+
+    suspend fun saveFcmToken(uid: String, token: String) {
+        try {
+            val data = mapOf(
+                "token" to token,
+                "timestamp" to FieldValue.serverTimestamp()
+            )
+            db.collection("users").document(uid)
+                .collection("fcmTokens").document(token)
+                .set(data).await()
+            Log.d("UserStats", "FCM Token successfully registered for $uid")
+        } catch (e: Exception) {
+            Log.e("UserStats", "Failed to save FCM token", e)
+        }
+    }
 }

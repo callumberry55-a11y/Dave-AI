@@ -218,6 +218,14 @@
                 android:value="AI_CONSCIOUSNESS_SERVER" />
         </service>
 
+        <service
+            android:name=".service.DaveMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name=".data.provider.DaveIntelligenceProvider"
             android:authorities="${intelligenceAuthority}"
