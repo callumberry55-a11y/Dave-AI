@@ -13,6 +13,7 @@ import com.example.daveai.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,11 +31,12 @@ class DaveVoiceManager(
     private val elevenLabsService: ElevenLabsApiService,
     private val settingsRepository: SettingsRepository
 ) {
+    private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var mediaPlayer: MediaPlayer? = null
     private val audioQueue = ConcurrentLinkedQueue<File>()
     private var isPlayingQueue = false
     private var isFetching = false
-    private var scopeJob: Job? = null
+    private var speakJob: Job? = null
     
     private val _isSpeaking = MutableStateFlow(value = false)
     val isSpeaking: StateFlow<Boolean> = _isSpeaking.asStateFlow()
@@ -59,7 +61,7 @@ class DaveVoiceManager(
         // Granular chunker - split by punctuation or long pauses
         val chunks = splitIntoChunks(text)
 
-        scopeJob = CoroutineScope(Dispatchers.IO).launch {
+        speakJob = managerScope.launch {
             isFetching = true
             try {
                 // Use parallel fetching for chunks to eliminate gaps
@@ -221,7 +223,7 @@ class DaveVoiceManager(
 
     fun stop() {
         val wasPlaying = isPlayingQueue || _isSpeaking.value
-        scopeJob?.cancel()
+        speakJob?.cancel()
         isFetching = false
         mediaPlayer?.stop()
         mediaPlayer?.release()

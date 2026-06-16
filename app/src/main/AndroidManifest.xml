@@ -46,8 +46,6 @@
     <queries>
         <package android:name="com.google.android.aicore" />
         <package android:name="com.spotify.music" />
-        <package android:name="com.example.daveai" />
-        <package android:name="com.example.daveai.beta" />
         <provider android:authorities="${intelligenceAuthority}" />
     </queries>
 

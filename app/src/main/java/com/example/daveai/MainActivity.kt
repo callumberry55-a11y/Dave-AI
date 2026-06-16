@@ -284,41 +284,22 @@ fun DaveApp(
                             }
                             is DaveRoute.Landing -> {
                                 NavEntry(key) {
-                                    if (com.example.daveai.BuildConfig.FLAVOR == "developer") {
-                                        LandingScreen(
-                                            viewModel = chatViewModel,
-                                            onNavigateToChat = { backStack.add(DaveRoute.Chat) },
-                                            onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
-                                            onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
-                                            onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
-                                            onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
-                                            onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
-                                            onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
-                                            onLogout = {
-                                                authViewModel.logout()
-                                                chatViewModel.reset()
-                                                backStack.clear()
-                                                backStack.add(DaveRoute.Auth)
-                                            }
-                                        )
-                                    } else {
-                                        LandingScreen(
-                                            viewModel = chatViewModel,
-                                            onNavigateToChat = { backStack.add(DaveRoute.Chat) },
-                                            onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
-                                            onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
-                                            onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
-                                            onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
-                                            onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
-                                            onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
-                                            onLogout = {
-                                                authViewModel.logout()
-                                                chatViewModel.reset()
-                                                backStack.clear()
-                                                backStack.add(DaveRoute.Auth)
-                                            }
-                                        )
-                                    }
+                                    LandingScreen(
+                                        viewModel = chatViewModel,
+                                        onNavigateToChat = { backStack.add(DaveRoute.Chat) },
+                                        onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
+                                        onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
+                                        onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
+                                        onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
+                                        onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
+                                        onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
+                                        onLogout = {
+                                            authViewModel.logout()
+                                            chatViewModel.reset()
+                                            backStack.clear()
+                                            backStack.add(DaveRoute.Auth)
+                                        }
+                                    )
                                 }
                             }
                             is DaveRoute.Chat -> {

@@ -79,15 +79,6 @@ fun DaveAITheme(
     typographyStyle: String = "MODERN",
     content: @Composable () -> Unit
 ) {
-    if (com.example.daveai.BuildConfig.FLAVOR == "developer") {
-        MaterialTheme(
-            colorScheme = BetaColorScheme,
-            typography = BetaTypography,
-            content = content
-        )
-        return
-    }
-
     val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

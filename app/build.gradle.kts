@@ -53,26 +53,10 @@ android {
         val elevenKey = localProps.getProperty("ELEVENLABS_API_KEY") ?: ""
         buildConfigField("String", "ELEVENLABS_API_KEY", "\"$elevenKey\"")
 
+        buildConfigField("String", "INTELLIGENCE_VERSION", "\"V1.0.0\"")
+        manifestPlaceholders["intelligenceAuthority"] = "com.example.daveai.intelligence"
+        manifestPlaceholders["appPackageName"] = "com.example.daveai"
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
-    }
-
-    flavorDimensions += "version"
-    productFlavors {
-        create("public") {
-            dimension = "version"
-            applicationId = "com.example.daveai"
-            manifestPlaceholders["intelligenceAuthority"] = "com.example.daveai.intelligence"
-            manifestPlaceholders["appPackageName"] = "com.example.daveai"
-            buildConfigField("String", "INTELLIGENCE_VERSION", "\"V1.0.0\"")
-        }
-        create("developer") {
-            dimension = "version"
-            applicationId = "com.example.daveai.beta"
-            versionName = "BP42.2026.13"
-            manifestPlaceholders["intelligenceAuthority"] = "com.example.daveai.beta.intelligence"
-            manifestPlaceholders["appPackageName"] = "com.example.daveai.beta"
-            buildConfigField("String", "INTELLIGENCE_VERSION", "\"V13.1.1\"")
-        }
     }
 
     buildTypes {

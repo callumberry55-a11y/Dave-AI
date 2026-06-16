@@ -1,8 +1,8 @@
 package com.example.daveai.service
 
 import android.util.Log
+import com.example.daveai.DaveApplication
 import com.example.daveai.data.repository.UserStatsRepository
-import com.example.daveai.util.DaveNotificationManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -36,21 +36,24 @@ class DaveMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
         Log.d("DaveMessaging", "From: ${remoteMessage.from}")
 
-        val notificationManager = DaveNotificationManager(applicationContext)
+        val notificationManager = (application as DaveApplication).notificationManager
 
-        // Check if message contains a data payload.
-        if (remoteMessage.data.isNotEmpty()) {
-            Log.d("DaveMessaging", "Message data payload: ${remoteMessage.data}")
-            // Handle specific agentic triggers from the cloud brain here
+        // Check for both notification payload AND data payload (as fallback)
+        val title = remoteMessage.notification?.title ?: remoteMessage.data["title"]
+        val body = remoteMessage.notification?.body ?: remoteMessage.data["body"]
+
+        if (title != null || body != null) {
+            Log.d("DaveMessaging", "Showing notification: $title - $body")
+            notificationManager.showGenericNotification(
+                title ?: "Dave AI Alert",
+                body ?: ""
+            )
         }
 
-        // Check if message contains a notification payload.
-        remoteMessage.notification?.let {
-            Log.d("DaveMessaging", "Message Notification Body: ${it.body}")
-            notificationManager.showGenericNotification(
-                it.title ?: "Dave AI Alert",
-                it.body ?: ""
-            )
+        // Handle raw data for agentic triggers
+        if (remoteMessage.data.isNotEmpty() && !remoteMessage.data.containsKey("title")) {
+            Log.d("DaveMessaging", "Message data payload (agentic): ${remoteMessage.data}")
+            // Trigger background processing if specific keys exist
         }
     }
 }

@@ -56,26 +56,6 @@ class DaveNotificationService : NotificationListenerService() {
                 if (settingsRepository.isAutoReplyEnabled.first()) {
                     attemptAutoReply(sbn, chatRepository)
                 }
-
-                // Check for Inter-Intelligence signals
-                checkInterIntelligence(pkg, title, text, chatRepository)
-            }
-        }
-    }
-
-    private fun checkInterIntelligence(pkg: String, title: String, text: String, chat: ChatRepository) {
-        val otherPackage = if (packageName == "com.example.daveai") "com.example.daveai.beta" else "com.example.daveai"
-        if (pkg == otherPackage && (title.contains("Intelligence", ignoreCase = true) || title.contains("Neural", ignoreCase = true))) {
-            Log.d("DaveNotification", "Passive intelligence signal detected from $pkg: $text")
-            serviceScope.launch {
-                chat.getSemanticMemoryDao().insertMemory(
-                    com.example.daveai.data.db.SemanticMemory(
-                        memoryType = "PASSIVE_IMPORT",
-                        content = "$text [PASSIVE_IMPORT]",
-                        importance = 7,
-                        timestamp = System.currentTimeMillis()
-                    )
-                )
             }
         }
     }

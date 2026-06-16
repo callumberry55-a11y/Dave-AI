@@ -15,6 +15,10 @@
 - [x] Consolidate FCM Messaging Service
 - [x] Fix Send Button & Editor Warnings
 - [x] Resolve Play Console Reviewer Access & Duplicate Dependency
-	- [x] Remove duplicate `junit` from `build.gradle.kts`
-	- [x] Document English-language reviewer credentials
+- [x] Consolidate project to Single Package Identity
+	- [x] Research `.beta` package usages
+	- [x] Remove `developer` product flavor in `build.gradle.kts`
+	- [x] Update `AndroidManifest.xml` (remove beta queries/placeholders)
+	- [x] Remove inter-app intelligence logic in `ChatRepository` and `DaveNotificationService`
+	- [x] Verify build and Firebase initialization
 - [x] Notify user of completion

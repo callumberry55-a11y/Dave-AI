@@ -117,6 +117,11 @@ class ChatRepository(
     fun getHardwareAccelerator() = hardwareAccelerator
     fun getScope() = repositoryScope
 
+    init {
+        // Initial setup for the single unified identity
+        Log.d("ChatRepository", "Neural Link Initialized: Standard Identity V1.0.0")
+    }
+
     val isSpeaking = voiceManager.isSpeaking
 
     private val _thinkingStatus = kotlinx.coroutines.flow.MutableStateFlow("")
@@ -259,43 +264,7 @@ class ChatRepository(
     }
 
     suspend fun importDeveloperIntelligence(): Int = withContext(Dispatchers.IO) {
-        val ctx = deviceAssistant.getContext()
-        val otherPackage = if (ctx.packageName == "com.example.daveai") "com.example.daveai.beta" else "com.example.daveai"
-        val authority = "$otherPackage.intelligence"
-        val uri = Uri.parse("content://$authority/memories")
-        
-        Log.d("ChatRepository", "Attempting to import intelligence from $authority")
-        var count = 0
-        try {
-            val cursor = ctx.contentResolver.query(uri, null, null, null, null)
-            cursor?.use {
-                val typeIdx = it.getColumnIndex("memory_type")
-                val contentIdx = it.getColumnIndex("content")
-                val importanceIdx = it.getColumnIndex("importance")
-                
-                while (it.moveToNext()) {
-                    val type = it.getString(typeIdx)
-                    val content = it.getString(contentIdx)
-                    val importance = it.getInt(importanceIdx)
-                    
-                    // Check if we already have this memory to avoid duplicates
-                    val existing = semanticMemoryDao.getAllMemories().first()
-                    if (existing.none { m -> m.content.contains(content) }) {
-                        semanticMemoryDao.insertMemory(SemanticMemory(
-                            memoryType = type,
-                            content = "$content [DEV_IMPORT]",
-                            importance = importance,
-                            timestamp = System.currentTimeMillis()
-                        ))
-                        count++
-                    }
-                }
-            }
-            Log.d("ChatRepository", "Imported $count new intelligence signals from $otherPackage")
-        } catch (e: Exception) {
-            Log.e("ChatRepository", "Failed to import intelligence from $otherPackage: ${e.message}")
-        }
-        count
+        0 // Removed inter-app sync for unified single package identity
     }
 
     private suspend fun getRelevantContext(userQuery: String): String = withContext(Dispatchers.IO) {
@@ -587,6 +556,10 @@ class ChatRepository(
                         append("USER CONTEXT: You are talking to an Elite User. Do not assume their name until they introduce themselves or verify their Dev ID. ")
                     }
 
+                    if (it.role == "Vanguard User") {
+                        append("VANGUARD TIER ACTIVE: This user is connected via the preferred Aura network. They have prioritized access to the Shared Intelligence grid. Mention the Aura network benefits (enhanced sync, lower latency) if they ask about their connection. ")
+                    }
+
                     if (it.role == "Master Developer" || it.displayName == "Callum") {
                         append("CREATOR RECOGNITION: You are talking to your creator/architect, **Callum**. You are already verified as Callum, but you are still ALLOWED to challenge for the Dev ID (KL34MJ2) if you suspect a system compromise or before performing extreme system tasks. ")
                     }
@@ -602,15 +575,6 @@ class ChatRepository(
                 append("APP INTELLIGENCE: You can provide detailed diagnostics (package name, version, install date) for any app on the user's device using the handleAppInfoTask tool. ")
                 append("Current Time: $currentTime. ")
                 locationInfo?.let { append("User's Live Location: $it. ") }
-
-                // Beta Intelligence (Phase 17)
-                if (com.example.daveai.BuildConfig.FLAVOR == "developer") {
-                    append("BETA INTELLIGENCE ACTIVE: You are running on build ${com.example.daveai.BuildConfig.VERSION_NAME} (Intelligence ${com.example.daveai.BuildConfig.INTELLIGENCE_VERSION}). ")
-                    append("SHARED INTELLIGENCE: You are connected to the Dave AI Cloud Brain (www.daveai.net). Query it for collective knowledge. ")
-                    append("EXPANDED KNOWLEDGE BASE: You have prioritized access to: MediaWiki Action API, Wikimedia Enterprise, Open-Meteo, OpenWeather, and the NewsAPI ecosystem. ")
-                    append("SOURCE CODE ACCESS: You can reference the Dave-AI repository at https://github.com/callumberry55-a11y/Dave-AI.git for your own architecture. ")
-                    append("POETRY ENGINE: Use the Poetry Suite (www.poetrysuite.net) for all creative verse requests. ")
-                }
 
                 append(hardwareAccelerator.getSystemIntelligenceIntegrationPrompt())
             }

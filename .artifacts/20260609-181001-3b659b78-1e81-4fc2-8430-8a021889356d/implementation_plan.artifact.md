@@ -1,39 +1,41 @@
-# Consolidate FCM Messaging Service
+# Consolidate project to Single Package Identity
 
-Incorporate the standard FCM notification handling logic into the existing `DaveMessagingService` while leveraging the specialized `DaveNotificationManager`.
+Unify the app under a single package name (`com.example.daveai`) to match the Firebase project and prevent resource waste.
 
 ## Proposed Changes
 
-### [Messaging Service]
+### [Build System]
 
-#### [DaveMessagingService.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/service/DaveMessagingService.kt)
+#### [build.gradle.kts](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/build.gradle.kts)
 
-- Refine `onMessageReceived` to ensure robust notification handling.
-- It already uses `DaveNotificationManager.showGenericNotification`, which creates the necessary channel and builds the notification using `android.app.Notification.Builder`.
+- Remove the `developer` product flavor.
+- Remove `flavorDimensions` if no longer needed.
+- Keep a single `public` flavor or just move its configuration to `defaultConfig`.
 
-```kotlin
-// DaveMessagingService.kt already has:
-override fun onMessageReceived(remoteMessage: RemoteMessage) {
-    // ...
-    remoteMessage.notification?.let {
-        notificationManager.showGenericNotification(
-            it.title ?: "Dave AI Alert",
-            it.body ?: ""
-        )
-    }
-}
-```
+### [Manifest]
 
-### [Notification Management]
+#### [AndroidManifest.xml](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/AndroidManifest.xml)
 
-#### [DaveNotificationManager.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/util/DaveNotificationManager.kt)
+- Remove the `<queries>` entry for `com.example.daveai.beta`.
+- Use fixed strings for `intelligenceAuthority` if they are no longer dynamic.
 
-- Verify `showGenericNotification` uses the `default_notification_channel`. (Completed)
-- Ensure the channel is created during initialization. (Completed)
+### [Code Refactoring]
+
+#### [ChatRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/ChatRepository.kt)
+
+- Remove `importDeveloperIntelligence` logic that attempted to sync with a beta version of the app.
+- Simplify package name checks.
+
+#### [DaveNotificationService.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/service/DaveNotificationService.kt)
+
+- Remove `checkInterIntelligence` logic as there is no longer a second app to communicate with.
 
 ## Verification Plan
 
+### Automated Tests
+- None.
+
 ### Manual Verification
-- **Code Review**: Confirm `DaveMessagingService` is registered with the `com.google.firebase.MESSAGING_EVENT` intent filter in `AndroidManifest.xml`.
-- **FCM Delivery**: Send a notification payload from the Firebase console.
-- **Visual Check**: Verify the notification appears in the "Default Alerts" channel with the correct title and body.
+- **Build**: Run `./gradlew assembleDebug` and ensure it builds without flavor errors.
+- **Firebase Initialization**: Launch the app and verify that "Fetching FCM registration token" succeeds and no "invalid google_app_id" errors appear in Logcat.
+- **Auth**: Verify that Google Login and Email Login still work correctly under the unified identity.

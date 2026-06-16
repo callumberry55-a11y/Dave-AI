@@ -488,9 +488,18 @@ class ChatViewModel(
                     _uiState.update { it.copy(ghostMessages = it.ghostMessages + userMsg) }
                 }
 
-                val responseText = withTimeoutOrNull(kotlin.time.Duration.parse("35s")) {
+                // Internal Command: Aura Status
+                if (currentInput.lowercase() == "aura status") {
+                    val role = userProfile?.role ?: "Standard"
+                    val auraMsg = "AURA NETWORK DIAGNOSTICS :: Link: STABLE. Tier: $role. Signal: OPTIMAL. Vanguard Sync: ENABLED. ⚡️"
+                    val daveMsg = ChatMessage(content = auraMsg, isFromDave = true, isLocal = true)
+                    _uiState.update { it.copy(ghostMessages = it.ghostMessages + daveMsg, isLoading = false) }
+                    return@launch
+                }
+
+                val responseText = withTimeoutOrNull(35000) {
                     repository.sendMessage(
-                        sessionId = sessionId!!,
+                        sessionId = sessionId,
                         userContent = currentInput,
                         locationInfo = location,
                         attachments = attachments,
