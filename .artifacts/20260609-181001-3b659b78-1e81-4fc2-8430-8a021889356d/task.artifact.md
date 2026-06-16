@@ -2,6 +2,11 @@
 
 - [x] Research Dave's message intent implementation
 - [x] Fix Dave spamming messages
-	- [x] Implement rate limiting in `DaveNotificationService`
-	- [x] Verify fix by reviewing code and simulating notification bursts
-- [x] Notify user of completion
+- [/] Update Dave's security
+	- [/] Research existing security protocols
+	- [ ] Rotate `MASTER_DEV_ID` to `AXON_88_VANGUARD_SIGMA`
+	- [ ] Update system prompt in `ChatRepository`
+	- [ ] Update landing screen cybersecurity mention
+	- [ ] Implement secondary backup verification code
+	- [ ] Add security logging for protocol rotation
+- [ ] Notify user of completion

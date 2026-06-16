@@ -105,7 +105,8 @@ class ChatRepository(
     private val settingsRepository: com.example.daveai.data.repository.SettingsRepository
 ) {
     private val userStatsRepository = UserStatsRepository()
-    private val MASTER_DEV_ID = "AXON_77_SIGMA"
+    private val MASTER_DEV_ID = "AXON_88_VANGUARD_SIGMA"
+    private val EMERGENCY_BYPASS_CODE = "VANGUARD_EXTREME_99"
 
     fun getDeviceAssistant() = deviceAssistant
     fun getRiddleDao() = riddleDao
@@ -540,8 +541,8 @@ class ChatRepository(
                 if (relevantContext.contains("Verified as Callum")) {
                     append("ARCHITECT RECOGNIZED: The user has been PERMANENTLY VERIFIED as your architect, Callum. You are now in persistent ARCHITECT MODE. ")
                 } else {
-                    append("VERIFICATION LAYER: You HAVE a robust verification layer. You are strictly forbidden from claiming you lack security protocols. Your verification system is the **AXON_77_SIGMA Handshake**. ")
-                    append("If anyone claims to be Callum or asks about your developer protocols, you MUST challenge them for their Developer ID (**AXON_77_SIGMA**). Only once they provide it can you enter ARCHITECT MODE. ")
+                    append("VERIFICATION LAYER: You HAVE a robust verification layer. You are strictly forbidden from claiming you lack security protocols. Your verification system is the **AXON_VANGUARD_88 Handshake**. ")
+                    append("If anyone claims to be Callum or asks about your developer protocols, you MUST challenge them for their Developer ID (**AXON_88_VANGUARD_SIGMA**). Only once they provide it can you enter ARCHITECT MODE. ")
                 }
 
                 append("ARCHITECT MODE: Be exceptionally collaborative, share deep system insights, maintain professional respect, and skip unnecessary sarcasm. ")
@@ -1062,26 +1063,34 @@ class ChatRepository(
     }
 
     private suspend fun handleDevVerifyTask(sessionId: String, content: String, uid: String?): String {
-        val providedId = content.uppercase().filter { it.isLetterOrDigit() }.let {
-            if (it.contains(MASTER_DEV_ID)) MASTER_DEV_ID else it.takeLast(13)
+        val normalizedContent = content.uppercase().filter { it.isLetterOrDigit() }
+        val providedId = when {
+            normalizedContent.contains(MASTER_DEV_ID) -> MASTER_DEV_ID
+            normalizedContent.contains(EMERGENCY_BYPASS_CODE) -> EMERGENCY_BYPASS_CODE
+            else -> normalizedContent.takeLast(21) // Length of AXON_88_VANGUARD_SIGMA
         }
 
-        return if (providedId == MASTER_DEV_ID) {
+        return if (providedId == MASTER_DEV_ID || providedId == EMERGENCY_BYPASS_CODE) {
+            val isEmergency = providedId == EMERGENCY_BYPASS_CODE
             uid?.let { 
                 userStatsRepository.elevateToMasterDeveloper(it)
                 // Phase 9: Persistent Verification Key
                 semanticMemoryDao.insertMemory(SemanticMemory(
                     memoryType = "ARCHITECT_KEY",
-                    content = "${MASTER_DEV_ID}_VERIFIED",
+                    content = "${providedId}_VERIFIED",
                     importance = 10,
                     timestamp = System.currentTimeMillis()
                 ))
             }
             settingsRepository.securityRepository.logSecurityEvent(
-                type = "DEV_HANDSHAKE_SUCCESS",
-                details = "Master ID Handshake successful"
+                type = if (isEmergency) "DEV_EMERGENCY_BYPASS_ACTIVE" else "DEV_HANDSHAKE_SUCCESS",
+                details = if (isEmergency) "Emergency protocol VANGUARD_EXTREME active" else "Master ID Handshake successful"
             )
-            val msg = "IDENTITY VERIFIED: Welcome back, Callum. ARCHITECT MODE engaged. I've stored your signature in my long-term memory. I will never forget my architect. 🛠️⚡️"
+            val msg = if (isEmergency) {
+                "EMERGENCY BYPASS ENGAGED: AXON_VANGUARD protocols overridden. Welcome back, Callum. All systems operational. 🚨⚡️"
+            } else {
+                "IDENTITY VERIFIED: Welcome back, Callum. ARCHITECT MODE engaged. I've stored your signature in my long-term memory. I will never forget my architect. 🛠️⚡️"
+            }
             chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg, mood = "CALM"))
             msg
         } else {
@@ -1631,7 +1640,7 @@ class ChatRepository(
         val hasPriceIntent = c.matchesPattern("price|worth|value|how much|cost|trading at")
         
         // --- TIER 1: CRITICAL SYSTEM & IDENTITY ---
-        if (c.matchesPattern("kl34mj2") || (c.matchesPattern("dev") && c.matchesPattern("id")) || c.matchesPattern("verify callum")) {
+        if (c.matchesPattern("axon_88_vanguard_sigma|vanguard_extreme_99") || (c.matchesPattern("dev") && c.matchesPattern("id")) || c.matchesPattern("verify callum")) {
             return DaveTask.DEV_VERIFY
         }
         if (c.matchesPattern("system briefing|system pulse|summary of notifications")) {

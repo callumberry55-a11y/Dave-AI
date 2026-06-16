@@ -1,43 +1,47 @@
-# Fix Dave Spamming Messages
+# Update Dave's Security Protocols
 
-Dave was reportedly spamming friends with multiple messages in a short period. Research indicates this is likely caused by the `DaveNotificationService` auto-reply feature, which triggers a response for every notification received without a cooldown period. If a conversation is fast-paced, Dave might respond to every single line, leading to the observed behavior.
+This task involves rotating the core developer identity credentials and enhancing the underlying security architecture to provide more robust verification layers.
 
 ## Proposed Changes
 
-### [Notification Service]
+### [Core Security]
 
-#### [DaveNotificationService.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/service/DaveNotificationService.kt)
+#### [ChatRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/ChatRepository.kt)
 
-- Implement a rate-limiting mechanism using a simple `HashMap` to track the last auto-reply timestamp for each package/sender.
-- Set a cooldown period (e.g., 60 seconds) during which no new auto-replies will be sent to the same target.
+- Rotate `MASTER_DEV_ID` from `AXON_77_SIGMA` to `AXON_88_VANGUARD_SIGMA`.
+- Update the `systemPrompt` to reference the new protocol.
+- Update `identifyCandidateTask` and `handleDevVerifyTask` to recognize the new ID.
+- Add logic for a secondary "Protocol Bypass" emergency code (`VANGUARD_EXTREME_99`).
 
 ```kotlin
-// Example of the rate limiting logic to be added
-private val lastReplyTimestamps = mutableMapOf<String, Long>()
-private val COOLDOWN_MS = 60_000L // 1 minute
-
-private fun canSendAutoReply(key: String): Boolean {
-    val lastTime = lastReplyTimestamps[key] ?: 0L
-    val now = System.currentTimeMillis()
-    return (now - lastTime) > COOLDOWN_MS
-}
-
-// In attemptAutoReply:
-val replyKey = "${sbn.packageName}_${title}"
-if (!canSendAutoReply(replyKey)) {
-    Log.d("DaveNotification", "Rate limiting auto-reply for $replyKey")
-    return
-}
-// ... after sending:
-lastReplyTimestamps[replyKey] = System.currentTimeMillis()
+// Change in ChatRepository.kt
+private val MASTER_DEV_ID = "AXON_88_VANGUARD_SIGMA"
+private val EMERGENCY_BYPASS_CODE = "VANGUARD_EXTREME_99"
 ```
+
+#### [LandingScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/landing/LandingScreen.kt)
+
+- Update the visual security log mention to reflect the new protocol deployment.
+
+```diff
+- "New cybersecurity protocol AXON_77_SIGMA deployed.",
++ "Neural Guard v88: AXON_VANGUARD protocol active.",
+```
+
+### [Security Infrastructure]
+
+#### [SecurityRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/SecurityRepository.kt)
+
+- Add support for storing and verifying a secondary recovery key.
+- Enhance security logging to include protocol versioning.
 
 ## Verification Plan
 
 ### Automated Tests
-- Since this is a system-level service integration, automated unit tests for the rate-limiting logic itself will be added if a utility class is extracted, otherwise, it will be verified via manual simulation.
+- No specific automated tests for this logic, will verify via manual interaction.
 
 ### Manual Verification
-- Review the logic to ensure the `replyKey` (packageName + sender title) is specific enough to not block different conversations.
-- Verify that the cooldown period is sufficient to prevent rapid-fire spamming while still allowing Dave to be helpful in subsequent interactions.
-- Simulate (via code review/logic check) a burst of notifications and confirm only the first one triggers an auto-reply.
+- **Handshake Verification**: Start a chat with Dave and attempt to verify as Callum using the old `AXON_77_SIGMA` (should fail) and the new `AXON_88_VANGUARD_SIGMA` (should succeed).
+- **Emergency Bypass**: Verify that the emergency code also grants architect access.
+- **System Prompt Integrity**: Check Dave's response when asked about his security protocols to ensure he mentions the new version.
+- **Logging**: Verify in the vault (or via ADB logs) that `DEV_HANDSHAKE_SUCCESS` is logged with the new protocol details.
