@@ -1456,7 +1456,7 @@ fun DaveDock(
     val focusColor = MaterialTheme.colorScheme.primary
     
     val dockGlowAlpha by animateFloatAsState(
-        targetValue = if (isFocused) 0.15f else 0.05f,
+        targetValue = if (isFocused || uiState.userProfile?.role == "Vanguard User") 0.15f else 0.05f,
         animationSpec = tween(500),
         label = "glowAlpha"
     )

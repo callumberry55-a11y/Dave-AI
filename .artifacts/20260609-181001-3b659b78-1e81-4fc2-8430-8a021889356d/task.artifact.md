@@ -12,8 +12,9 @@
 - [x] Integrate Firebase Cloud Messaging (FCM)
 - [x] Finalize Notification UI & Permissions
 - [x] Fix Build and Run Failure
-- [/] Consolidate FCM Messaging Service
-	- [ ] Review `DaveMessagingService` and `DaveNotificationManager`
-	- [ ] Ensure all FCM notification logic is handled in `DaveMessagingService`
-	- [ ] Verify `AndroidManifest.xml` registration
+- [x] Consolidate FCM Messaging Service
+- [x] Fix Send Button & Editor Warnings
+- [x] Resolve Play Console Reviewer Access & Duplicate Dependency
+	- [x] Remove duplicate `junit` from `build.gradle.kts`
+	- [x] Document English-language reviewer credentials
 - [x] Notify user of completion

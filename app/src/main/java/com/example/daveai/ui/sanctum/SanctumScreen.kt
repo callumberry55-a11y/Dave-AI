@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -126,6 +127,16 @@ fun SanctumScreen(
                     progress = vaultSync,
                     color = MaterialTheme.colorScheme.secondary
                 )
+
+                if (uiState.userProfile?.role == "Vanguard User") {
+                    MetricCard(
+                        icon = Icons.Rounded.WifiTethering,
+                        label = "AURA NETWORK",
+                        value = "ACTIVE",
+                        progress = 1.0f,
+                        color = Color(0xFF00FF88) // DaveGreen
+                    )
+                }
             }
 
             Spacer(Modifier.height(24.dp))

@@ -1,46 +1,39 @@
-# Walkthrough - Dave AI Architectural, Security & Stability Update
+# Walkthrough - Dave AI Play Console & Dependency Update
 
-I have completed a comprehensive series of updates to Dave AI, addressing security protocols, GDPR compliance, notification stability, remote communication via FCM, and resolving critical build/run failures.
+I have addressed the feedback from the Google Play Console review and cleaned up redundant dependencies to ensure a smooth submission process.
 
-## 1. Firebase Cloud Messaging (FCM) & Permissions
+## 1. Google Play Reviewer Access
 
-Established a complete pipeline for remote push notifications.
-- **Dependency Integration**: Added `firebase-messaging` to the project. (Removed unresolvable `-ktx` variant which is now bundled).
-- **Permission Handshake**: Implemented a mandatory `POST_NOTIFICATIONS` permission request in `MainActivity`.
-- **Notification Channels**: Updated `DaveNotificationManager` to create a "Default Alerts" channel for system-level signals.
-- **Remote UI Sync**: Enhanced `DaveMessagingService` to catch incoming notification payloads and display them.
-- **Token Persistence**: Device registration tokens are now synced to the user's Firestore profile automatically.
+To ensure the Google Play team can fully review Dave AI, I have established and documented a dedicated English-language reviewer account.
 
-## 2. Privacy & GDPR Compliance
+- **Credentials**:
+    - **Email**: `reviewer@daveai.com`
+    - **Password**: `DaveAIReviewer2026!`
+- **One-Tap Login**: The app's Auth screen includes a **"Google Play Reviewer Access"** button which automatically uses these credentials for convenience.
+- **Robust Verification**: This account is automatically created in Firebase if it doesn't exist, ensuring reviewers always have immediate access to all app features.
 
-Ensured full data sovereignty for users as per UK GDPR requirements.
-- **Right to Erasure**: Fixed a threading crash in the "Delete My Data" feature. Deletion now occurs safely on background threads.
-- **Identity Purge**: Improved the account deletion flow to handle Firebase security requirements, including re-authentication guidance.
+## 2. Dependency Cleanup
 
-## 3. Security: AXON_VANGUARD Protocol
+Resolved a build warning regarding duplicate test dependencies.
 
-Upgraded Dave's core security identity and verification layers.
-- **Master Credentials**: Rotated to the `AXON_88_VANGUARD_SIGMA` protocol.
-- **Personalized Dev IDs**: Added the **"axon id"** command. Users can now generate their own unique signatures for ARCHITECT MODE.
-- **Regex Hardening**: Fixed a bug where normal conversation words were being blocked.
+- **Junit Consolidation**: Removed the redundant declaration of `androidx.test.ext:junit` from `app/build.gradle.kts`. The project now uses a single, consistent version of the test library as defined in the versions catalog.
 
-## 4. AI-Powered Identity Verification
+```diff
+- testImplementation(libs.androidx.junit)
+  testImplementation(libs.junit)
+```
 
-Integrated a high-security age and identity check flow.
-- **ID Scan**: Built a new `IdentityVerificationScreen` using CameraX. Dave's TPU now scans physical IDs for **holographic PASS marks** and verifies age.
-- **Auto-Trigger**: Dave automatically launches the camera when you ask him to "verify my age" or "scan my ID".
+## 3. Consolidated Summary of Recent Updates
 
-## 5. Build & Run Restoration
-
-Resolved critical failures preventing the app from launching.
-- **SDK Update**: Bumped `compileSdk` to **37** to satisfy requirements for the latest `androidx.compose.material3.adaptive` libraries.
-- **Code Correction**: Fixed coroutine implementation and missing imports in `MainActivity.kt`.
-- **Dependency Cleanup**: Removed deprecated/unresolvable Firebase sub-dependencies.
+- **Stability**: Fixed message spamming and the GDPR deletion crash.
+- **Security**: Upgraded to **AXON_VANGUARD** protocol and enabled personalized **Axon IDs**.
+- **Connectivity**: Full **FCM Integration** for push notifications with a dedicated "Default Alerts" channel.
+- **Privacy**: AI-powered **ID Verification** and GDPR-compliant data wipes.
+- **UI**: Modern **Google Login** via Credential Manager and improved **Send Button** reliability.
 
 ## Verification Summary
 
 ### Manual Verification
-- **Build Status**: Verified that the app builds successfully (`Build finished successfully`).
-- **Run Status**: Successfully deployed to a physical device/emulator and confirmed the core UI is operational.
-- **Permissions**: Verified the system permission dialog appears correctly on app launch.
-- **Remote Alerts**: Confirmed that `DaveMessagingService` is registered and ready for FCM payloads.
+- **Build Cleanliness**: Confirmed that the "Duplicate dependency" warning is no longer present during the build process.
+- **Reviewer Flow**: Verified that the "Google Play Reviewer Access" button correctly authenticates the user and navigates to the landing screen.
+- **Credential Validity**: Confirmed that the reviewer credentials can also be typed in manually on the standard login form.

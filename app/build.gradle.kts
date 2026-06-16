@@ -178,7 +178,6 @@ dependencies {
     // unless we need specific KTX features for SupportSQLiteDatabase
 
     testImplementation(libs.androidx.core)
-    testImplementation(libs.androidx.junit)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -447,7 +447,6 @@ class ChatViewModel(
 
     fun sendMessage(muteVoice: Boolean = false) {
         val currentInput = _uiState.value.inputText.trim()
-        val sessionId = _uiState.value.currentSessionId ?: return
         val attachments = _uiState.value.attachedFiles
         
         if (currentInput.isEmpty() && attachments.isEmpty()) return
@@ -464,15 +463,6 @@ class ChatViewModel(
         val persona = _uiState.value.digitalPersona
         val useIrishAccent = _uiState.value.useIrishAccent
 
-        if (isGhostMode) {
-            val userMsg = ChatMessage(
-                content = currentInput,
-                isFromDave = false,
-                hasAttachment = attachments.isNotEmpty()
-            )
-            _uiState.update { it.copy(ghostMessages = it.ghostMessages + userMsg) }
-        }
-
         _uiState.update {
             it.copy(
                 inputText = "",
@@ -483,9 +473,24 @@ class ChatViewModel(
 
         viewModelScope.launch {
             try {
-                val responseText = withTimeoutOrNull(35000) {
+                var sessionId = _uiState.value.currentSessionId
+                if (sessionId == null) {
+                    sessionId = repository.createNewSession("New Intelligence Link")
+                    _uiState.update { it.copy(currentSessionId = sessionId) }
+                }
+
+                if (isGhostMode) {
+                    val userMsg = ChatMessage(
+                        content = currentInput,
+                        isFromDave = false,
+                        hasAttachment = attachments.isNotEmpty()
+                    )
+                    _uiState.update { it.copy(ghostMessages = it.ghostMessages + userMsg) }
+                }
+
+                val responseText = withTimeoutOrNull(kotlin.time.Duration.parse("35s")) {
                     repository.sendMessage(
-                        sessionId = sessionId,
+                        sessionId = sessionId!!,
                         userContent = currentInput,
                         locationInfo = location,
                         attachments = attachments,
