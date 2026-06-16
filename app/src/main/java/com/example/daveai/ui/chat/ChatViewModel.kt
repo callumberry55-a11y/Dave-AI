@@ -7,6 +7,7 @@ import com.example.daveai.data.db.ChatSessionEntity
 import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.data.repository.UserProfile
 import com.example.daveai.data.repository.UserStatsRepository
+import com.example.daveai.ui.navigation.DaveRoute
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,6 +69,7 @@ data class ChatUiState(
     val userFinanceApiKey: String? = null,
     val blurIntensity: Float = 0.5f,
     val glowStrength: Float = 0.5f,
+    val pendingRoute: DaveRoute? = null,
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
@@ -503,6 +505,10 @@ class ChatViewModel(
                 
                 // Fetch user profile again in case the background memory extractor found something
                 fetchUserProfile()
+
+                if (responseText.contains("[ACTION: ID_VERIFY]")) {
+                    _uiState.update { it.copy(pendingRoute = DaveRoute.IdentityVerification) }
+                }
                 
                 if (isGhostMode && !responseText.startsWith("Error:")) {
                     val daveMsg = ChatMessage(
@@ -582,6 +588,10 @@ class ChatViewModel(
                 repository.getSemanticMemoryDao().updateMemory(updated)
             }
         }
+    }
+
+    fun clearPendingRoute() {
+        _uiState.update { it.copy(pendingRoute = null) }
     }
 
     fun editSemanticMemory(id: Long, newContent: String) {

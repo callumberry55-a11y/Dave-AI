@@ -47,6 +47,7 @@ import com.example.daveai.ui.components.AnimatedMeshBackground
 import com.example.daveai.ui.components.LocalCyberIntensity
 import com.example.daveai.ui.landing.LandingScreen
 import com.example.daveai.ui.live.LiveVoiceScreen
+import com.example.daveai.ui.auth.IdentityVerificationScreen
 import com.example.daveai.ui.navigation.DaveRoute
 import com.example.daveai.ui.riddle.RiddleScreen
 import com.example.daveai.ui.riddle.RiddleViewModel
@@ -125,6 +126,14 @@ class MainActivity : FragmentActivity() {
     private fun handleIntent(intent: Intent?): Map<String, String?> {
         val data = mutableMapOf<String, String?>()
         intent?.data?.let { uri ->
+            // Handle Preferred Network (Aura) redirect parameters
+            if (uri.getQueryParameter("anid") == "aura" || uri.getQueryParameter("cs") == "Aura") {
+                data["preferred_network"] = "Aura"
+                data["click_id"] = uri.getQueryParameter("aclid")
+                data["source"] = uri.getQueryParameter("cs") ?: "Aura"
+                android.util.Log.d("DaveAuth", "Preferred Network detected: Aura. ClickId: ${data["click_id"]}")
+            }
+
             if (uri.host == "referral") {
                 data["referrer"] = uri.getQueryParameter("id")
                 data["source"] = uri.getQueryParameter("src")
@@ -309,6 +318,9 @@ fun DaveApp(
                                         onEnterLiveMode = {
                                             // backStack.add(DaveRoute.LiveVoice)
                                         },
+                                        onEnterIdentityVerification = {
+                                            backStack.add(DaveRoute.IdentityVerification)
+                                        },
                                         onBackToHub = {
                                             backStack.removeLastOrNull()
                                         }
@@ -402,6 +414,18 @@ fun DaveApp(
                                     PersonalityEditorScreen(
                                         viewModel = chatViewModel,
                                         onBack = { backStack.removeLastOrNull() }
+                                    )
+                                }
+                            }
+                            is DaveRoute.IdentityVerification -> {
+                                NavEntry(key) {
+                                    IdentityVerificationScreen(
+                                        onBack = { backStack.removeLastOrNull() },
+                                        onVerificationComplete = { success ->
+                                            if (success) {
+                                                backStack.removeLastOrNull()
+                                            }
+                                        }
                                     )
                                 }
                             }

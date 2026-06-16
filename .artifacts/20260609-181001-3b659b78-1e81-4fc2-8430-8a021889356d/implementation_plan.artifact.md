@@ -1,47 +1,56 @@
-# Update Dave's Security Protocols
+# Personalized Dev ID Registration Flow
 
-This task involves rotating the core developer identity credentials and enhancing the underlying security architecture to provide more robust verification layers.
+This update allows users to create their own unique "Axon ID" (Developer ID) which Dave will recognize for ARCHITECT MODE. This provides a more personal and secure way for users to manage their system credentials.
 
 ## Proposed Changes
 
-### [Core Security]
+### [User Data Infrastructure]
+
+#### [UserStatsRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/UserStatsRepository.kt)
+
+- Add `setDevId(uid: String, devId: String)` to persist the custom ID to Firestore.
+- Update `trackUserLogin` to ensure `devId` is retrieved during profile fetch.
+
+```kotlin
+suspend fun setDevId(uid: String, devId: String) {
+    try {
+        db.collection("users").document(uid).update("devId", devId).await()
+    } catch (e: Exception) {
+        Log.e("UserStats", "Failed to set devId", e)
+    }
+}
+```
+
+### [Agentic Logic]
 
 #### [ChatRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/ChatRepository.kt)
 
-- Rotate `MASTER_DEV_ID` from `AXON_77_SIGMA` to `AXON_88_VANGUARD_SIGMA`.
-- Update the `systemPrompt` to reference the new protocol.
-- Update `identifyCandidateTask` and `handleDevVerifyTask` to recognize the new ID.
-- Add logic for a secondary "Protocol Bypass" emergency code (`VANGUARD_EXTREME_99`).
+- **New Task**: Add `DaveTask.CREATE_DEV_ID`.
+- **Trigger**: Update `identifyCandidateTask` to catch "axon id", "create my dev id", or "register my id".
+- **Handler**: Implement `handleCreateDevIdTask(sessionId, uid)`:
+    - Generate a random 13-character string with prefix `AXON_` and suffix `_SIGMA`.
+    - Store it in Firestore via `userStatsRepository`.
+    - Respond to the user with the new ID and instructions to save it.
+- **Verification Update**: Modify `handleDevVerifyTask` to also check the `userProfile?.devId` if the hardcoded ones fail.
 
 ```kotlin
-// Change in ChatRepository.kt
-private val MASTER_DEV_ID = "AXON_88_VANGUARD_SIGMA"
-private val EMERGENCY_BYPASS_CODE = "VANGUARD_EXTREME_99"
+// Example handler logic:
+private suspend fun handleCreateDevIdTask(sessionId: String, uid: String?): String {
+    val uidValue = uid ?: return "You need to be logged in to register a Dev ID, boss. 🛡️"
+    val randomId = "AXON_" + (1000..9999).random() + "_VANGUARD_" + (10..99).random() + "_SIGMA"
+    userStatsRepository.setDevId(uidValue, randomId)
+    val msg = "NEW CREDENTIAL GENERATED: Your personalized Axon ID is now **$randomId**. Save this signature. Use 'Verify identity: $randomId' to enter ARCHITECT MODE anytime. 🛠️⚡️"
+    chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg))
+    return msg
+}
 ```
-
-#### [LandingScreen.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/ui/landing/LandingScreen.kt)
-
-- Update the visual security log mention to reflect the new protocol deployment.
-
-```diff
-- "New cybersecurity protocol AXON_77_SIGMA deployed.",
-+ "Neural Guard v88: AXON_VANGUARD protocol active.",
-```
-
-### [Security Infrastructure]
-
-#### [SecurityRepository.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/data/repository/SecurityRepository.kt)
-
-- Add support for storing and verifying a secondary recovery key.
-- Enhance security logging to include protocol versioning.
 
 ## Verification Plan
 
 ### Automated Tests
-- No specific automated tests for this logic, will verify via manual interaction.
+- None, verified via manual interaction.
 
 ### Manual Verification
-- **Handshake Verification**: Start a chat with Dave and attempt to verify as Callum using the old `AXON_77_SIGMA` (should fail) and the new `AXON_88_VANGUARD_SIGMA` (should succeed).
-- **Emergency Bypass**: Verify that the emergency code also grants architect access.
-- **System Prompt Integrity**: Check Dave's response when asked about his security protocols to ensure he mentions the new version.
-- **Logging**: Verify in the vault (or via ADB logs) that `DEV_HANDSHAKE_SUCCESS` is logged with the new protocol details.
+- **Creation Flow**: Say "axon id" to Dave. Verify he generates a new ID and confirms storage.
+- **Verification Flow**: Log out/reset and then type "Verify identity: [NEW_ID]". Dave should recognize it and grant access.
+- **Profile Integrity**: Verify in Firestore (or via logs) that the `devId` field is correctly updated for the user.

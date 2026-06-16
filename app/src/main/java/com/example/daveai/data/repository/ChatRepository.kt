@@ -112,6 +112,7 @@ class ChatRepository(
     fun getRiddleDao() = riddleDao
     fun getSemanticMemoryDao() = semanticMemoryDao
     fun getContext() = deviceAssistant.getContext()
+    fun getHardwareAccelerator() = hardwareAccelerator
 
     val isSpeaking = voiceManager.isSpeaking
 
@@ -334,7 +335,7 @@ class ChatRepository(
             }
             
             val relationship = relationshipDao.getRelationshipLedger() ?: RelationshipEntity()
-            val architectVerified = allMemories.any { it.memoryType == "ARCHITECT_KEY" && it.content == "KL34MJ2_VERIFIED" }
+            val architectVerified = allMemories.any { it.memoryType == "ARCHITECT_KEY" && it.content.endsWith("_VERIFIED") }
 
             Log.d("ChatRepository", "Context retrieval complete. Found ${contextMemories.size} memories. Architect Verified: $architectVerified")
             buildString {
@@ -1064,32 +1065,43 @@ class ChatRepository(
 
     private suspend fun handleDevVerifyTask(sessionId: String, content: String, uid: String?): String {
         val normalizedContent = content.uppercase().filter { it.isLetterOrDigit() }
+        
+        // Check hardcoded IDs first
         val providedId = when {
-            normalizedContent.contains(MASTER_DEV_ID) -> MASTER_DEV_ID
-            normalizedContent.contains(EMERGENCY_BYPASS_CODE) -> EMERGENCY_BYPASS_CODE
-            else -> normalizedContent.takeLast(21) // Length of AXON_88_VANGUARD_SIGMA
+            normalizedContent.contains(MASTER_DEV_ID.replace("_", "")) -> MASTER_DEV_ID
+            normalizedContent.contains(EMERGENCY_BYPASS_CODE.replace("_", "")) -> EMERGENCY_BYPASS_CODE
+            else -> null
         }
 
-        return if (providedId == MASTER_DEV_ID || providedId == EMERGENCY_BYPASS_CODE) {
-            val isEmergency = providedId == EMERGENCY_BYPASS_CODE
+        // If not a hardcoded ID, check user profile for personalized ID
+        val isPersonalized = providedId == null && uid != null && run {
+            val profile = userStatsRepository.getUserProfile(uid)
+            val userPersonalId = profile?.devId?.uppercase()?.filter { it.isLetterOrDigit() }
+            userPersonalId != null && normalizedContent.contains(userPersonalId)
+        }
+
+        return if (providedId != null || isPersonalized) {
+            val finalId = providedId ?: "PERSONALIZED_DEV_ID"
+            val isEmergency = finalId == EMERGENCY_BYPASS_CODE
+            
             uid?.let { 
                 userStatsRepository.elevateToMasterDeveloper(it)
                 // Phase 9: Persistent Verification Key
                 semanticMemoryDao.insertMemory(SemanticMemory(
                     memoryType = "ARCHITECT_KEY",
-                    content = "${providedId}_VERIFIED",
+                    content = "${finalId}_VERIFIED",
                     importance = 10,
                     timestamp = System.currentTimeMillis()
                 ))
             }
             settingsRepository.securityRepository.logSecurityEvent(
                 type = if (isEmergency) "DEV_EMERGENCY_BYPASS_ACTIVE" else "DEV_HANDSHAKE_SUCCESS",
-                details = if (isEmergency) "Emergency protocol VANGUARD_EXTREME active" else "Master ID Handshake successful"
+                details = if (isEmergency) "Emergency protocol VANGUARD_EXTREME active" else "ID Handshake successful: $finalId"
             )
-            val msg = if (isEmergency) {
-                "EMERGENCY BYPASS ENGAGED: AXON_VANGUARD protocols overridden. Welcome back, Callum. All systems operational. 🚨⚡️"
-            } else {
-                "IDENTITY VERIFIED: Welcome back, Callum. ARCHITECT MODE engaged. I've stored your signature in my long-term memory. I will never forget my architect. 🛠️⚡️"
+            val msg = when {
+                isEmergency -> "EMERGENCY BYPASS ENGAGED: AXON_VANGUARD protocols overridden. Welcome back, Callum. All systems operational. 🚨⚡️"
+                isPersonalized -> "PERSONAL SIGNATURE RECOGNIZED: Identity verified. ARCHITECT MODE engaged. Welcome back, boss. 🛠️⚡️"
+                else -> "IDENTITY VERIFIED: Welcome back, Callum. ARCHITECT MODE engaged. I've stored your signature in my long-term memory. 🛠️⚡️"
             }
             chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg, mood = "CALM"))
             msg
@@ -1102,6 +1114,22 @@ class ChatRepository(
             val msg = "VERIFICATION FAILED: Invalid Developer ID. Access denied. Challenge again when you have the correct credentials. 🛡️"
             chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg, mood = "URGENT"))
             msg
+        }
+    }
+
+    private suspend fun handleCreateDevIdTask(sessionId: String, uid: String?): String {
+        val uidValue = uid ?: return "You need to be logged in to register a personalized Dev ID, boss. 🛡️"
+        
+        // Generate a random unique ID: AXON_4-digit_VANGUARD_2-digit_SIGMA
+        val randomId = "AXON_" + (1000..9999).random() + "_VANGUARD_" + (10..99).random() + "_SIGMA"
+        
+        try {
+            userStatsRepository.setDevId(uidValue, randomId)
+            val msg = "NEW CREDENTIAL GENERATED: Your personalized Axon ID is now **$randomId**. I've registered this to your neural profile. Use 'Verify identity: $randomId' to enter ARCHITECT MODE anytime. 🛠️⚡️"
+            chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg, mood = "HYPED"))
+            return msg
+        } catch (e: Exception) {
+            return "Failed to register Dev ID in the cloud brain. Check connection! 📡💥"
         }
     }
 
@@ -1629,7 +1657,7 @@ class ChatRepository(
         return msg
     }
 
-    private enum class DaveTask { IMAGE, SONG, POEM, MAP, APP, BATTERY, FLASHLIGHT, HARDWARE, WEATHER, CRYPTO, SUMMARIZE, PROOFREAD, REWRITE, FINANCE, FITNESS, SPOTIFY, NEWS, CALENDAR, HABITS, THEME, FILES, DEV_VERIFY, GEMINI, WIKI, CLOUD_BRAIN, POETRY_DB, VOLUME, DND, ALARM, NAVIGATE, LIST_APPS, CONTACTS, CLIPBOARD, LIVE_VISION, BRIGHTNESS, SETTINGS_PANEL, APP_INFO, BRIEFING, HUD_TOGGLE, HARDWARE_CONTROL, FILE_AGENT, TRANSLATE, SMART_HOME, GENERAL }
+    private enum class DaveTask { IMAGE, SONG, POEM, MAP, APP, BATTERY, FLASHLIGHT, HARDWARE, WEATHER, CRYPTO, SUMMARIZE, PROOFREAD, REWRITE, FINANCE, FITNESS, SPOTIFY, NEWS, CALENDAR, HABITS, THEME, FILES, DEV_VERIFY, CREATE_DEV_ID, ID_VERIFICATION, GEMINI, WIKI, CLOUD_BRAIN, POETRY_DB, VOLUME, DND, ALARM, NAVIGATE, LIST_APPS, CONTACTS, CLIPBOARD, LIVE_VISION, BRIGHTNESS, SETTINGS_PANEL, APP_INFO, BRIEFING, HUD_TOGGLE, HARDWARE_CONTROL, FILE_AGENT, TRANSLATE, SMART_HOME, GENERAL }
 
     private fun String.matchesPattern(pattern: String): Boolean {
         return Regex("($pattern)", RegexOption.IGNORE_CASE).containsMatchIn(this)
@@ -1640,8 +1668,14 @@ class ChatRepository(
         val hasPriceIntent = c.matchesPattern("price|worth|value|how much|cost|trading at")
         
         // --- TIER 1: CRITICAL SYSTEM & IDENTITY ---
-        if (c.matchesPattern("axon_88_vanguard_sigma|vanguard_extreme_99") || (c.matchesPattern("dev") && c.matchesPattern("id")) || c.matchesPattern("verify callum")) {
+        if (c.matchesPattern("axon_88_vanguard_sigma|vanguard_extreme_99") || (c.matchesPattern("\\bdev\\b") && c.matchesPattern("\\bid\\b")) || c.matchesPattern("verify callum")) {
             return DaveTask.DEV_VERIFY
+        }
+        if (c.matchesPattern("axon id|create my dev id|register my id")) {
+            return DaveTask.CREATE_DEV_ID
+        }
+        if (c.matchesPattern("verify (my )?(identity|id|age)|scan (my )?id")) {
+            return DaveTask.ID_VERIFICATION
         }
         if (c.matchesPattern("system briefing|system pulse|summary of notifications")) {
             return DaveTask.BRIEFING
@@ -1794,6 +1828,8 @@ class ChatRepository(
                 DaveTask.THEME -> handleThemeTask(sessionId, isGhostMode)
                 DaveTask.FILES -> handleFileSearchTask(sessionId, content, isGhostMode)
                 DaveTask.DEV_VERIFY -> handleDevVerifyTask(sessionId, content, uid)
+                DaveTask.CREATE_DEV_ID -> handleCreateDevIdTask(sessionId, uid)
+                DaveTask.ID_VERIFICATION -> "PROCEEDING WITH OPTICAL ANALYSIS: Please align your ID card within the neural scanning frame. [ACTION: ID_VERIFY] 🛡️⚡️"
                 DaveTask.GEMINI -> handleGeminiTask(sessionId, content)
                 DaveTask.WIKI -> handleWikiTask(sessionId, content)
                 DaveTask.CLOUD_BRAIN -> handleCloudBrainTask(sessionId, content)

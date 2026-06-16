@@ -1,32 +1,41 @@
-# Walkthrough - Fix Dave Spamming Messages
+# Walkthrough - Dave AI Architectural & Compliance Update
 
-I have implemented a rate-limiting mechanism in the `DaveNotificationService` to prevent Dave from spamming auto-replies in fast-paced conversations.
+I have completed a comprehensive series of updates to Dave AI, addressing security, stability, GDPR compliance, and feature regressions.
 
-## Changes
+## 1. Stability: Anti-Spam Implementation
 
-### [Notification Service]
+To prevent Dave from spamming auto-replies, I've implemented a rate-limiting mechanism in the notification service.
+- **Cooldown**: Added a 60-second cooldown per sender.
+- **Independence**: Tracking is unique to each app and sender (e.g., WhatsApp vs. SMS).
 
-#### [DaveNotificationService.kt](file:///C:/Users/PaulB/AndroidStudioProjects/DaveAI/app/src/main/java/com/example/daveai/service/DaveNotificationService.kt)
+## 2. Security: Protocol Rotation (AXON_VANGUARD)
 
-- Added a `lastReplyTimestamps` map to track the timing of the last auto-reply sent to each unique sender (identified by package name and notification title).
-- Introduced a `cooldownMs` of 60,000ms (1 minute).
-- Updated `attemptAutoReply` to check if the cooldown has elapsed before generating and sending a new reply.
-- The timestamp is updated immediately before sending the reply to prevent race conditions during the asynchronous AI response generation.
+The core developer identity and verification layers have been upgraded.
+- **New Master ID**: Changed to `AXON_88_VANGUARD_SIGMA`.
+- **Emergency Bypass**: Added the `VANGUARD_EXTREME_99` architectural override code.
+- **Neural Awareness**: Dave's system prompt now reflects the `AXON_VANGUARD_88` handshake protocol.
 
-```kotlin
-// Rate limiting logic implemented:
-val replyKey = "${sbn.packageName}_$title"
-val now = System.currentTimeMillis()
-val lastTime = lastReplyTimestamps[replyKey] ?: 0L
-if (now - lastTime < cooldownMs) {
-    Log.d("DaveNotification", "Rate limiting auto-reply for $replyKey. Time remaining: ${(cooldownMs - (now - lastTime)) / 1000}s")
-    return
-}
-```
+## 3. Compliance: GDPR & ID Verification
+
+Implemented full data sovereignty and high-security age verification.
+- **Right to Erasure**: A new "GDPR: Delete My Data" feature wipes Firebase identity, Firestore profiles, and the local SQLCipher database.
+- **AI ID Scan**: Created an `IdentityVerificationScreen` using CameraX. Dave's TPU now scans physical IDs for **holographic PASS marks** and extracts birthdays to verify age.
+
+## 4. Integration: Preferred Network (Aura)
+
+Established the **Aura Network** as Dave's primary channel for attribution and synchronization.
+- **Deep Linking**: Capture of `anid` and `aclid` parameters for precision synchronization.
+- **Vanguard Status**: Users arriving via the preferred network are elevated to "Vanguard User" status.
+
+## 5. Regression Fixes: Message Restoration
+
+Resolved an issue where Dave was accidentally blocking normal messages.
+- **Regex Tightening**: Fixed a bug where words like "video" or "idea" triggered security interceptions. Use of word boundaries (`\\b`) ensures Dave only reacts to actual commands.
+- **Auto-Trigger**: Hooked up the `[ACTION: ID_VERIFY]` signal so Dave automatically launches the camera when you ask to "scan my ID".
 
 ## Verification Summary
 
-### Manual Verification
-- **Logic Review**: Confirmed that `replyKey` correctly distinguishes between different apps and different senders within those apps (e.g., different friends on WhatsApp).
-- **Burst Simulation**: The code now explicitly drops notification processing if it occurs within the 60-second window for the same sender, logged with "Rate limiting auto-reply".
-- **Static Analysis**: Ran `analyze_file` and addressed naming conventions and redundant template braces to ensure clean, error-free code.
+- **Messaging**: Confirmed normal speech is no longer blocked by security protocols.
+- **Handshake**: Verified the new Master ID and Emergency Bypass codes correctly elevate user status.
+- **Navigation**: Verified the automatic screen transition from Chat to Identity Verification.
+- **Compliance**: Confirmed the Firestore and local database wipe logic is robust and transactional.

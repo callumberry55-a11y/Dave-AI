@@ -242,7 +242,7 @@ fun LandingScreen(
                             NewsBriefingWidget(
                                 headlines = listOf(
                                     "Quantum Neural Networks achieved 99% accuracy.",
-                                    "New cybersecurity protocol AXON_77_SIGMA deployed.",
+                                    "Neural Guard v88: AXON_VANGUARD protocol active.",
                                     "Dave OS Kernel upgrade finalized."
                                 )
                             )

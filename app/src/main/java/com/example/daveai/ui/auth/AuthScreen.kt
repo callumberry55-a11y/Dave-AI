@@ -18,7 +18,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.vectorResource
+import com.example.daveai.R
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,12 +60,19 @@ fun AuthScreen(
     onAuthSuccess: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var isLoginMode by remember { mutableStateOf(value = true) }
     var showDeveloperField by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
             onAuthSuccess()
+        }
+    }
+
+    LaunchedEffect(uiState.isDeleted) {
+        if (uiState.isDeleted) {
+            android.widget.Toast.makeText(context, "Data successfully deleted.", android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -226,6 +240,46 @@ fun AuthScreen(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                TextButton(
+                    onClick = { viewModel.deleteAccount(context) },
+                    modifier = Modifier.padding(top = 8.dp)
+                ) {
+                    Text(
+                        text = "GDPR: Delete My Data",
+                        color = Color.Red.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                BouncyButton(
+                    onClick = { viewModel.signInWithGoogle(context) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    containerColor = Color.White.copy(alpha = 0.05f),
+                    contentColor = MaterialTheme.colorScheme.onBackground
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.Login,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.Unspecified // Or specific color if using a dedicated resource
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Continue with Google",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
             }
         }

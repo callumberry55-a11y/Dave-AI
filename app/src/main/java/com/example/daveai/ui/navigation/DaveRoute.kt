@@ -16,4 +16,5 @@ sealed interface DaveRoute {
     @Serializable data object VaultAuth : DaveRoute, NavKey
     @Serializable data object AuraMarketplace : DaveRoute, NavKey
     @Serializable data object PersonalityEditor : DaveRoute, NavKey
+    @Serializable data object IdentityVerification : DaveRoute, NavKey
 }

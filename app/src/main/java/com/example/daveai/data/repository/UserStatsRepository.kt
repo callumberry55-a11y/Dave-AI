@@ -28,9 +28,14 @@ class UserStatsRepository {
                     "email" to email,
                     "createdAt" to FieldValue.serverTimestamp(),
                     "lastLogin" to FieldValue.serverTimestamp(),
-                    "role" to if (isDeveloper) "Master Developer" else "Elite User",
+                    "role" to if (isDeveloper) "Master Developer" else (if (attribution["preferred_network"] == "Aura") "Vanguard User" else "Elite User"),
                     "displayName" to if (isDeveloper) "Callum" else (email?.split("@")?.get(0) ?: "Dave Fan"),
                 )
+                
+                if (attribution["preferred_network"] == "Aura") {
+                    userData["network"] = "Aura"
+                    userData["clickId"] = attribution["click_id"]
+                }
                 
                 attribution.forEach { (key, value) ->
                     value?.let { userData[key] = it }
@@ -63,9 +68,20 @@ class UserStatsRepository {
                     displayName = doc.getString("displayName"),
                     role = doc.getString("role"),
                     preferences = (doc["preferences"] as? Map<String, String>) ?: emptyMap(),
+                    devId = doc.getString("devId")
                 )
             } else null
         } catch (_: Exception) { null }
+    }
+
+    suspend fun setDevId(uid: String, devId: String) {
+        try {
+            db.collection("users").document(uid).update("devId", devId).await()
+            Log.d("UserStats", "Personalized Dev ID registered for $uid")
+        } catch (e: Exception) {
+            Log.e("UserStats", "Failed to set devId", e)
+            throw e
+        }
     }
 
     suspend fun updatePreference(uid: String, key: String, value: String) {
@@ -105,5 +121,20 @@ class UserStatsRepository {
             trySend(count)
         }
         awaitClose { subscription.remove() }
+    }
+
+    suspend fun deleteUserData(uid: String) {
+        try {
+            db.runTransaction { transaction ->
+                val userRef = db.collection("users").document(uid)
+                val statsRef = db.collection("stats").document("global")
+                transaction.delete(userRef)
+                transaction.update(statsRef, "totalUsers", FieldValue.increment(-1))
+            }.await()
+            Log.d("UserStats", "User data for $uid successfully deleted from Firestore")
+        } catch (e: Exception) {
+            Log.e("UserStats", "Failed to delete user data", e)
+            throw e
+        }
     }
 }

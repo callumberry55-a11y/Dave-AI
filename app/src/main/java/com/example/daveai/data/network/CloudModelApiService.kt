@@ -61,6 +61,7 @@ data class SyncPullResponse(
 
 interface CloudModelApiService {
     companion object {
+        const val PREFERRED_NETWORK_URL = "https://app-measurement.com/redirect?url=https://play.google.com/store/apps/details?id=com.example.daveai&gmpaid=1:895901729935:android:103a1cba33bfaee96b9cfa&adid={GAID}&anid=aura&aclid={DynamicParameter}&cs=Aura"
         const val BASE_URL = "https://www.daveai.net/api/v1/"
     }
 

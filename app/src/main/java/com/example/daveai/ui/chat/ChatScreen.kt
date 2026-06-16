@@ -176,11 +176,19 @@ fun ChatScreen(
     onEnterVault: () -> Unit = {},
     onEnterMarketplace: () -> Unit = {},
     onEnterPersonaEditor: () -> Unit = {},
+    onEnterIdentityVerification: () -> Unit = {},
     onBackToHub: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val thinkingStatus by viewModel.thinkingStatus.collectAsState()
     val listState = rememberLazyListState()
+
+    LaunchedEffect(uiState.pendingRoute) {
+        if (uiState.pendingRoute is com.example.daveai.ui.navigation.DaveRoute.IdentityVerification) {
+            onEnterIdentityVerification()
+            viewModel.clearPendingRoute()
+        }
+    }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var isDockCollapsed by remember { mutableStateOf(false) }
     var isNeuralLinkDialogOpen by remember { mutableStateOf(false) }
