@@ -105,6 +105,11 @@ class MainActivity : FragmentActivity() {
 
             // Log and Sync Token
             Log.d("FCM_DEBUG", "FCM Registration Token: $token")
+            com.google.firebase.installations.FirebaseInstallations.getInstance().id.addOnCompleteListener { idTask ->
+                if (idTask.isSuccessful) {
+                    Log.d("FCM_DEBUG", "Firebase Instance ID: ${idTask.result}")
+                }
+            }
             val currentUser = FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
                 app.chatRepository.getScope().launch {
