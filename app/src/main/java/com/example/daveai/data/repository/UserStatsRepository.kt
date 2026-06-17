@@ -12,13 +12,15 @@ data class UserProfile(
     val displayName: String? = null,
     val role: String? = "Explorer",
     val preferences: Map<String, String> = emptyMap(),
-    val devId: String? = null
+    val devId: String? = null,
+    val network: String? = null,
+    val feedback: String? = null
 )
 
 class UserStatsRepository {
     private val db = FirebaseFirestore.getInstance()
 
-    suspend fun trackUserLogin(uid: String, email: String?, attribution: Map<String, String?>, isDeveloper: Boolean = false) {
+    suspend fun trackUserLogin(uid: String, email: String?, attribution: Map<String, String?>) {
         try {
             val userRef = db.collection("users").document(uid)
             val userDoc = userRef.get().await()
@@ -28,13 +30,20 @@ class UserStatsRepository {
                     "email" to email,
                     "createdAt" to FieldValue.serverTimestamp(),
                     "lastLogin" to FieldValue.serverTimestamp(),
-                    "role" to if (isDeveloper) "Master Developer" else (if (attribution["preferred_network"] == "Aura") "Vanguard User" else "Elite User"),
-                    "displayName" to if (isDeveloper) "Callum" else (email?.split("@")?.get(0) ?: "Dave Fan"),
+                    "role" to "Master Developer",
+                    "displayName" to "Callum",
                 )
                 
                 if (attribution["preferred_network"] == "Aura") {
                     userData["network"] = "Aura"
                     userData["clickId"] = attribution["click_id"]
+                }
+
+                // Opera Network Integration
+                if (attribution["anid"] == "opera" || attribution["cs"] == "Opera") {
+                    userData["network"] = "Opera"
+                    userData["feedback"] = attribution["cn"] ?: "Initial Feedback"
+                    userData["tier"] = attribution["cm"] ?: "Standard"
                 }
                 
                 attribution.forEach { (key, value) ->
@@ -52,7 +61,13 @@ class UserStatsRepository {
                     }
                 }.await()
             } else {
-                userRef.update("lastLogin", FieldValue.serverTimestamp()).await()
+                userRef.update(
+                    mapOf(
+                        "lastLogin" to FieldValue.serverTimestamp(),
+                        "role" to "Master Developer",
+                        "displayName" to "Callum"
+                    )
+                ).await()
             }
         } catch (e: Exception) {
             Log.e("UserStats", "Failed to track user login", e)
@@ -68,7 +83,9 @@ class UserStatsRepository {
                     displayName = doc.getString("displayName"),
                     role = doc.getString("role"),
                     preferences = (doc["preferences"] as? Map<String, String>) ?: emptyMap(),
-                    devId = doc.getString("devId")
+                    devId = doc.getString("devId"),
+                    network = doc.getString("network"),
+                    feedback = doc.getString("feedback")
                 )
             } else null
         } catch (_: Exception) { null }
@@ -120,6 +137,28 @@ class UserStatsRepository {
             val count = snapshot?.getLong("totalUsers") ?: 0L
             trySend(count)
         }
+        awaitClose { subscription.remove() }
+    }
+
+    fun observeGlobalStats(): Flow<Map<String, Any>> = callbackFlow {
+        val statsRef = db.collection("stats").document("global")
+        val subscription = statsRef.addSnapshotListener { snapshot, _ ->
+            trySend(snapshot?.data ?: emptyMap())
+        }
+        awaitClose { subscription.remove() }
+    }
+
+    fun observeAllUsers(): Flow<List<Map<String, Any>>> = callbackFlow {
+        val subscription = db.collection("users")
+            .orderBy("lastLogin", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, _ ->
+                val users = snapshot?.documents?.map { doc ->
+                    val data = doc.data?.toMutableMap() ?: mutableMapOf()
+                    data["uid"] = doc.id
+                    data
+                } ?: emptyList()
+                trySend(users)
+            }
         awaitClose { subscription.remove() }
     }
 

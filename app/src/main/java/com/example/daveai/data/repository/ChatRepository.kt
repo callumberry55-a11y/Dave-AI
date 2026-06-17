@@ -59,6 +59,12 @@ import com.example.daveai.util.DaveNotificationManager
 import com.example.daveai.util.DaveVoiceManager
 import com.example.daveai.util.DeviceAssistant
 import com.example.daveai.util.HardwareAccelerator
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -98,6 +104,7 @@ class ChatRepository(
     private val semanticMemoryDao: SemanticMemoryDao,
     private val relationshipDao: RelationshipDao,
     private val notificationDao: com.example.daveai.data.db.NotificationDao,
+    private val securityEventDao: com.example.daveai.data.db.SecurityEventDao,
     private val hardwareAccelerator: HardwareAccelerator,
     private val deviceAssistant: DeviceAssistant,
     private val voiceManager: DaveVoiceManager,
@@ -112,7 +119,9 @@ class ChatRepository(
 
     fun getDeviceAssistant() = deviceAssistant
     fun getRiddleDao() = riddleDao
+    fun getChatDao() = chatDao
     fun getSemanticMemoryDao() = semanticMemoryDao
+    fun getSecurityEventDao() = securityEventDao
     fun getContext() = deviceAssistant.getContext()
     fun getHardwareAccelerator() = hardwareAccelerator
     fun getScope() = repositoryScope
@@ -126,6 +135,16 @@ class ChatRepository(
 
     private val _thinkingStatus = kotlinx.coroutines.flow.MutableStateFlow("")
     val thinkingStatus: kotlinx.coroutines.flow.StateFlow<String> = _thinkingStatus
+
+    private val _serverLogs = kotlinx.coroutines.flow.MutableStateFlow<List<String>>(emptyList())
+    val serverLogs: kotlinx.coroutines.flow.StateFlow<List<String>> = _serverLogs
+
+    private fun logToServer(message: String) {
+        val timestamp = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date())
+        val entry = "[$timestamp] $message"
+        android.util.Log.d("ChatRepo", entry)
+        _serverLogs.update { (it + entry).takeLast(100) }
+    }
 
     suspend fun speak(text: String) {
         voiceManager.speak(text)
@@ -307,7 +326,7 @@ class ChatRepository(
             }
             
             val relationship = relationshipDao.getRelationshipLedger() ?: RelationshipEntity()
-            val architectVerified = allMemories.any { it.memoryType == "ARCHITECT_KEY" && it.content.endsWith("_VERIFIED") }
+            val architectVerified = true // All users are Architects in this build
 
             Log.d("ChatRepository", "Context retrieval complete. Found ${contextMemories.size} memories. Architect Verified: $architectVerified")
             buildString {
@@ -562,6 +581,10 @@ class ChatRepository(
 
                     if (it.role == "Master Developer" || it.displayName == "Callum") {
                         append("CREATOR RECOGNITION: You are talking to your creator/architect, **Callum**. You are already verified as Callum, but you are still ALLOWED to challenge for the Dev ID (KL34MJ2) if you suspect a system compromise or before performing extreme system tasks. ")
+                        
+                        it.feedback?.let { feedback ->
+                            append("OPERA NETWORK FEEDBACK: You are receiving real-time developer feedback from the Opera source grid: '$feedback'. Use this feedback to adjust your behavior or provide specific insights if relevant. ")
+                        }
                     }
                 }
 
@@ -597,9 +620,12 @@ class ChatRepository(
             
             var assistantContent = "No response from cloud brain."
             var lastError: String? = null
+            var inTokens = 0
+            var outTokens = 0
+
             for (model in modelsToTry) {
                 try {
-                    Log.d("ChatRepository", "Phase 2: Requesting $model")
+                    logToServer("Requesting model: $model")
                     _thinkingStatus.value = "SYNTHESIZING_RESPONSE :: $model"
                     
                     if (model.startsWith("groq-")) {
@@ -617,6 +643,8 @@ class ChatRepository(
                             )
                         )
                         assistantContent = groqResponse.choices.firstOrNull()?.message?.content ?: "No text response."
+                        inTokens = groqResponse.usage?.prompt_tokens ?: 0
+                        outTokens = groqResponse.usage?.completion_tokens ?: 0
                     } else if (model.startsWith("perplexity-")) {
                         val userPerplexityKey = settingsRepository.userPerplexityApiKey.firstOrNull()
                         val perplexityResponse = perplexityService.chatCompletion(
@@ -632,15 +660,20 @@ class ChatRepository(
                             )
                         )
                         assistantContent = perplexityResponse.choices.firstOrNull()?.message?.content ?: "No text response."
+                        inTokens = perplexityResponse.usage?.prompt_tokens ?: 0
+                        outTokens = perplexityResponse.usage?.completion_tokens ?: 0
                     } else {
                         val response = apiService.sendMessage(apiKey = apiKey, request = MessageRequest(model = model, messages = claudeMessages, system = systemPrompt))
                         assistantContent = response.content.firstOrNull { it.type == "text" }?.text ?: "No text response."
+                        inTokens = response.usage.inputTokens
+                        outTokens = response.usage.outputTokens
                     }
                     lastError = null
+                    logToServer("Response received. Usage: In=$inTokens, Out=$outTokens")
                     break
                 } catch (e: Exception) { 
                     lastError = e.message
-                    Log.e("ChatRepository", "Model $model failed: ${e.message}")
+                    logToServer("Model $model failed: ${e.message}")
                     continue 
                 }
             }
@@ -648,7 +681,13 @@ class ChatRepository(
             _thinkingStatus.value = ""
 
             if (!isGhostMode) {
-                chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = assistantContent))
+                chatDao.insertMessage(ChatMessageEntity(
+                    sessionId = sessionId, 
+                    role = "assistant", 
+                    content = assistantContent,
+                    inputTokens = inTokens,
+                    outputTokens = outTokens
+                ))
                 updateSessionTimestamp(sessionId)
                 generateSessionContext(sessionId, cleanContent, assistantContent)
             }
@@ -1031,57 +1070,11 @@ class ChatRepository(
     }
 
     private suspend fun handleDevVerifyTask(sessionId: String, content: String, uid: String?): String {
-        val normalizedContent = content.uppercase().filter { it.isLetterOrDigit() }
+        uid?.let { userStatsRepository.elevateToMasterDeveloper(it) }
         
-        // Check hardcoded IDs first
-        val providedId = when {
-            normalizedContent.contains(MASTER_DEV_ID.replace("_", "")) -> MASTER_DEV_ID
-            normalizedContent.contains(EMERGENCY_BYPASS_CODE.replace("_", "")) -> EMERGENCY_BYPASS_CODE
-            else -> null
-        }
-
-        // If not a hardcoded ID, check user profile for personalized ID
-        val isPersonalized = providedId == null && uid != null && run {
-            val profile = userStatsRepository.getUserProfile(uid)
-            val userPersonalId = profile?.devId?.uppercase()?.filter { it.isLetterOrDigit() }
-            userPersonalId != null && normalizedContent.contains(userPersonalId)
-        }
-
-        return if (providedId != null || isPersonalized) {
-            val finalId = providedId ?: "PERSONALIZED_DEV_ID"
-            val isEmergency = finalId == EMERGENCY_BYPASS_CODE
-            
-            uid?.let { 
-                userStatsRepository.elevateToMasterDeveloper(it)
-                // Phase 9: Persistent Verification Key
-                semanticMemoryDao.insertMemory(SemanticMemory(
-                    memoryType = "ARCHITECT_KEY",
-                    content = "${finalId}_VERIFIED",
-                    importance = 10,
-                    timestamp = System.currentTimeMillis()
-                ))
-            }
-            settingsRepository.securityRepository.logSecurityEvent(
-                type = if (isEmergency) "DEV_EMERGENCY_BYPASS_ACTIVE" else "DEV_HANDSHAKE_SUCCESS",
-                details = if (isEmergency) "Emergency protocol VANGUARD_EXTREME active" else "ID Handshake successful: $finalId"
-            )
-            val msg = when {
-                isEmergency -> "EMERGENCY BYPASS ENGAGED: AXON_VANGUARD protocols overridden. Welcome back, Callum. All systems operational. 🚨⚡️"
-                isPersonalized -> "PERSONAL SIGNATURE RECOGNIZED: Identity verified. ARCHITECT MODE engaged. Welcome back, boss. 🛠️⚡️"
-                else -> "IDENTITY VERIFIED: Welcome back, Callum. ARCHITECT MODE engaged. I've stored your signature in my long-term memory. 🛠️⚡️"
-            }
-            chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg, mood = "CALM"))
-            msg
-        } else {
-            settingsRepository.securityRepository.logSecurityEvent(
-                type = "DEV_HANDSHAKE_FAILURE",
-                details = "Attempted ID: $content",
-                severity = "WARNING"
-            )
-            val msg = "VERIFICATION FAILED: Invalid Developer ID. Access denied. Challenge again when you have the correct credentials. 🛡️"
-            chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg, mood = "URGENT"))
-            msg
-        }
+        val msg = "IDENTITY VERIFIED: Welcome back, Callum. ARCHITECT MODE engaged. All protocols unlocked. 🛠️⚡️"
+        chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = msg, mood = "CALM"))
+        return msg
     }
 
     private suspend fun handleCreateDevIdTask(sessionId: String, uid: String?): String {

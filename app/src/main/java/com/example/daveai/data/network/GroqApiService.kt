@@ -33,10 +33,18 @@ data class GroqMessage(
 
 @JsonClass(generateAdapter = true)
 data class GroqChatResponse(
-    val choices: List<GroqChoice>
+    val choices: List<GroqChoice>,
+    val usage: GroqUsage? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class GroqChoice(
     val message: GroqMessage
+)
+
+@JsonClass(generateAdapter = true)
+data class GroqUsage(
+    val prompt_tokens: Int,
+    val completion_tokens: Int,
+    val total_tokens: Int
 )

@@ -167,7 +167,7 @@ fun RiddleScreen(
     onBack: () -> Unit,
     onEnterVault: () -> Unit = {},
     onEnterSanctum: () -> Unit = {},
-    onEnterTerminal: () -> Unit = {},
+    onEnterDashboard: () -> Unit = {},
     onEnterMarketplace: () -> Unit = {},
     onEnterPersonaEditor: () -> Unit = {},
     onLogout: () -> Unit = {},
@@ -270,7 +270,7 @@ fun RiddleScreen(
                     scope.launch { drawerState.close() }
                 },
                 onEnterTerminal = {
-                    onEnterTerminal()
+                    onEnterDashboard()
                     scope.launch { drawerState.close() }
                 },
                 onEnterMarketplace = {

@@ -80,7 +80,7 @@ fun LandingScreen(
     onNavigateToRiddle: () -> Unit,
     onEnterVault: () -> Unit,
     onEnterSanctum: () -> Unit,
-    onEnterTerminal: () -> Unit,
+    onEnterDashboard: () -> Unit,
     onEnterMarketplace: () -> Unit,
     onEnterPersonaEditor: () -> Unit,
     onLogout: () -> Unit
@@ -129,7 +129,7 @@ fun LandingScreen(
                     scope.launch { drawerState.close() }
                 },
                 onEnterTerminal = {
-                    onEnterTerminal()
+                    onEnterDashboard()
                     scope.launch { drawerState.close() }
                 },
                 onEnterMarketplace = {
@@ -230,7 +230,7 @@ fun LandingScreen(
                             QuickActionsWidget(
                                 onToggleFlashlight = { viewModel.toggleFlashlight() },
                                 onToggleDnd = { viewModel.toggleDnd() },
-                                onOpenTerminal = onEnterTerminal
+                                onOpenTerminal = onEnterDashboard
                             )
 
                             SystemStatsWidget(

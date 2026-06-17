@@ -30,4 +30,6 @@ data class ChatMessageEntity(
     val mood: String = "NEUTRAL",
     val hasAttachment: Boolean = false,
     val attachmentNames: String? = null, // Comma-separated list
+    val inputTokens: Int = 0,
+    val outputTokens: Int = 0
 )

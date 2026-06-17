@@ -35,4 +35,13 @@ interface ChatDao {
 
     @Query("SELECT * FROM chat_sessions WHERE sessionId = :sessionId LIMIT 1")
     suspend fun getSessionById(sessionId: String): ChatSessionEntity?
+
+    @Query("SELECT SUM(inputTokens) FROM chat_messages")
+    fun observeTotalInputTokens(): Flow<Long?>
+
+    @Query("SELECT SUM(outputTokens) FROM chat_messages")
+    fun observeTotalOutputTokens(): Flow<Long?>
+
+    @Query("SELECT * FROM chat_messages WHERE inputTokens > 0 OR outputTokens > 0 ORDER BY timestamp DESC LIMIT 50")
+    fun observeRecentUsage(): Flow<List<ChatMessageEntity>>
 }

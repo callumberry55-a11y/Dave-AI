@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Face
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Memory
@@ -267,8 +268,8 @@ fun GlassSidebar(
 
                 item {
                     SidebarItem(
-                        icon = Icons.Rounded.Terminal,
-                        label = "Neural Terminal",
+                        icon = Icons.Rounded.Dashboard,
+                        label = "Developer Dashboard",
                         onClick = onEnterTerminal
                     )
                 }

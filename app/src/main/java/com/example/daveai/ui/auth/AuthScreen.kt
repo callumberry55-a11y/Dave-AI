@@ -62,7 +62,6 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var isLoginMode by remember { mutableStateOf(value = true) }
-    var showDeveloperField by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
@@ -156,20 +155,6 @@ fun AuthScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
 
-                AnimatedVisibility(visible = showDeveloperField) {
-                    Column {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        NeuralTextField(
-                            value = uiState.developerCode,
-                            onValueChange = viewModel::onDeveloperCodeChanged,
-                            label = "Developer PIN",
-                            leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
-                        )
-                    }
-                }
-
                 AnimatedVisibility(visible = uiState.error != null) {
                     uiState.error?.let {
                         Text(
@@ -215,17 +200,6 @@ fun AuthScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
-
-                TextButton(
-                    onClick = { showDeveloperField = !showDeveloperField },
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Text(
-                        text = if (showDeveloperField) "Standard User Login" else "Are you my Creator?",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontSize = 12.sp
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

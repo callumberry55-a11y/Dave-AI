@@ -26,7 +26,6 @@ import kotlinx.coroutines.withContext
 data class AuthUiState(
     val email: String = "",
     val password: String = "",
-    val developerCode: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val isSuccess: Boolean = false,
@@ -65,10 +64,6 @@ class AuthViewModel : ViewModel() {
         _uiState.update { it.copy(password = password, error = null) }
     }
 
-    fun onDeveloperCodeChanged(code: String) {
-        _uiState.update { it.copy(developerCode = code, error = null) }
-    }
-
     fun signUp() {
         val state = _uiState.value
         if (state.email.isBlank() || state.password.isBlank()) return
@@ -84,9 +79,8 @@ class AuthViewModel : ViewModel() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = firebaseAuth.currentUser
-                    val isDev = state.developerCode == "1798"
                     viewModelScope.launch {
-                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, isDev)
+                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData)
                         syncFcmToken(user?.uid)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
@@ -111,9 +105,8 @@ class AuthViewModel : ViewModel() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = firebaseAuth.currentUser
-                    val isDev = state.developerCode == "1798"
                     viewModelScope.launch {
-                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, isDev)
+                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData)
                         syncFcmToken(user?.uid)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
@@ -141,7 +134,7 @@ class AuthViewModel : ViewModel() {
                 if (task.isSuccessful) {
                     val user = firebaseAuth.currentUser
                     viewModelScope.launch {
-                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, false)
+                        userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData)
                         syncFcmToken(user?.uid)
                         _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     }
@@ -152,7 +145,7 @@ class AuthViewModel : ViewModel() {
                             if (createCtx.isSuccessful) {
                                 val user = firebaseAuth.currentUser
                                 viewModelScope.launch {
-                                    userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, false)
+                                    userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData)
                                     _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                                 }
                             } else {
@@ -197,7 +190,7 @@ class AuthViewModel : ViewModel() {
                             if (task.isSuccessful) {
                                 val user = firebaseAuth.currentUser
                                 viewModelScope.launch {
-                                    userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData, false)
+                                    userStatsRepository.trackUserLogin(user?.uid ?: "", user?.email, referralData)
                                     syncFcmToken(user?.uid)
                                     _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                                 }

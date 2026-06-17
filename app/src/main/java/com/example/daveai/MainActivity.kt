@@ -60,7 +60,8 @@ import com.example.daveai.ui.navigation.DaveRoute
 import com.example.daveai.ui.riddle.RiddleScreen
 import com.example.daveai.ui.riddle.RiddleViewModel
 import com.example.daveai.ui.sanctum.SanctumScreen
-import com.example.daveai.ui.terminal.EliteTerminalScreen
+import com.example.daveai.ui.developer.DeveloperDashboardScreen
+import com.example.daveai.ui.developer.DeveloperDashboardViewModel
 import com.example.daveai.ui.theme.DaveAITheme
 import com.example.daveai.ui.vault.SecuritySetupScreen
 import com.example.daveai.ui.vault.SecurityViewModel
@@ -161,6 +162,11 @@ class MainActivity : FragmentActivity() {
     private fun handleIntent(intent: Intent?): Map<String, String?> {
         val data = mutableMapOf<String, String?>()
         intent?.data?.let { uri ->
+            // Capture all query parameters for general referral tracking
+            uri.queryParameterNames.forEach { key ->
+                data[key] = uri.getQueryParameter(key)
+            }
+
             // Handle Preferred Network (Aura) redirect parameters
             if (uri.getQueryParameter("anid") == "aura" || uri.getQueryParameter("cs") == "Aura") {
                 data["preferred_network"] = "Aura"
@@ -243,6 +249,14 @@ fun DaveApp(
         SecurityViewModel(settingsRepository)
     }
 
+    val dashboardViewModel: DeveloperDashboardViewModel = viewModel {
+        DeveloperDashboardViewModel(
+            chatRepository = app.chatRepository,
+            userStatsRepository = com.example.daveai.data.repository.UserStatsRepository(),
+            securityEventDao = app.chatRepository.getSecurityEventDao()
+        )
+    }
+
     val backStack = rememberNavBackStack(startRoute)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -290,7 +304,7 @@ fun DaveApp(
                                         onNavigateToRiddle = { backStack.add(DaveRoute.Riddle) },
                                         onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
                                         onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
-                                        onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
+                                        onEnterDashboard = { backStack.add(DaveRoute.DeveloperDashboard) },
                                         onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
                                         onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
                                         onLogout = {
@@ -316,8 +330,8 @@ fun DaveApp(
                                         onEnterRiddleRoom = {
                                             backStack.add(DaveRoute.Riddle)
                                         },
-                                        onEnterTerminal = {
-                                            backStack.add(DaveRoute.Terminal)
+                                        onEnterDashboard = {
+                                            backStack.add(DaveRoute.DeveloperDashboard)
                                         },
                                         onEnterMarketplace = {
                                             backStack.add(DaveRoute.AuraMarketplace)
@@ -350,7 +364,7 @@ fun DaveApp(
                                         onBack = { backStack.removeLastOrNull() },
                                         onEnterVault = { backStack.add(DaveRoute.VaultAuth) },
                                         onEnterSanctum = { backStack.add(DaveRoute.Sanctum) },
-                                        onEnterTerminal = { backStack.add(DaveRoute.Terminal) },
+                                        onEnterDashboard = { backStack.add(DaveRoute.DeveloperDashboard) },
                                         onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
                                         onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
                                         onLogout = {
@@ -369,10 +383,10 @@ fun DaveApp(
                                     ) { backStack.removeLastOrNull() }
                                 }
                             }
-                            is DaveRoute.Terminal -> {
+                            is DaveRoute.DeveloperDashboard -> {
                                 NavEntry(key) {
-                                    EliteTerminalScreen(
-                                        viewModel = chatViewModel,
+                                    DeveloperDashboardScreen(
+                                        viewModel = dashboardViewModel,
                                     ) { backStack.removeLastOrNull() }
                                 }
                             }

@@ -33,10 +33,18 @@ data class PerplexityMessage(
 
 @JsonClass(generateAdapter = true)
 data class PerplexityChatResponse(
-    val choices: List<PerplexityChoice>
+    val choices: List<PerplexityChoice>,
+    val usage: PerplexityUsage? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class PerplexityChoice(
     val message: PerplexityMessage
+)
+
+@JsonClass(generateAdapter = true)
+data class PerplexityUsage(
+    val prompt_tokens: Int,
+    val completion_tokens: Int,
+    val total_tokens: Int
 )

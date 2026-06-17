@@ -19,10 +19,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.daveai"
-        minSdk = 34
+        minSdk = 35
         targetSdk = 37
-        versionCode = 12
-        versionName = "BP42.2026.13"
+        versionCode = 13
+        versionName = "BP43.2026.14"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -52,6 +52,9 @@ android {
 
         val elevenKey = localProps.getProperty("ELEVENLABS_API_KEY") ?: ""
         buildConfigField("String", "ELEVENLABS_API_KEY", "\"$elevenKey\"")
+
+        val firestoreKey = localProps.getProperty("FIRESTORE_API_KEY") ?: "AIzaSyAUuKyeoKa2V694n9SA04Rln6kw-IY9PNI"
+        buildConfigField("String", "FIRESTORE_API_KEY", "\"$firestoreKey\"")
 
         buildConfigField("String", "INTELLIGENCE_VERSION", "\"V1.0.0\"")
         manifestPlaceholders["intelligenceAuthority"] = "com.example.daveai.intelligence"

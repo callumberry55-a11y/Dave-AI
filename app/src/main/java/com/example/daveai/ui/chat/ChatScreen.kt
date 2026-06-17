@@ -171,7 +171,7 @@ fun ChatScreen(
     onLogout: () -> Unit,
     onEnterRiddleRoom: () -> Unit = {},
     onEnterLiveMode: () -> Unit = {},
-    onEnterTerminal: () -> Unit = {},
+    onEnterDashboard: () -> Unit = {},
     onEnterSanctum: () -> Unit = {},
     onEnterVault: () -> Unit = {},
     onEnterMarketplace: () -> Unit = {},
@@ -336,7 +336,7 @@ fun ChatScreen(
                     scope.launch { drawerState.close() }
                 },
                 onEnterTerminal = {
-                    onEnterTerminal()
+                    onEnterDashboard()
                     scope.launch { drawerState.close() }
                 },
                 onEnterMarketplace = {

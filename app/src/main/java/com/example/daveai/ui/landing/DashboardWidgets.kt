@@ -13,12 +13,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.FlashlightOn
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Newspaper
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -95,7 +95,7 @@ fun QuickActionsWidget(
     ) {
         QuickActionButton(Icons.Rounded.FlashlightOn, "LIGHT", onToggleFlashlight, Modifier.weight(1f))
         QuickActionButton(Icons.Rounded.DoNotDisturbOn, "DND", onToggleDnd, Modifier.weight(1f))
-        QuickActionButton(Icons.Rounded.Terminal, "TERM", onOpenTerminal, Modifier.weight(1f))
+        QuickActionButton(Icons.Rounded.Dashboard, "DASH", onOpenTerminal, Modifier.weight(1f))
     }
 }
 

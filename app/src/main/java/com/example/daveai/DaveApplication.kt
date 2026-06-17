@@ -227,6 +227,7 @@ class DaveApplication : Application() {
             semanticMemoryDao = semanticMemoryDao,
             relationshipDao = database.relationshipDao(),
             notificationDao = database.notificationDao(),
+            securityEventDao = securityEventDao,
             hardwareAccelerator = hardwareAccelerator,
             deviceAssistant = deviceAssistant,
             voiceManager = voiceManager,
