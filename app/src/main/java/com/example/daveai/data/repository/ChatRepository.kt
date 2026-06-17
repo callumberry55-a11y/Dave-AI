@@ -579,21 +579,21 @@ class ChatRepository(
                 append(hardwareAccelerator.getSystemIntelligenceIntegrationPrompt())
             }
 
-            val modelsToTry = when {
-                isGodMode -> listOf("claude-opus-4-8", "claude-3-5-sonnet-20241022")
-                isFastMode -> {
-                    val userGroqKey = settingsRepository.userGroqApiKey.firstOrNull()
-                    val userPerplexityKey = settingsRepository.userPerplexityApiKey.firstOrNull()
-                    
-                    val models = mutableListOf<String>()
-                    if (!userGroqKey.isNullOrBlank()) models.add("groq-llama3-70b")
-                    if (!userPerplexityKey.isNullOrBlank()) models.add("perplexity-llama-3-sonar-small-32k-online")
-                    
-                    models.addAll(listOf("claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022"))
-                    models.toList()
-                }
-                else -> listOf("claude-opus-4-8", "claude-3-5-sonnet-20241022")
+        val modelsToTry = when {
+            isGodMode -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022")
+            isFastMode -> {
+                val userGroqKey = settingsRepository.userGroqApiKey.firstOrNull()
+                val userPerplexityKey = settingsRepository.userPerplexityApiKey.firstOrNull()
+                
+                val models = mutableListOf<String>()
+                if (!userGroqKey.isNullOrBlank()) models.add("groq-llama3-70b")
+                if (!userPerplexityKey.isNullOrBlank()) models.add("perplexity-llama-3-sonar-small-32k-online")
+                
+                models.addAll(listOf("claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022"))
+                models.toList()
             }
+            else -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022")
+        }
             
             var assistantContent = "No response from cloud brain."
             var lastError: String? = null
@@ -1531,7 +1531,7 @@ class ChatRepository(
             val prompt = "Generate elite title (max 5 words) and 1-sentence summary for this exchange: User: $userMsg, Dave: $daveMsg. Respond ONLY JSON: {\"title\": \"...\", \"summary\": \"...\"}"
             val apiKey = BuildConfig.CLAUDE_API_KEY
             if (apiKey.isBlank()) return
-            val response = apiService.sendMessage(apiKey = apiKey, request = MessageRequest(model = "claude-opus-4-8", messages = listOf(ClaudeMessage(role = "user", content = listOf(ClaudeContent(type = "text", text = prompt)))), system = "Dave's background processor."))
+            val response = apiService.sendMessage(apiKey = apiKey, request = MessageRequest(model = "claude-3-5-haiku-20241022", messages = listOf(ClaudeMessage(role = "user", content = listOf(ClaudeContent(type = "text", text = prompt)))), system = "Dave's background processor."))
             val json = JSONObject(response.content.firstOrNull { it.type == "text" }?.text ?: return)
             val title = json.optString("title")
             if (title.isNotEmpty()) chatDao.getAllSessions().first().find { it.sessionId == sessionId }?.let { chatDao.updateSession(it.copy(title = title, summary = json.optString("summary"))) }
@@ -1841,7 +1841,7 @@ class ChatRepository(
                 If no conflict, respond: {"conflict_found": false}
             """.trimIndent()
 
-            val response = apiService.sendMessage(apiKey, request = MessageRequest(model = "claude-opus-4-8", messages = listOf(ClaudeMessage(role = "user", content = listOf(ClaudeContent(type = "text", text = prompt)))), system = "Dave's logic processor."))
+            val response = apiService.sendMessage(apiKey, request = MessageRequest(model = "claude-3-5-haiku-20241022", messages = listOf(ClaudeMessage(role = "user", content = listOf(ClaudeContent(type = "text", text = prompt)))), system = "Dave's logic processor."))
             val json = JSONObject(response.content.firstOrNull { it.type == "text" }?.text ?: return)
 
             if (json.optBoolean("conflict_found")) {
@@ -1883,7 +1883,7 @@ class ChatRepository(
                                      memories.joinToString("\n") { "- ${it.content}" } + 
                                      "\nRespond ONLY with JSON: {\"merged_content\": \"...\", \"importance\": 8}"
                     
-                    val response = apiService.sendMessage(apiKey, request = MessageRequest(model = "claude-opus-4-8", messages = listOf(ClaudeMessage(role = "user", content = listOf(ClaudeContent(type = "text", text = mergePrompt)))), system = "Dave's memory consolidator."))
+                    val response = apiService.sendMessage(apiKey, request = MessageRequest(model = "claude-3-5-haiku-20241022", messages = listOf(ClaudeMessage(role = "user", content = listOf(ClaudeContent(type = "text", text = mergePrompt)))), system = "Dave's memory consolidator."))
                     val json = JSONObject(response.content.firstOrNull { it.type == "text" }?.text ?: return@forEach)
                     
                     val merged = json.optString("merged_content")

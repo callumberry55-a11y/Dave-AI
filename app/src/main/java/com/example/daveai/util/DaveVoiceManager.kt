@@ -6,7 +6,6 @@ import android.media.MediaPlayer
 import android.util.Log
 import com.example.daveai.BuildConfig
 import com.example.daveai.data.network.ElevenLabsApiService
-import com.example.daveai.data.network.ElevenLabsTtsRequest
 import com.example.daveai.data.network.OpenAiApiService
 import com.example.daveai.data.network.TtsRequest
 import com.example.daveai.data.repository.SettingsRepository
@@ -25,10 +24,14 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentLinkedQueue
 
+/**
+ * Manages Dave's vocal output using OpenAI TTS.
+ * Handles chunking, parallel pre-fetching, and sequential playback.
+ */
 class DaveVoiceManager(
     private val context: Context,
     private val openAiService: OpenAiApiService,
-    private val elevenLabsService: ElevenLabsApiService,
+    private val elevenLabsService: ElevenLabsApiService, // Kept for DI compatibility but unused
     private val settingsRepository: SettingsRepository
 ) {
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -46,46 +49,46 @@ class DaveVoiceManager(
     var onErrorSpeaking: (() -> Unit)? = null
 
     init {
-        // Initialization if needed
+        Log.d("DaveVoice", "Neural Vocal Core Initialized :: OpenAI Preferred")
     }
 
     suspend fun speak(text: String, speed: Double = 1.05) = withContext(Dispatchers.IO) {
         val userOpenAiKey = settingsRepository.userOpenAiApiKey.firstOrNull()
-        val userElevenKey = settingsRepository.userElevenLabsApiKey.firstOrNull()
-        
         val openAiKey = if (!userOpenAiKey.isNullOrBlank()) userOpenAiKey else BuildConfig.OPENAI_API_KEY
         
-        // Cancel any previous job if we are interrupted
+        if (openAiKey.isBlank()) {
+            Log.w("DaveVoice", "OpenAI API Key is missing. Dave is silent.")
+            return@withContext
+        }
+
+        // Cancel any previous vocal sequence
         stop()
 
-        // Granular chunker - split by punctuation or long pauses
+        // Granular chunker - split by punctuation
         val chunks = splitIntoChunks(text)
 
         speakJob = managerScope.launch {
             isFetching = true
             try {
-                // Use parallel fetching for chunks to eliminate gaps
+                // Parallel fetching for performance
                 chunks.map { chunk ->
                     async {
                         try {
-                            val response = if (!userElevenKey.isNullOrBlank()) {
-                                elevenLabsService.generateSpeech(
-                                    apiKey = userElevenKey,
-                                    voiceId = ElevenLabsApiService.DEFAULT_VOICE_ID,
-                                    request = ElevenLabsTtsRequest(text = chunk)
+                            val response = openAiService.generateSpeech(
+                                auth = "Bearer $openAiKey",
+                                request = TtsRequest(
+                                    input = chunk, 
+                                    speed = speed, 
+                                    voice = "alloy",
+                                    responseFormat = "opus" // Opus is fast and high quality
                                 )
-                            } else {
-                                if (openAiKey.isBlank()) return@async null
-                                openAiService.generateSpeech(
-                                    auth = "Bearer $openAiKey",
-                                    request = TtsRequest(input = chunk, speed = speed, voice = "alloy")
-                                )
-                            }
+                            )
 
                             if (response.isSuccessful) {
                                 val body = response.body()
                                 if (body != null) {
-                                    val tempFile = File.createTempFile("dave_voice_chunk", ".opus", context.cacheDir)
+                                    // Use .ogg extension for Opus format (standard container)
+                                    val tempFile = File.createTempFile("dave_vocal", ".ogg", context.cacheDir)
                                     FileOutputStream(tempFile).use { output ->
                                         body.byteStream().use { input ->
                                             input.copyTo(output)
@@ -94,10 +97,10 @@ class DaveVoiceManager(
                                     return@async tempFile
                                 }
                             } else {
-                                Log.e("DaveVoice", "TTS failed: ${response.errorBody()?.string()}")
+                                Log.e("DaveVoice", "OpenAI TTS failed: ${response.errorBody()?.string()}")
                             }
                         } catch (e: Exception) {
-                            Log.e("DaveVoice", "TTS error for chunk: $chunk", e)
+                            Log.e("DaveVoice", "Vocal synth error for chunk: $chunk", e)
                         }
                         null
                     }
@@ -106,7 +109,7 @@ class DaveVoiceManager(
                     if (tempFile != null) {
                         audioQueue.offer(tempFile)
                         
-                        // If not already playing, start the queue immediately
+                        // Kickstart playback if idle
                         if (!isPlayingQueue) {
                             withContext(Dispatchers.Main) {
                                 playNextInQueue()
@@ -116,7 +119,7 @@ class DaveVoiceManager(
                 }
             } finally {
                 isFetching = false
-                // Final check to see if we need to kickstart the queue
+                // Final check to ensure the queue completes
                 if (!isPlayingQueue && audioQueue.isNotEmpty()) {
                     withContext(Dispatchers.Main) {
                         playNextInQueue()
@@ -127,16 +130,13 @@ class DaveVoiceManager(
     }
 
     private fun splitIntoChunks(text: String): List<String> {
-        // Split by sentences first, avoid splitting on commas initially to reduce network requests
         val baseChunks = text.split(Regex("(?<=[.!?\n])\\s+")).filter { it.isNotBlank() }
         val result = mutableListOf<String>()
         for (chunk in baseChunks) {
             if (chunk.length > 300) {
-                // Split very long chunks by commas, semicolons or just max length
                 val subChunks = chunk.split(Regex("(?<=[,;:])\\s+")).filter { it.isNotBlank() }
                 for (sub in subChunks) {
                     if (sub.length > 300) {
-                        // Hard split by words if still too long
                         val words = sub.split(" ")
                         val sb = StringBuilder()
                         for (word in words) {
@@ -200,12 +200,11 @@ class DaveVoiceManager(
                     
                     prepareAsync()
                 } catch (e: Exception) {
-                    Log.e("DaveVoice", "Error setting up MediaPlayer", e)
+                    Log.e("DaveVoice", "MediaPlayer config failed", e)
                     playNextInQueue()
                 }
             }
         } else {
-            // Queue is empty. If we are still fetching chunks, don't signal end of speaking yet.
             if (isFetching) {
                 isPlayingQueue = false
                 return
