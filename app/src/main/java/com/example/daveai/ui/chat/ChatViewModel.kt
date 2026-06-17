@@ -433,7 +433,7 @@ class ChatViewModel(
                 var sessionId = _uiState.value.currentSessionId
                 if (sessionId == null) {
                     sessionId = repository.createNewSession("New Intelligence Link")
-                    _uiState.update { it.copy(currentSessionId = sessionId) }
+                    selectSession(sessionId)
                 }
 
                 if (isGhostMode) {

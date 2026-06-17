@@ -78,6 +78,7 @@ class MainActivity : FragmentActivity() {
         val referralData = handleIntent(intent)
         val triggerVault = intent.getBooleanExtra("openVault", false)
         val initialPrompt = intent.getStringExtra("initialPrompt")
+        val sessionId = intent.getStringExtra("sessionId")
         val initialImageUri = IntentCompat.getParcelableExtra(intent, "initialImageUri", Uri::class.java)
 
         val app = application as DaveApplication
@@ -154,6 +155,7 @@ class MainActivity : FragmentActivity() {
                                 referralData = referralData, 
                                 triggerVault = triggerVault,
                                 initialPrompt = initialPrompt,
+                                sessionId = sessionId,
                                 initialImageUri = initialImageUri,
                                 settingsRepository = settingsRepository
                             )
@@ -200,6 +202,7 @@ fun DaveApp(
     referralData: Map<String, String?>,
     triggerVault: Boolean = false,
     initialPrompt: String? = null,
+    sessionId: String? = null,
     initialImageUri: Uri? = null,
     settingsRepository: SettingsRepository
 ) {
@@ -207,7 +210,7 @@ fun DaveApp(
     val app = context.applicationContext as DaveApplication
     val auth = try { FirebaseAuth.getInstance() } catch (_: Exception) { null }
     val startRoute = if (auth?.currentUser == null) DaveRoute.Auth else {
-        if (initialPrompt != null || initialImageUri != null) DaveRoute.Chat else DaveRoute.Landing
+        if (initialPrompt != null || initialImageUri != null || sessionId != null) DaveRoute.Chat else DaveRoute.Landing
     }
     
     val authViewModel: AuthViewModel = viewModel()
@@ -225,9 +228,12 @@ fun DaveApp(
         }
     }
 
-    LaunchedEffect(initialPrompt, initialImageUri) {
+    LaunchedEffect(initialPrompt, initialImageUri, sessionId) {
         if (initialPrompt != null) {
             chatViewModel.onInputTextChanged(initialPrompt)
+        }
+        if (sessionId != null) {
+            chatViewModel.selectSession(sessionId)
         }
         if (initialImageUri != null) {
             chatViewModel.addAttachment(

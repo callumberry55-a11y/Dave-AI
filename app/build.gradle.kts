@@ -19,10 +19,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.daveai"
-        minSdk = 35
+        minSdk = 36
         targetSdk = 37
-        versionCode = 13
-        versionName = "BP43.2026.14"
+        versionCode = 14
+        versionName = "BP44.2026.15"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

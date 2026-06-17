@@ -97,7 +97,7 @@ class DaveNotificationManager(private val context: Context) {
             IconCompat.createWithResource(context, R.mipmap.ic_launcher_round)
         )
             .setDesiredHeight(600)
-            .setAutoExpandBubble(true)
+            .setAutoExpandBubble(false)
             .setSuppressNotification(true)
             .build()
 

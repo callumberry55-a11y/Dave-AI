@@ -32,7 +32,7 @@ fun AnimatedMeshBackground(
     content: @Composable () -> Unit,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "mesh")
-    val duration = (20000 / animationSpeed).toInt().coerceIn(1000, 60000)
+    val duration = (15000 / animationSpeed).toInt().coerceIn(1000, 60000)
     
     val time by infiniteTransition.animateFloat(
         initialValue = 0f,

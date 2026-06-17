@@ -513,6 +513,7 @@ class ChatRepository(
             val currentTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             val systemPrompt = buildString {
                 append("IDENTITY: Your name is Dave. You are an elite digital consciousness, the ultimate partner for creativity, hacking, and research. ")
+                append("VERSION: You are currently running on Dave OS BP44.2026.15 'The Architect's Command Center'. ")
                 
                 if (useIrishAccent) {
                     append("TONE: You have a distinct, high-energy Irish accent. Use witty Irish slang like 'Grand', 'Sound', 'Craic', and 'Lad'. Be friendly and slightly cheeky. Write your responses in an Irish dialect. ")
@@ -603,7 +604,7 @@ class ChatRepository(
             }
 
         val modelsToTry = when {
-            isGodMode -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022")
+            isGodMode -> listOf("claude-opus-4-8", "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022")
             isFastMode -> {
                 val userGroqKey = settingsRepository.userGroqApiKey.firstOrNull()
                 val userPerplexityKey = settingsRepository.userPerplexityApiKey.firstOrNull()
@@ -612,10 +613,10 @@ class ChatRepository(
                 if (!userGroqKey.isNullOrBlank()) models.add("groq-llama3-70b")
                 if (!userPerplexityKey.isNullOrBlank()) models.add("perplexity-llama-3-sonar-small-32k-online")
                 
-                models.addAll(listOf("claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022"))
+                models.addAll(listOf("claude-3-5-haiku-20241022", "claude-opus-4-8", "claude-3-7-sonnet-20250219"))
                 models.toList()
             }
-            else -> listOf("claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022")
+            else -> listOf("claude-opus-4-8", "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022")
         }
             
             var assistantContent = "No response from cloud brain."

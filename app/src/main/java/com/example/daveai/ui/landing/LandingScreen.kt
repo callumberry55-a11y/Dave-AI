@@ -260,7 +260,7 @@ fun LandingScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "DAVE OS :: V1.4.0",
+                            text = "DAVE OS :: BP44.2026.15",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Black,

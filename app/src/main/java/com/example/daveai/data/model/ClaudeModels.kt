@@ -5,7 +5,7 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class MessageRequest(
-    @Json(name = "model") val model: String = "claude-3-7-sonnet-20250219",
+    @Json(name = "model") val model: String = "claude-opus-4-8",
     @Json(name = "max_tokens") val maxTokens: Int = 4096,
     @Json(name = "messages") val messages: List<ClaudeMessage>,
     @Json(name = "system") val system: String? = null
