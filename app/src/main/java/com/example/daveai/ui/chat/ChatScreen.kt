@@ -201,6 +201,7 @@ fun ChatScreen(
 
     val voiceToTextManager = remember { VoiceToTextManager(context) }
     val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val contactsPermissionState = rememberPermissionState(Manifest.permission.READ_CONTACTS)
     
     val locationPermissionState = com.google.accompanist.permissions.rememberMultiplePermissionsState(
         listOf(
@@ -389,7 +390,11 @@ fun ChatScreen(
                     }
 
                     itemsIndexed(uiState.messages) { index, message ->
-                        MessageBubble(message = message, viewModel = viewModel)
+                        MessageBubble(
+                            message = message, 
+                            viewModel = viewModel, 
+                            contactsPermissionState = contactsPermissionState
+                        )
                     }
 
                     if (uiState.isLoading) {
@@ -467,12 +472,13 @@ fun AppFactoryOverlay(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalPermissionsApi::class)
 @androidx.media3.common.util.UnstableApi
 @Composable
 fun MessageBubble(
     message: ChatMessage,
-    viewModel: ChatViewModel
+    viewModel: ChatViewModel,
+    contactsPermissionState: PermissionState
 ) {
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -590,17 +596,21 @@ fun MessageBubble(
                     Spacer(Modifier.height(12.dp))
                     FluidButton(
                         onClick = {
-                            val dialIntent = Intent(Intent.ACTION_DIAL).apply {
-                                data = Uri.parse("tel:${phoneNumber.replace(Regex("[^0-9+]"), "")}")
+                            if (contactsPermissionState.status.isGranted) {
+                                val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                                    data = Uri.parse("tel:${phoneNumber.replace(Regex("[^0-9+]"), "")}")
+                                }
+                                context.startActivity(dialIntent)
+                            } else {
+                                contactsPermissionState.launchPermissionRequest()
                             }
-                            context.startActivity(dialIntent)
                         },
                         containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                         contentColor = MaterialTheme.colorScheme.primary
                     ) {
                         Icon(Icons.Rounded.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(12.dp))
-                        Text("Initiate Voice Link", fontWeight = FontWeight.Bold)
+                        Text(if (contactsPermissionState.status.isGranted) "Initiate Voice Link" else "Grant Contacts Access", fontWeight = FontWeight.Bold)
                     }
                 }
 

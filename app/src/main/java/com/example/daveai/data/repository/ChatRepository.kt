@@ -96,6 +96,11 @@ class ChatRepository(
     private val relationshipDao: RelationshipDao,
     private val notificationDao: NotificationDao,
     private val securityEventDao: SecurityEventDao,
+    private val userDao: com.example.daveai.data.db.UserDao,
+    private val conversationDao: com.example.daveai.data.db.ConversationDao,
+    private val messageDao: com.example.daveai.data.db.MessageDao,
+    private val memoryDao: com.example.daveai.data.db.MemoryDao,
+    private val memoryLinkDao: com.example.daveai.data.db.MemoryLinkDao,
     private val hardwareAccelerator: HardwareAccelerator,
     private val deviceAssistant: DeviceAssistant,
     private val voiceManager: DaveVoiceManager,
@@ -117,6 +122,23 @@ class ChatRepository(
     fun getContext() = deviceAssistant.getContext()
     fun getHardwareAccelerator() = hardwareAccelerator
     fun getScope() = repositoryScope
+
+    suspend fun syncCurrentUser() = withContext(Dispatchers.IO) {
+        val user = FirebaseAuth.getInstance().currentUser ?: return@withContext
+        val email = user.email ?: return@withContext
+        val existing = userDao.getUserByEmail(email)
+        if (existing == null) {
+            userDao.insertUser(
+                com.example.daveai.data.db.UserEntity(
+                    email = email,
+                    createdAt = java.util.Date(),
+                    displayName = user.displayName,
+                    avatarUrl = user.photoUrl?.toString()
+                )
+            )
+            Log.d("ChatRepository", "Synchronized new user to local SQL: $email")
+        }
+    }
 
     init {
         // Initial system check logic removed for brevity
@@ -924,14 +946,33 @@ class ChatRepository(
 
     private fun handleCallTask(content: String): String {
         val numberRegex = Regex("""(\+?\d[\d-\s]{7,})""")
-        val match = numberRegex.find(content)
-        val number = match?.value?.replace(Regex("[-\\s]"), "")
+        val numberMatch = numberRegex.find(content)
         
-        return if (number != null) {
-            "NEURAL_LINK_ESTABLISHED :: Initiating voice link to $number... [ACTION:CALL:$number]"
-        } else {
-            "Searching neural nodes for contact information... Who should I call? [BUTTON: Open Contacts]"
+        if (numberMatch != null) {
+            val number = numberMatch.value.replace(Regex("[-\\s]"), "")
+            return "NEURAL_LINK_ESTABLISHED :: Initiating voice link to $number... [ACTION:CALL:$number]"
         }
+
+        // Try extracting a name
+        val nameMatch = Regex("""(?:call|dial|phone)\s+([a-zA-Z\s]+)""", RegexOption.IGNORE_CASE).find(content)
+        val name = nameMatch?.groupValues?.get(1)?.trim()
+
+        if (!name.isNullOrBlank()) {
+            val matches = deviceAssistant.searchContacts(name)
+            return when {
+                matches.isEmpty() -> "I couldn't find a neural record for '$name'. Should I scan your contacts directory? [BUTTON: Open Contacts]"
+                matches.size == 1 -> {
+                    val contact = matches.first()
+                    "NEURAL_LINK_ESTABLISHED :: Initiating voice link to ${contact.name}... [ACTION:CALL:${contact.phone}]"
+                }
+                else -> {
+                    val options = matches.joinToString("\n") { "- ${it.name}: ${it.phone}" }
+                    "I found multiple neural signatures for '$name'. Which one should I link to?\n$options"
+                }
+            }
+        }
+
+        return "Searching neural nodes for contact information... Who should I call? [BUTTON: Open Contacts]"
     }
 
     private suspend fun executeEliteTask(
@@ -1062,7 +1103,7 @@ class ChatRepository(
         if (c.matchesPattern("latest news|headlines|world events")) {
             return DaveTask.NEWS
         }
-        if (c.matchesPattern("call |dial |phone ")) {
+        if (c.matchesPattern("call |dial |phone |make a call|ring ")) {
             return DaveTask.CALL
         }
         if (c.matchesPattern("weather in|forecast for|current temperature")) {

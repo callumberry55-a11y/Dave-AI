@@ -48,11 +48,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.daveai.ui.chat.ChatViewModel
@@ -60,6 +62,7 @@ import com.example.daveai.ui.components.CountdownTimer
 import com.example.daveai.ui.components.NeuralCard
 import com.example.daveai.ui.components.NeuralTextField
 import com.example.daveai.ui.components.NeuralTopBar
+import com.example.daveai.ui.theme.DaveAITheme
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,7 +77,7 @@ fun VaultScreen(
 
     val releaseDate = remember {
         Calendar.getInstance().apply {
-            set(2026, Calendar.JUNE, 28, 10, 0, 0)
+            set(2026, Calendar.JUNE, 1, 10, 0, 0)
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
     }
@@ -154,9 +157,19 @@ fun VaultScreen(
 
                     KeyEntrySection(
                         icon = Icons.Rounded.Public,
-                        label = "Google Maps / Gemini Key",
+                        label = "Google Maps Key",
                         value = uiState.userMapsApiKey ?: "",
                         onValueChange = { viewModel.updateMapsApiKey(it) },
+                        placeholder = "AIza..."
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    KeyEntrySection(
+                        icon = Icons.Rounded.Key,
+                        label = "Gemini Pro API Key",
+                        value = uiState.userGeminiApiKey ?: "",
+                        onValueChange = { viewModel.updateGeminiApiKey(it) },
                         placeholder = "AIza..."
                     )
 
@@ -227,6 +240,46 @@ fun VaultScreen(
                         label = "Alpha Vantage (Finance)",
                         value = uiState.userFinanceApiKey ?: "",
                         onValueChange = { viewModel.updateFinanceApiKey(it) },
+                        placeholder = "..."
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    KeyEntrySection(
+                        icon = Icons.Rounded.Public,
+                        label = "CryptoCompare API Key",
+                        value = uiState.userCryptoApiKey ?: "",
+                        onValueChange = { viewModel.updateCryptoApiKey(it) },
+                        placeholder = "..."
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    KeyEntrySection(
+                        icon = Icons.Rounded.Public,
+                        label = "MediaWiki (Wikipedia) Key",
+                        value = uiState.userWikiApiKey ?: "",
+                        onValueChange = { viewModel.updateWikiApiKey(it) },
+                        placeholder = "..."
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    KeyEntrySection(
+                        icon = Icons.Rounded.AudioFile,
+                        label = "Suno AI Key",
+                        value = uiState.userSunoApiKey ?: "",
+                        onValueChange = { viewModel.updateSunoApiKey(it) },
+                        placeholder = "..."
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    KeyEntrySection(
+                        icon = Icons.Rounded.CloudQueue,
+                        label = "Firebase / Firestore Override",
+                        value = uiState.userFirestoreApiKey ?: "",
+                        onValueChange = { viewModel.updateFirestoreApiKey(it) },
                         placeholder = "..."
                     )
 
@@ -372,4 +425,19 @@ private fun KeyEntrySection(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         singleLine = true
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun VaultScreenPreview() {
+    val context = LocalContext.current
+    val app = context.applicationContext as? com.example.daveai.DaveApplication
+    // Mocking ViewModel if possible, but simpler to just show the UI
+    DaveAITheme {
+        VaultScreen(
+            viewModel = androidx.lifecycle.viewmodel.compose.viewModel(), // This might crash if no factory
+            onBack = {},
+            onNavigateToSecurity = {}
+        )
+    }
 }

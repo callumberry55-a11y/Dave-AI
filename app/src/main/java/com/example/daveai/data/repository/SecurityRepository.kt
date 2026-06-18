@@ -78,5 +78,10 @@ class SecurityRepository(
         const val KEY_ELEVENLABS_API = "user_elevenlabs_api_key"
         const val KEY_WEATHER_API = "user_weather_api_key"
         const val KEY_FINANCE_API = "user_finance_api_key"
+        const val KEY_GEMINI_API = "user_gemini_api_key"
+        const val KEY_SUNO_API = "user_suno_api_key"
+        const val KEY_CRYPTO_API = "user_crypto_api_key"
+        const val KEY_WIKI_API = "user_wiki_api_key"
+        const val KEY_FIRESTORE_API = "user_firestore_api_key"
     }
 }

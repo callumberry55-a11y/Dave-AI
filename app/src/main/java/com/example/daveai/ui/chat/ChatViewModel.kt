@@ -67,6 +67,11 @@ data class ChatUiState(
     val userElevenLabsApiKey: String? = null,
     val userWeatherApiKey: String? = null,
     val userFinanceApiKey: String? = null,
+    val userGeminiApiKey: String? = null,
+    val userSunoApiKey: String? = null,
+    val userCryptoApiKey: String? = null,
+    val userWikiApiKey: String? = null,
+    val userFirestoreApiKey: String? = null,
     val blurIntensity: Float = 0.5f,
     val glowStrength: Float = 0.5f,
     val pendingRoute: DaveRoute? = null,
@@ -244,6 +249,31 @@ class ChatViewModel(
         viewModelScope.launch {
             settingsRepository.userFinanceApiKey.collect { key ->
                 _uiState.update { it.copy(userFinanceApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userGeminiApiKey.collect { key ->
+                _uiState.update { it.copy(userGeminiApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userSunoApiKey.collect { key ->
+                _uiState.update { it.copy(userSunoApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userCryptoApiKey.collect { key ->
+                _uiState.update { it.copy(userCryptoApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userWikiApiKey.collect { key ->
+                _uiState.update { it.copy(userWikiApiKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.userFirestoreApiKey.collect { key ->
+                _uiState.update { it.copy(userFirestoreApiKey = key) }
             }
         }
 
@@ -649,6 +679,26 @@ class ChatViewModel(
 
     fun updateFinanceApiKey(key: String?) {
         viewModelScope.launch { settingsRepository.setUserFinanceApiKey(key) }
+    }
+
+    fun updateGeminiApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserGeminiApiKey(key) }
+    }
+
+    fun updateSunoApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserSunoApiKey(key) }
+    }
+
+    fun updateCryptoApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserCryptoApiKey(key) }
+    }
+
+    fun updateWikiApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserWikiApiKey(key) }
+    }
+
+    fun updateFirestoreApiKey(key: String?) {
+        viewModelScope.launch { settingsRepository.setUserFirestoreApiKey(key) }
     }
 
     fun syncIntelligence() {

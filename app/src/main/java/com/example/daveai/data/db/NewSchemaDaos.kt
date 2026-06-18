@@ -48,6 +48,13 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE conversationId = :conversationId")
     suspend fun deleteMessagesForConversation(conversationId: String)
+
+    @Query("""
+        SELECT messages.* FROM messages
+        JOIN messages_fts ON messages.id = messages_fts.rowid
+        WHERE messages_fts MATCH :query
+    """)
+    suspend fun searchMessages(query: String): List<MessageEntity>
 }
 
 @Dao
@@ -60,6 +67,26 @@ interface MemoryDao {
 
     @Query("DELETE FROM memories WHERE id = :id")
     suspend fun deleteMemoryById(id: String)
+
+    @Query("""
+        SELECT memories.* FROM memories
+        JOIN memories_fts ON memories.id = memories_fts.rowid
+        WHERE memories_fts MATCH :query
+    """)
+    suspend fun searchMemories(query: String): List<MemoryEntity>
+
+    @Query("SELECT * FROM memories")
+    suspend fun getAllMemories(): List<MemoryEntity>
+
+    suspend fun findSimilarMemories(targetVector: FloatArray, limit: Int = 5): List<MemoryEntity> {
+        val allMemories = getAllMemories()
+        return com.example.daveai.util.VectorUtils.findMostSimilar(
+            target = targetVector,
+            items = allMemories,
+            vectorExtractor = { it.vectorEmbedding },
+            limit = limit
+        )
+    }
 }
 
 @Dao

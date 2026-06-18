@@ -149,6 +149,11 @@ class SettingsRepository(
     val userElevenLabsApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_ELEVENLABS_API))
     val userWeatherApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_WEATHER_API))
     val userFinanceApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_FINANCE_API))
+    val userGeminiApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_GEMINI_API))
+    val userSunoApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_SUNO_API))
+    val userCryptoApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_CRYPTO_API))
+    val userWikiApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_WIKI_API))
+    val userFirestoreApiKey: Flow<String?> = MutableStateFlow(securityRepository.getEncryptedString(SecurityRepository.KEY_FIRESTORE_API))
 
     val useBiometricsForVault: Flow<Boolean> = context.dataStore.data.map { it[USE_BIOMETRICS_FOR_VAULT] ?: false }
     val blurIntensity: Flow<Float> = context.dataStore.data.map { it[BLUR_INTENSITY] ?: 0.5f }
@@ -268,6 +273,26 @@ class SettingsRepository(
 
     suspend fun setUserFinanceApiKey(key: String?) {
         securityRepository.setEncryptedString(SecurityRepository.KEY_FINANCE_API, key)
+    }
+
+    suspend fun setUserGeminiApiKey(key: String?) {
+        securityRepository.setEncryptedString(SecurityRepository.KEY_GEMINI_API, key)
+    }
+
+    suspend fun setUserSunoApiKey(key: String?) {
+        securityRepository.setEncryptedString(SecurityRepository.KEY_SUNO_API, key)
+    }
+
+    suspend fun setUserCryptoApiKey(key: String?) {
+        securityRepository.setEncryptedString(SecurityRepository.KEY_CRYPTO_API, key)
+    }
+
+    suspend fun setUserWikiApiKey(key: String?) {
+        securityRepository.setEncryptedString(SecurityRepository.KEY_WIKI_API, key)
+    }
+
+    suspend fun setUserFirestoreApiKey(key: String?) {
+        securityRepository.setEncryptedString(SecurityRepository.KEY_FIRESTORE_API, key)
     }
 
     suspend fun setVaultSecurityCode(code: String?) {

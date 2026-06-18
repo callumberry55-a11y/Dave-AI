@@ -23,9 +23,11 @@ import java.security.SecureRandom
         ConversationEntity::class,
         MessageEntity::class,
         MemoryEntity::class,
-        MemoryLinkEntity::class
+        MemoryLinkEntity::class,
+        MessageFtsEntity::class,
+        MemoryFtsEntity::class
     ],
-    version = 22,
+    version = 23,
     exportSchema = false
 )
 @TypeConverters(DataConverters::class)

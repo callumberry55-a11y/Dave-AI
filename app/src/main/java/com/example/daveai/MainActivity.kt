@@ -8,11 +8,6 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.google.android.gms.tasks.OnCompleteListener
-import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -33,6 +28,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,26 +45,29 @@ import com.example.daveai.ui.aura.AuraMarketplaceScreen
 import com.example.daveai.ui.aura.PersonalityEditorScreen
 import com.example.daveai.ui.auth.AuthScreen
 import com.example.daveai.ui.auth.AuthViewModel
+import com.example.daveai.ui.auth.IdentityVerificationScreen
 import com.example.daveai.ui.chat.AttachedFile
 import com.example.daveai.ui.chat.ChatScreen
 import com.example.daveai.ui.chat.ChatViewModel
 import com.example.daveai.ui.components.AnimatedMeshBackground
 import com.example.daveai.ui.components.LocalCyberIntensity
+import com.example.daveai.ui.developer.DeveloperDashboardScreen
+import com.example.daveai.ui.developer.DeveloperDashboardViewModel
 import com.example.daveai.ui.landing.LandingScreen
 import com.example.daveai.ui.live.LiveVoiceScreen
-import com.example.daveai.ui.auth.IdentityVerificationScreen
 import com.example.daveai.ui.navigation.DaveRoute
 import com.example.daveai.ui.riddle.RiddleScreen
 import com.example.daveai.ui.riddle.RiddleViewModel
 import com.example.daveai.ui.sanctum.SanctumScreen
-import com.example.daveai.ui.developer.DeveloperDashboardScreen
-import com.example.daveai.ui.developer.DeveloperDashboardViewModel
 import com.example.daveai.ui.theme.DaveAITheme
 import com.example.daveai.ui.vault.SecuritySetupScreen
 import com.example.daveai.ui.vault.SecurityViewModel
 import com.example.daveai.ui.vault.VaultAuthScreen
 import com.example.daveai.ui.vault.VaultScreen
+import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
     @UnstableApi
@@ -116,6 +116,10 @@ class MainActivity : FragmentActivity() {
                 app.chatRepository.getScope().launch {
                     val userStatsRepo = com.example.daveai.data.repository.UserStatsRepository()
                     userStatsRepo.saveFcmToken(currentUser.uid, token)
+                }
+                // Sync user to local SQL database
+                app.chatRepository.getScope().launch {
+                    app.chatRepository.syncCurrentUser()
                 }
             }
         })
