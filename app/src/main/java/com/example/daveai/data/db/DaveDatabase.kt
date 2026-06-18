@@ -4,16 +4,31 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import net.sqlcipher.database.SupportFactory
 import java.security.SecureRandom
 
 @Database(
-    entities = [ChatMessageEntity::class, ChatSessionEntity::class, Riddle::class, SemanticMemory::class, RelationshipEntity::class, NotificationEntity::class, SecurityEvent::class],
-    version = 21,
+    entities = [
+        ChatMessageEntity::class, 
+        ChatSessionEntity::class, 
+        Riddle::class, 
+        SemanticMemory::class, 
+        RelationshipEntity::class, 
+        NotificationEntity::class, 
+        SecurityEvent::class,
+        UserEntity::class,
+        ConversationEntity::class,
+        MessageEntity::class,
+        MemoryEntity::class,
+        MemoryLinkEntity::class
+    ],
+    version = 22,
     exportSchema = false
 )
+@TypeConverters(DataConverters::class)
 abstract class DaveDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun riddleDao(): RiddleDao
@@ -21,6 +36,12 @@ abstract class DaveDatabase : RoomDatabase() {
     abstract fun relationshipDao(): RelationshipDao
     abstract fun notificationDao(): NotificationDao
     abstract fun securityEventDao(): SecurityEventDao
+
+    abstract fun userDao(): UserDao
+    abstract fun conversationDao(): ConversationDao
+    abstract fun messageDao(): MessageDao
+    abstract fun memoryDao(): MemoryDao
+    abstract fun memoryLinkDao(): MemoryLinkDao
 
     companion object {
         @Volatile

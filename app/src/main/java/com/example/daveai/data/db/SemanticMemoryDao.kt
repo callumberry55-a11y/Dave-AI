@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface SemanticMemoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMemory(memory: SemanticMemory)
+    suspend fun insertMemory(memory: SemanticMemory): Long
 
     @Update
     suspend fun updateMemory(memory: SemanticMemory)

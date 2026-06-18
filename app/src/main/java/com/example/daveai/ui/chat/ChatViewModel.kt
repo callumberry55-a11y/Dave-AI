@@ -16,8 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.delay
 
 data class ChatUiState(
     val dbMessages: List<ChatMessage> = emptyList(),
@@ -301,6 +299,8 @@ class ChatViewModel(
             viewModelScope.launch {
                 val profile = userStatsRepository.getUserProfile(uid)
                 _uiState.update { it.copy(userProfile = profile) }
+                // Trigger migration to Firestore
+                repository.syncAllToFirestore(uid)
             }
         }
     }
@@ -360,8 +360,8 @@ class ChatViewModel(
 
     fun createNewChat(title: String = "Neural Link") {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid ?: "ANONYMOUS"
-            val sessionId = repository.createNewSession(title, uid)
+            val uid = auth.currentUser?.uid
+            val sessionId = repository.createNewSession(title, uid ?: "ANONYMOUS")
             selectSession(sessionId)
         }
     }

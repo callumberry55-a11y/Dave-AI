@@ -1,31 +1,72 @@
 package com.example.daveai.data.repository
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.net.Uri
 import android.util.Log
-import androidx.work.*
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.daveai.BuildConfig
-import com.example.daveai.data.db.*
-import com.example.daveai.data.model.*
-import com.example.daveai.data.network.*
+import com.example.daveai.data.db.ChatDao
+import com.example.daveai.data.db.ChatMessageEntity
+import com.example.daveai.data.db.ChatSessionEntity
+import com.example.daveai.data.db.NotificationDao
+import com.example.daveai.data.db.RelationshipDao
+import com.example.daveai.data.db.RelationshipEntity
+import com.example.daveai.data.db.Riddle
+import com.example.daveai.data.db.RiddleDao
+import com.example.daveai.data.db.SecurityEventDao
+import com.example.daveai.data.db.SemanticMemory
+import com.example.daveai.data.db.SemanticMemoryDao
+import com.example.daveai.data.model.ClaudeContent
+import com.example.daveai.data.model.ClaudeContentSource
+import com.example.daveai.data.model.ClaudeMessage
+import com.example.daveai.data.model.MessageRequest
+import com.example.daveai.data.network.ClaudeApiService
+import com.example.daveai.data.network.CloudModelApiService
+import com.example.daveai.data.network.CryptoApiService
+import com.example.daveai.data.network.GeminiApiService
+import com.example.daveai.data.network.GoogleMapsApiService
+import com.example.daveai.data.network.GroqApiService
+import com.example.daveai.data.network.GroqChatRequest
+import com.example.daveai.data.network.GroqMessage
+import com.example.daveai.data.network.MediaWikiApiService
+import com.example.daveai.data.network.NewsApiService
+import com.example.daveai.data.network.OpenAiApiService
+import com.example.daveai.data.network.OpenMeteoGeocodingApiService
+import com.example.daveai.data.network.PairingLinkRequest
+import com.example.daveai.data.network.PerplexityApiService
+import com.example.daveai.data.network.PerplexityChatRequest
+import com.example.daveai.data.network.PerplexityMessage
+import com.example.daveai.data.network.PoetryApiService
+import com.example.daveai.data.network.PoetryDbApiService
+import com.example.daveai.data.network.SpotifyApiService
+import com.example.daveai.data.network.SunoApiService
+import com.example.daveai.data.network.SyncMemoryItem
+import com.example.daveai.data.network.SyncPushRequest
+import com.example.daveai.data.network.WeatherApiService
 import com.example.daveai.ui.chat.AttachedFile
 import com.example.daveai.ui.chat.DaveMode
-import com.example.daveai.ui.chat.MediaType
-import com.example.daveai.ui.chat.WidgetType
-import com.example.daveai.ui.navigation.DaveRoute
-import com.example.daveai.util.*
+import com.example.daveai.util.DaveNotificationManager
+import com.example.daveai.util.DaveVoiceManager
+import com.example.daveai.util.DeviceAssistant
+import com.example.daveai.util.HardwareAccelerator
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
@@ -59,7 +100,8 @@ class ChatRepository(
     private val deviceAssistant: DeviceAssistant,
     private val voiceManager: DaveVoiceManager,
     private val notificationManager: DaveNotificationManager,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val firestoreRepository: FirestoreRepository = FirestoreRepository()
 ) {
     private val userStatsRepository = com.example.daveai.data.repository.UserStatsRepository()
     private val MASTER_DEV_ID = "AXON_88_VANGUARD_SIGMA"
@@ -283,13 +325,48 @@ class ChatRepository(
 
     suspend fun createNewSession(title: String, userId: String = "ANONYMOUS"): String = withContext(Dispatchers.IO) {
         val sessionId = UUID.randomUUID().toString()
-        chatDao.insertSession(ChatSessionEntity(sessionId = sessionId, title = title, lastMessageTimestamp = System.currentTimeMillis()))
+        val session = ChatSessionEntity(sessionId = sessionId, title = title, lastMessageTimestamp = System.currentTimeMillis())
+        chatDao.insertSession(session)
+        if (userId != "ANONYMOUS") {
+            firestoreRepository.syncSession(userId, session)
+        }
         return@withContext sessionId
     }
 
     suspend fun deleteSession(sessionId: String) = withContext(Dispatchers.IO) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
         chatDao.deleteMessagesForSession(sessionId)
         chatDao.deleteSession(sessionId)
+        if (uid != null) {
+            firestoreRepository.deleteSession(uid, sessionId)
+        }
+    }
+
+    suspend fun syncAllToFirestore(uid: String) = withContext(Dispatchers.IO) {
+        try {
+            logToServer("Initiating full cloud synchronization...")
+            val sessions = chatDao.getAllSessions().first()
+            sessions.forEach { session ->
+                firestoreRepository.syncSession(uid, session)
+                val messages = chatDao.getMessagesForSession(session.sessionId).first()
+                messages.forEach { msg ->
+                    firestoreRepository.syncMessage(uid, session.sessionId, msg)
+                }
+            }
+            
+            val memories = semanticMemoryDao.getAllMemories().first()
+            memories.forEach { memory ->
+                firestoreRepository.syncSemanticMemory(uid, memory)
+            }
+            
+            val relationship = relationshipDao.getRelationshipLedger()
+            if (relationship != null) {
+                firestoreRepository.syncRelationship(uid, relationship)
+            }
+            logToServer("Cloud synchronization complete.")
+        } catch (e: Exception) {
+            Log.e("ChatRepository", "Full sync failed", e)
+        }
     }
 
     suspend fun sendMessage(
@@ -317,7 +394,9 @@ class ChatRepository(
                 append(cleanContent)
                 attachments.forEach { append("\n[Attached File: ${it.name}]") }
             }
-            chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "user", content = displayContent))
+            val message = ChatMessageEntity(sessionId = sessionId, role = "user", content = displayContent)
+            chatDao.insertMessage(message)
+            uid?.let { firestoreRepository.syncMessage(it, sessionId, message) }
             updateSessionTimestamp(sessionId)
         }
 
@@ -360,7 +439,9 @@ class ChatRepository(
             if (localResponse != null) {
                 _thinkingStatus.value = ""
                 val assistantContent = "$localResponse ⚡️ (Optimized via TPU)"
-                chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = assistantContent))
+                val message = ChatMessageEntity(sessionId = sessionId, role = "assistant", content = assistantContent)
+                chatDao.insertMessage(message)
+                uid?.let { firestoreRepository.syncMessage(it, sessionId, message) }
                 updateSessionTimestamp(sessionId)
                 if (!muteVoice) voiceManager.speak(assistantContent)
                 notificationManager.showDaveResponse(sessionId, assistantContent)
@@ -608,13 +689,15 @@ class ChatRepository(
             _thinkingStatus.value = ""
 
             if (!isGhostMode) {
-                chatDao.insertMessage(ChatMessageEntity(
+                val assistantMessage = ChatMessageEntity(
                     sessionId = sessionId, 
                     role = "assistant", 
                     content = assistantContent,
                     inputTokens = inTokens,
                     outputTokens = outTokens
-                ))
+                )
+                chatDao.insertMessage(assistantMessage)
+                uid?.let { firestoreRepository.syncMessage(it, sessionId, assistantMessage) }
                 updateSessionTimestamp(sessionId)
                 generateSessionContext(sessionId, cleanContent, assistantContent)
             }
@@ -672,13 +755,17 @@ class ChatRepository(
             val jsonArray = org.json.JSONArray(jsonText)
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                semanticMemoryDao.insertMemory(SemanticMemory(
+                val memory = SemanticMemory(
                     memoryType = obj.getString("type"),
                     content = obj.getString("content"),
                     importance = obj.getInt("importance"),
                     sentiment = obj.optString("sentiment", "NEUTRAL"),
                     timestamp = System.currentTimeMillis()
-                ))
+                )
+                val rowId = semanticMemoryDao.insertMemory(memory)
+                FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                    firestoreRepository.syncSemanticMemory(uid, memory.copy(id = rowId))
+                }
             }
         } catch (_: Exception) {}
     }
@@ -1058,7 +1145,11 @@ class ChatRepository(
             if (json.optBoolean("conflict_found")) {
                 val archiveId = json.optLong("archive_id")
                 recentMemories.find { it.id == archiveId }?.let { 
-                    semanticMemoryDao.updateMemory(it.copy(isArchived = true))
+                    val updated = it.copy(isArchived = true)
+                    semanticMemoryDao.updateMemory(updated)
+                    FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                        firestoreRepository.syncSemanticMemory(uid, updated)
+                    }
                     Log.d("ChatRepository", "Archived conflicting memory $archiveId: ${it.content}")
                 }
             }
@@ -1082,7 +1173,11 @@ class ChatRepository(
             val thirtyDaysMs = 30L * 24 * 60 * 60 * 1000
             val now = System.currentTimeMillis()
             all.filter { it.importance < 4 && (now - it.timestamp > thirtyDaysMs) }.forEach {
-                semanticMemoryDao.updateMemory(it.copy(isArchived = true))
+                val updated = it.copy(isArchived = true)
+                semanticMemoryDao.updateMemory(updated)
+                FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                    firestoreRepository.syncSemanticMemory(uid, updated)
+                }
                 Log.d("ChatRepository", "Pruned low-signal memory: ${it.content}")
             }
 
@@ -1100,13 +1195,21 @@ class ChatRepository(
                     val merged = json.optString("merged_content")
                     if (merged.isNotEmpty()) {
                         // Delete old entries and insert merged one
-                        memories.forEach { semanticMemoryDao.deleteMemory(it.id) }
-                        semanticMemoryDao.insertMemory(SemanticMemory(
+                        memories.forEach { 
+                            semanticMemoryDao.deleteMemory(it.id)
+                            // Firestore delete logic could be added here if needed, 
+                            // but usually sync handles replaces/updates.
+                        }
+                        val memory = SemanticMemory(
                             memoryType = type,
                             content = merged,
                             importance = json.optInt("importance", 7),
                             timestamp = System.currentTimeMillis()
-                        ))
+                        )
+                        val rowId = semanticMemoryDao.insertMemory(memory)
+                        FirebaseAuth.getInstance().currentUser?.uid?.let { uid ->
+                            firestoreRepository.syncSemanticMemory(uid, memory.copy(id = rowId))
+                        }
                         Log.d("ChatRepository", "Merged ${memories.size} entries in category '$type'")
                     }
                 }
