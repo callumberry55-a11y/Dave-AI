@@ -322,19 +322,16 @@ fun ChatScreen(
                             }
                         }
                     }
-                }
 
-                if (thinkingStatus.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(16.dp)
-                            .padding(bottom = 80.dp)
-                    ) {
-                        NeuralMetadataHeader(label = "STATUS", value = thinkingStatus)
+                    if (thinkingStatus.isNotBlank()) {
+                        item {
+                            Box(modifier = Modifier.padding(16.dp)) {
+                                NeuralMetadataHeader(label = "STATUS", value = thinkingStatus)
+                            }
+                        }
                     }
                 }
-                
+
                 AppFactoryOverlay(
                     progress = uiState.buildProgress,
                     logs = uiState.buildLogs,
