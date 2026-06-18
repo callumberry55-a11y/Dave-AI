@@ -1,15 +1,46 @@
 package com.example.daveai.util
 
+import android.app.NotificationManager
 import android.content.Context
+import android.hardware.camera2.CameraManager
 import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import com.google.mlkit.genai.prompt.Generation
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Manages access to the Google Tensor TPU, AICore, and Android System Intelligence features.
  */
-class HardwareAccelerator(@Suppress("unused") private val context: Context) {
+class HardwareAccelerator(private val context: Context) {
+
+    /**
+     * Toggles the device flashlight.
+     */
+    fun toggleFlashlight(turnOn: Boolean) {
+        try {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val cameraId = cameraManager.cameraIdList.firstOrNull()
+            if (cameraId != null) {
+                cameraManager.setTorchMode(cameraId, turnOn)
+            }
+        } catch (e: Exception) {
+            Log.e("HardwareAccelerator", "Flashlight error: ${e.message}")
+        }
+    }
+
+    /**
+     * Toggles Do Not Disturb (DND) mode.
+     */
+    fun toggleDND(turnOn: Boolean) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (notificationManager.isNotificationPolicyAccessGranted) {
+            val filter = if (turnOn) NotificationManager.INTERRUPTION_FILTER_PRIORITY else NotificationManager.INTERRUPTION_FILTER_ALL
+            notificationManager.setInterruptionFilter(filter)
+        } else {
+            Toast.makeText(context, "DND permission required. Please enable in settings.", Toast.LENGTH_LONG).show()
+        }
+    }
 
     /**
      * Checks if the device has a Google Tensor chip (Pixel 6+)

@@ -34,15 +34,11 @@ private val LightColorScheme = lightColorScheme(
     onTertiaryContainer = onTertiaryContainerLight,
     error = errorLight,
     onError = onErrorLight,
-    errorContainer = errorContainerLight,
-    onErrorContainer = onErrorContainerLight,
     background = backgroundLight,
     onBackground = onBackgroundLight,
     surface = surfaceLight,
     onSurface = onSurfaceLight,
-    surfaceVariant = surfaceVariantLight,
-    onSurfaceVariant = onSurfaceVariantLight,
-    outline = outlineLight,
+    outline = primaryLight.copy(alpha = 0.5f),
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -60,15 +56,11 @@ private val DarkColorScheme = darkColorScheme(
     onTertiaryContainer = onTertiaryContainerDark,
     error = errorDark,
     onError = onErrorDark,
-    errorContainer = errorContainerDark,
-    onErrorContainer = onErrorContainerDark,
     background = backgroundDark,
     onBackground = onBackgroundDark,
     surface = surfaceDark,
     onSurface = onSurfaceDark,
-    surfaceVariant = surfaceVariantDark,
-    onSurfaceVariant = onSurfaceVariantDark,
-    outline = outlineDark,
+    outline = primaryDark.copy(alpha = 0.5f),
 )
 
 @Composable
@@ -76,7 +68,7 @@ fun DaveAITheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     primaryColorOverride: Color? = null,
-    typographyStyle: String = "MODERN",
+    typographyStyle: String = "MODERN", // Kept for legacy support
     content: @Composable () -> Unit
 ) {
     val baseColorScheme = when {
@@ -97,47 +89,6 @@ fun DaveAITheme(
         baseColorScheme
     }
 
-    // Dynamic Typography (Phase 16)
-    val fontFamily = when (typographyStyle) {
-        "MONO" -> FontFamily.Monospace
-        "SERIF" -> FontFamily.Serif
-        else -> FontFamily.SansSerif
-    }
-
-    val dynamicTypography = Typography(
-        displayLarge = Typography.displayLarge.copy(
-            fontFamily = fontFamily,
-            fontWeight = FontWeight.ExtraLight,
-            letterSpacing = 2.sp
-        ),
-        headlineLarge = Typography.headlineLarge.copy(
-            fontFamily = fontFamily,
-            fontWeight = FontWeight.Light,
-            letterSpacing = 1.sp
-        ),
-        titleLarge = Typography.titleLarge.copy(
-            fontFamily = fontFamily,
-            fontWeight = FontWeight.Normal,
-            letterSpacing = 1.sp
-        ),
-        bodyLarge = Typography.bodyLarge.copy(
-            fontFamily = fontFamily,
-            fontWeight = FontWeight.Light,
-            lineHeight = 28.sp,
-            letterSpacing = 0.5.sp
-        ),
-        labelMedium = Typography.labelMedium.copy(
-            fontFamily = fontFamily,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 1.5.sp
-        ),
-        labelSmall = Typography.labelSmall.copy(
-            fontFamily = fontFamily,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 3.sp
-        )
-    )
-
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -152,7 +103,7 @@ fun DaveAITheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = dynamicTypography,
+        typography = Typography, // Using the new Dual-Font Liquid Typography
         content = content
     )
 }

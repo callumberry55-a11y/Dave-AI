@@ -35,13 +35,13 @@ class AssistantViewModel(
         viewModelScope.launch {
             try {
                 // Find or create a session for Assistant interactions
+                val uid = auth?.currentUser?.uid
                 val sessions = repository.allSessions.first()
                 val assistantSession = sessions.find { it.title == "Quick Assistant" } 
-                    ?: repository.createNewSession("Quick Assistant").let { id ->
+                    ?: repository.createNewSession("Quick Assistant", uid ?: "ANONYMOUS").let { id ->
                         repository.allSessions.first().find { it.sessionId == id }!!
                     }
                 
-                val uid = auth?.currentUser?.uid
                 val profile = uid?.let { userStatsRepository.getUserProfile(it) }
 
                 val response = repository.sendMessage(

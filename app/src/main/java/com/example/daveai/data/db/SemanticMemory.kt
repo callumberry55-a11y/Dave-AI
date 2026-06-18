@@ -18,5 +18,9 @@ data class SemanticMemory(
     @ColumnInfo(name = "is_archived")
     val isArchived: Boolean = false,
     @ColumnInfo(name = "is_locked")
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    @ColumnInfo(name = "related_ids")
+    val relatedIds: String = "", // Comma-separated IDs of related memories
+    val metadata: String = "", // Extra JSON metadata if needed
+    val sentiment: String = "NEUTRAL" // Emotional tone of the memory
 )

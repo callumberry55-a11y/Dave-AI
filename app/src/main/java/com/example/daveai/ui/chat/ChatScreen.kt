@@ -1,56 +1,25 @@
+@file:OptIn(com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
 package com.example.daveai.ui.chat
 
 import android.Manifest
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -61,77 +30,33 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.AttachFile
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.LockOpen
-import androidx.compose.material.icons.rounded.Map
-import androidx.compose.material.icons.rounded.Memory
-import androidx.compose.material.icons.rounded.Menu
-import androidx.compose.material.icons.rounded.Mic
-import androidx.compose.material.icons.rounded.MicNone
-import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.Terminal
-import androidx.compose.material.icons.rounded.VolumeOff
-import androidx.compose.material.icons.rounded.VolumeUp
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -144,18 +69,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
-import com.example.daveai.ui.components.GlassButton
-import com.example.daveai.ui.components.GlassSidebar
-import com.example.daveai.ui.components.NeuralCard
-import com.example.daveai.ui.components.NeuralThinkingIndicator
-import com.example.daveai.ui.components.NeuralTopBar
-import com.example.daveai.ui.components.StructuredContent
-import com.example.daveai.ui.theme.DaveAITheme
-import com.example.daveai.ui.theme.DaveBlue
-import com.example.daveai.ui.theme.DaveGreen
-import com.example.daveai.ui.theme.DavePurple
+import com.example.daveai.ui.components.*
+import com.example.daveai.ui.theme.*
 import com.example.daveai.util.VoiceToTextManager
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionState
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.delay
@@ -262,25 +180,26 @@ fun ChatScreen(
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
             confirmButton = {
-                GlassButton(
+                FluidButton(
                     onClick = {
                         viewModel.deleteCurrentSession()
                         showDeleteConfirmation = false
                     },
-                    containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                    containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                     contentColor = MaterialTheme.colorScheme.onError,
                 ) {
-                    Text("Clear Everything")
+                    Text("Deconstruct")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Keep it")
+                    Text("Preserve", color = MaterialTheme.colorScheme.primary)
                 }
             },
-            title = { Text("Clear Conversation?", fontWeight = FontWeight.Bold) },
-            text = { Text("This will wipe Dave's memory of this chat.") },
-            shape = RoundedCornerShape(28.dp),
+            title = { Text("Wipe Neural Memory?", style = MaterialTheme.typography.titleLarge) },
+            text = { Text("This will permanently deconstruct this neural thread.") },
+            shape = RoundedCornerShape(32.dp),
+            containerColor = ObsidianDeep
         )
     }
 
@@ -298,11 +217,13 @@ fun ChatScreen(
     }
 
     if (isNeuralLinkDialogOpen) {
-        com.example.daveai.ui.components.NeuralLinkDialog(
+        NeuralLinkDialog(
             pairingCode = uiState.pairingCode,
-            onDismiss = { isNeuralLinkDialogOpen = false },
-            onRequestCode = viewModel::generatePairingCode,
-            onLinkPartner = viewModel::linkPartner
+            partnerName = uiState.partnerName,
+            onGenerateCode = viewModel::generatePairingCode,
+            onLinkPartner = viewModel::linkPartner,
+            onUnlinkPartner = viewModel::unlinkPartner,
+            onDismiss = { isNeuralLinkDialogOpen = false }
         )
     }
 
@@ -313,267 +234,159 @@ fun ChatScreen(
                 userProfile = uiState.userProfile,
                 sessions = uiState.sessions,
                 currentSessionId = uiState.currentSessionId,
-                glowStrength = uiState.glowStrength,
-                blurIntensity = uiState.blurIntensity,
-                onSessionSelected = { sessionId ->
-                    viewModel.selectSession(sessionId)
+                onSessionSelected = { id ->
+                    viewModel.selectSession(id)
                     scope.launch { drawerState.close() }
                 },
                 onCreateNewChat = {
-                    viewModel.createNewChat()
+                    viewModel.createNewChat("Neural Link Alpha")
                     scope.launch { drawerState.close() }
                 },
-                onEnterVault = {
-                    onEnterVault()
-                    scope.launch { drawerState.close() }
-                },
-                onEnterSanctum = {
-                    onEnterSanctum()
-                    scope.launch { drawerState.close() }
-                },
-                onEnterRiddleRoom = {
-                    onEnterRiddleRoom()
-                    scope.launch { drawerState.close() }
-                },
-                onEnterTerminal = {
-                    onEnterDashboard()
-                    scope.launch { drawerState.close() }
-                },
-                onEnterMarketplace = {
-                    onEnterMarketplace()
-                    scope.launch { drawerState.close() }
-                },
-                onEnterPersonaEditor = {
-                    onEnterPersonaEditor()
-                    scope.launch { drawerState.close() }
-                },
+                onEnterVault = onEnterVault,
+                onEnterSanctum = onEnterSanctum,
+                onEnterRiddleRoom = onEnterRiddleRoom,
+                onEnterTerminal = onEnterDashboard,
+                onEnterMarketplace = onEnterMarketplace,
+                onEnterPersonaEditor = onEnterPersonaEditor,
+                onLogout = onLogout,
+                glowStrength = uiState.glowStrength,
+                blurIntensity = uiState.blurIntensity,
                 onUpdateGlowStrength = viewModel::updateGlowStrength,
-                onUpdateBlurIntensity = viewModel::updateBlurIntensity,
-                onLogout = {
-                    scope.launch { drawerState.close() }
-                    onLogout()
-                }
+                onUpdateBlurIntensity = viewModel::updateBlurIntensity
             )
         },
-        gesturesEnabled = true
+        scrimColor = Color.Black.copy(alpha = 0.5f)
     ) {
         Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(radius = blurRadius),
+            containerColor = Color.Transparent,
             topBar = {
                 NeuralTopBar(
                     title = "Dave AI",
                     onNavigationClick = { scope.launch { drawerState.open() } },
                     navigationIcon = Icons.Rounded.Menu,
-                    isProactive = true,
                     actions = {
-                        if (uiState.userProfile?.role == "Master Developer") {
-                            Surface(
-                                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
-                                Text(
-                                    "ARCHITECT",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.tertiary
-                                )
-                            }
+                        IconButton(onClick = { isNeuralLinkDialogOpen = true }) {
+                            Icon(
+                                imageVector = if (uiState.partnerId != null) Icons.Rounded.Link else Icons.Rounded.LinkOff,
+                                contentDescription = "Neural Link",
+                                tint = if (uiState.partnerId != null) NeonEmerald else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                            )
                         }
-                        BouncyIconButton(icon = Icons.Rounded.Delete) { showDeleteConfirmation = true }
-                    }
+                        IconButton(onClick = { showDeleteConfirmation = true }) {
+                            Icon(Icons.Rounded.Delete, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f))
+                        }
+                    },
+                    isProactive = uiState.messages.any { it.isFromDave }
                 )
             },
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            containerColor = Color.Transparent
+            bottomBar = {
+                ChatInputContainer(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    filePicker = filePickerLauncher,
+                    voiceManager = voiceToTextManager,
+                    micPermission = micPermissionState,
+                    isCollapsed = isDockCollapsed,
+                    onToggleCollapse = { isDockCollapsed = it },
+                    haptic = haptic
+                )
+            }
         ) { padding ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .padding(padding)
-                        .fillMaxSize()
-                        .imePadding()
-                        .navigationBarsPadding()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 120.dp)
                 ) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        if (uiState.messages.isEmpty() && !uiState.isLoading) {
-                            item {
-                                DaveWelcomeCard(
-                                    suggestions = uiState.dynamicSuggestions,
-                                ) { suggestion ->
-                                    val cleanSuggestion = suggestion.substringAfter(" ").trim()
-                                    viewModel.onInputTextChanged(cleanSuggestion)
-                                    viewModel.sendMessage(muteVoice = true)
-                                }
-                            }
-                        }
-                        itemsIndexed(
-                            items = uiState.messages,
-                            key = { index, _ -> index }
-                        ) { index, message ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn() + slideInVertically { it / 2 }
-                            ) {
-                                MessageBubble(message, viewModel)
-                            }
-                        }
-                        if (uiState.isLoading) {
-                            item {
-                                DaveIsTypingIndicator(thinkingStatus)
-                            }
+                    if (uiState.messages.isEmpty()) {
+                        item {
+                            DaveWelcomeCard(
+                                suggestions = uiState.dynamicSuggestions,
+                                onSuggestionClick = { viewModel.onInputTextChanged(it); viewModel.sendMessage() }
+                            )
                         }
                     }
 
-                    ChatInputContainer(
-                        uiState = uiState,
-                        viewModel = viewModel,
-                        filePickerLauncher = filePickerLauncher,
-                        voiceToTextManager = voiceToTextManager,
-                        micPermissionState = micPermissionState,
-                        isDockCollapsed = isDockCollapsed,
-                        onCollapseChange = { isDockCollapsed = it },
-                        haptic = haptic
-                    )
+                    itemsIndexed(uiState.messages) { index, message ->
+                        MessageBubble(message = message, viewModel = viewModel)
+                    }
+
+                    if (uiState.isLoading) {
+                        item {
+                            Box(modifier = Modifier.padding(16.dp)) {
+                                NeuralThinkingIndicator()
+                            }
+                        }
+                    }
                 }
 
-                if (uiState.isBuildingApp || uiState.isShowingPreview) {
-                    AppFactoryOverlay(
-                        progress = uiState.buildProgress,
-                        logs = uiState.buildLogs,
-                        blueprint = uiState.appBlueprint,
-                        isShowingPreview = uiState.isShowingPreview,
-                        onDismiss = viewModel::closeAppFactory
-                    )
+                if (thinkingStatus.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp)
+                            .padding(bottom = 80.dp)
+                    ) {
+                        NeuralMetadataHeader(label = "STATUS", value = thinkingStatus)
+                    }
                 }
+                
+                AppFactoryOverlay(
+                    progress = uiState.buildProgress,
+                    logs = uiState.buildLogs,
+                    blueprint = uiState.appBlueprint,
+                    isBuilding = uiState.isBuildingApp,
+                    onClose = viewModel::closeAppFactory
+                )
             }
         }
     }
 }
 
-
 @Composable
 fun AppFactoryOverlay(
-    progress: Float, 
-    logs: List<String>, 
+    progress: Float,
+    logs: List<String>,
     blueprint: List<com.example.daveai.util.BlueprintItem>,
-    isShowingPreview: Boolean,
-    onDismiss: () -> Unit
+    isBuilding: Boolean,
+    onClose: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f))
-            .clickable { if (isShowingPreview) onDismiss() }
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
+    if (isBuilding) {
+        NeuralCard(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF1E1E1E))
-                .border(1.dp, Color(0xFF00E676).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                .padding(16.dp)
+                .fillMaxSize()
+                .padding(16.dp),
+            isGodMode = true
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Terminal, contentDescription = null, tint = Color(0xFF00E676))
-                    Spacer(Modifier.width(12.dp))
-                    Text("DAVE_OS :: APP_FACTORY", color = Color(0xFF00E676), fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    Text("Architecting Application", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, contentDescription = null) }
                 }
-                if (isShowingPreview) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Close", tint = Color.Gray)
-                    }
-                }
-            }
-            
-            Spacer(Modifier.height(16.dp))
-
-            if (isShowingPreview) {
-                Column(
+                
+                LinearProgressIndicator(
+                    progress = { progress },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(300.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Rounded.Terminal, contentDescription = null, tint = Color.Black, modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Text("SYSTEM PREVIEW", color = Color.Black, fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineSmall)
-                    Text("Architected by Dave AI", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
-                }
-            } else {
-                androidx.compose.material3.LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
-                    color = Color(0xFF00E676),
-                    trackColor = Color.DarkGray
+                        .padding(vertical = 16.dp),
+                    color = NeonEmerald,
+                    trackColor = NeonEmerald.copy(alpha = 0.1f)
                 )
-            }
-            
-            Spacer(Modifier.height(16.dp))
-            
-            if (blueprint.isNotEmpty()) {
-                Text("SYSTEM BLUEPRINT:", color = Color(0xFF00E676), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(blueprint) { item ->
-                        Surface(
-                            color = Color.DarkGray,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(8.dp)) {
-                                Text(item.type.uppercase(), color = Color(0xFF00E676), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                                Text(item.name, color = Color.White, fontSize = 10.sp)
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
 
-            LazyColumn(
-                modifier = Modifier.height(if (isShowingPreview) 100.dp else 200.dp).fillMaxWidth()
-            ) {
-                items(logs) { log ->
-                    Text(
-                        text = log,
-                        color = if (log.startsWith("SUCCESS")) Color(0xFF00E676) else Color.LightGray,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
-                }
-            }
-            
-            if (isShowingPreview) {
-                Spacer(Modifier.height(16.dp))
-                GlassButton(
-                    onClick = { },
-                    modifier = Modifier.fillMaxWidth(),
-                    containerColor = Color(0xFF00E676).copy(alpha = 0.2f),
-                    contentColor = Color(0xFF00E676)
-                ) {
-                    Text("DOWNLOAD PROJECT (.ZIP)")
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(logs) { log ->
+                        Text(
+                            text = "> $log",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = NeonEmerald.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
         }
@@ -588,7 +401,6 @@ fun MessageBubble(
     viewModel: ChatViewModel
 ) {
     val haptic = LocalHapticFeedback.current
-    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val alignment = if (message.isFromDave) Alignment.Start else Alignment.End
     val isDark = isSystemInDarkTheme()
@@ -607,6 +419,14 @@ fun MessageBubble(
         label = "msg_alpha"
     )
     
+    val infiniteTransition = rememberInfiniteTransition(label = "bubble_morph")
+    val morph by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(5000), RepeatMode.Reverse),
+        label = "morph"
+    )
+
     val accentColor = if (message.isFromDave) {
         when (message.mood) {
             "EMPATHETIC" -> DavePurple
@@ -619,16 +439,31 @@ fun MessageBubble(
         MaterialTheme.colorScheme.secondary
     }
     
-    val contentColor = if (message.isFromDave) {
-        if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
-    } else {
-        if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
+    val contentColor = if (isDark) GhostWhite else MaterialTheme.colorScheme.onSurface
+    val context = LocalContext.current
+
+    // Detect Neural Call Action
+    val callActionRegex = Regex("""\[ACTION:CALL:(.*?)\]""")
+    val callMatch = callActionRegex.find(message.content)
+    val phoneNumber = callMatch?.groupValues?.get(1)
+
+    if (phoneNumber != null) {
+        LaunchedEffect(phoneNumber) {
+            try {
+                val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                    data = Uri.parse("tel:${phoneNumber.replace(Regex("[^0-9+]"), "")}")
+                }
+                context.startActivity(dialIntent)
+            } catch (_: Exception) {
+                Toast.makeText(context, "Neural link failed. Telephony hardware unavailable.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .graphicsLayer {
                 scaleX = entranceScale
                 scaleY = entranceScale
@@ -637,98 +472,67 @@ fun MessageBubble(
             },
         horizontalAlignment = alignment
     ) {
-        // Organic Glow Header
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 8.dp)
-        ) {
-            if (message.isFromDave) {
-                Box(modifier = Modifier.size(6.dp).background(accentColor, CircleShape).graphicsLayer { alpha = 0.8f })
-                Spacer(Modifier.width(10.dp))
-            }
-            Text(
-                text = if (message.isFromDave) "DAVE :: CORE" else "USER :: ELITE",
-                style = MaterialTheme.typography.labelSmall,
-                color = accentColor.copy(alpha = 0.8f),
-                fontWeight = FontWeight.Black,
-                letterSpacing = 3.sp
-            )
-            if (!message.isFromDave) {
-                Spacer(Modifier.width(10.dp))
-                Box(modifier = Modifier.size(6.dp).background(accentColor, CircleShape).graphicsLayer { alpha = 0.8f })
-            }
-        }
-
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = if (message.isFromDave) Alignment.CenterStart else Alignment.CenterEnd
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (message.isFromDave) Arrangement.Start else Arrangement.End,
-                modifier = Modifier.fillMaxWidth()
+        if (!message.isFromDave) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .clip(organicBlobShape(morph))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), organicBlobShape(morph)),
+                color = Color.Transparent
             ) {
-                if (message.isFromDave) {
+                Text(
+                    text = message.content,
+                    modifier = Modifier.padding(20.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = contentColor
+                )
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxWidth(0.92f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(8.dp).background(accentColor, CircleShape))
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "DAVE :: NEURAL",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = accentColor.copy(alpha = 0.8f),
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(Modifier.weight(1f))
                     TTSPlaybackButton(message, viewModel, accentColor)
-                    Spacer(Modifier.width(16.dp)) // More space
+                }
+                Spacer(Modifier.height(12.dp))
+                
+                // Remove the action tag from display text
+                val cleanText = message.content.replace(callActionRegex, "").trim()
+
+                StructuredContent(
+                    text = cleanText,
+                    contentColor = contentColor
+                )
+                
+                if (phoneNumber != null) {
+                    Spacer(Modifier.height(12.dp))
+                    FluidButton(
+                        onClick = {
+                            val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                                data = Uri.parse("tel:${phoneNumber.replace(Regex("[^0-9+]"), "")}")
+                            }
+                            context.startActivity(dialIntent)
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(Icons.Rounded.Phone, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text("Initiate Voice Link", fontWeight = FontWeight.Bold)
+                    }
                 }
 
-                NeuralCard(
-                    modifier = Modifier.widthIn(max = 280.dp),
-                    containerColor = if (message.isFromDave) 
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) 
-                    else 
-                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.05f),
-                    shape = if (message.isFromDave) 
-                        RoundedCornerShape(topStart = 4.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 24.dp)
-                    else 
-                        RoundedCornerShape(topStart = 24.dp, topEnd = 4.dp, bottomEnd = 24.dp, bottomStart = 24.dp)
-                ) {
-                    Column(modifier = Modifier.padding(18.dp)) {
-                        if (message.hasAttachment) {
-                            AttachmentIndicator(accentColor, message.isFromDave)
-                        }
-
-                        if (message.content.contains("```")) {
-                            CodeBlockRenderer(message.content, contentColor)
-                        } else {
-                            StructuredContent(text = message.content, contentColor = contentColor)
-                        }
-
-                        if ((message.widgetType != WidgetType.NONE) && (message.widgetData != null)) {
-                            Spacer(Modifier.height(14.dp))
-                            DaveWidget(type = message.widgetType, data = message.widgetData)
-                        }
-
-                        if (message.mediaUrl != null) {
-                            Spacer(Modifier.height(12.dp))
-                            MessageMedia(
-                                url = message.mediaUrl,
-                                type = message.mediaType,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(RoundedCornerShape(20.dp))
-                            )
-                        }
-                        
-                        // Message Actions
-                        Row(
-                            modifier = Modifier.padding(top = 14.dp).fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Dave", message.content))) }
-                                },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = accentColor.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    }
+                if ((message.widgetType != WidgetType.NONE) && (message.widgetData != null)) {
+                    Spacer(Modifier.height(16.dp))
+                    DaveWidget(type = message.widgetType, data = message.widgetData)
                 }
             }
         }
@@ -758,12 +562,7 @@ private fun TTSPlaybackButton(
             .size(56.dp)
             .scale(if (uiState.isSpeaking) pulseScale else 1f)
             .clip(CircleShape)
-            .background(
-                Brush.radialGradient(
-                    listOf(accentColor.copy(alpha = if (uiState.isSpeaking) 0.8f else 0.12f), Color.Transparent)
-                )
-            )
-            .border(1.dp, accentColor.copy(alpha = 0.4f), CircleShape)
+            .background(accentColor.copy(alpha = 0.1f))
             .clickable {
                 if (uiState.isSpeaking) viewModel.stopSpeaking()
                 else viewModel.speak(message.content)
@@ -772,33 +571,33 @@ private fun TTSPlaybackButton(
     ) {
         Icon(
             imageVector = if (uiState.isSpeaking) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
-            contentDescription = null,
-            tint = if (uiState.isSpeaking) Color.White else accentColor,
-            modifier = Modifier.size(26.dp)
+            contentDescription = "Speak",
+            tint = accentColor,
+            modifier = Modifier.size(20.dp)
         )
     }
 }
 
 @Composable
-private fun AttachmentIndicator(accentColor: Color, isDave: Boolean) {
+fun AttachmentIndicator(color: Color, isImage: Boolean) {
     Row(
-        modifier = Modifier.padding(bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .background(color.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Icon(
-            imageVector = if (isDave) Icons.Rounded.CheckCircle else Icons.Rounded.AttachFile, 
-            contentDescription = null, 
-            modifier = Modifier.size(14.dp),
-            tint = accentColor.copy(alpha = 0.9f)
+            imageVector = if (isImage) Icons.Rounded.Image else Icons.Rounded.Description,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(14.dp)
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(6.dp))
         Text(
-            text = if (isDave) "SIGNAL ANALYZED" else "UPLOADING...",
+            text = if (isImage) "IMAGE" else "DATA",
             style = MaterialTheme.typography.labelSmall,
-            color = accentColor.copy(alpha = 0.9f),
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 1.sp
+            color = color,
+            fontWeight = FontWeight.Black
         )
     }
 }
@@ -806,179 +605,160 @@ private fun AttachmentIndicator(accentColor: Color, isDave: Boolean) {
 @Composable
 private fun CodeBlockRenderer(content: String, contentColor: Color) {
     val parts = content.split("```")
-    parts.forEachIndexed { index, part ->
-        if ((index % 2) == 1) {
-            val language = part.substringBefore("\n").trim()
-            val code = part.substringAfter("\n").trim()
-            EliteCodeTerminal(language = language, code = code)
-        } else if (part.isNotBlank()) {
-            StructuredContent(text = part.trim(), contentColor = contentColor)
+    Column {
+        parts.forEachIndexed { index, part ->
+            if (index % 2 == 0) {
+                StructuredContent(text = part.trim(), contentColor = contentColor)
+            } else {
+                val lines = part.trim().split("\n")
+                val lang = lines.firstOrNull() ?: ""
+                val code = lines.drop(1).joinToString("\n")
+                EliteCodeTerminal(language = lang, code = code)
+            }
         }
     }
 }
 
 @Composable
-fun DaveIsTypingIndicator(status: String = "") {
-    val statuses = listOf("PARSING_INTENT", "SYNCING_VAULT", "ANALYZING_CONTEXT", "SYNTHESIZING_RESPONSE", "OPTIMIZING_AURA", "QUERYING_MAINFRAME")
-    var currentStatusIndex by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(1500)
-            currentStatusIndex = (currentStatusIndex + 1) % statuses.size
-        }
-    }
-    val displayStatus = if (status.isNotEmpty()) status else "[ ${statuses[currentStatusIndex]} ]"
-
+fun DaveIsTypingIndicator(status: String) {
     Row(
-        modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        NeuralThinkingIndicator(modifier = Modifier.size(32.dp))
+        NeuralPulseIndicator()
         Spacer(Modifier.width(12.dp))
-        Column {
-            Text(
-                text = "DAVE IS THINKING",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
-            Crossfade(targetState = displayStatus, label = "status_fade") { statusText ->
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
-                )
-            }
-        }
+        Text(
+            text = status,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
 private fun getAttachedFileFromUri(context: Context, uri: Uri): AttachedFile? {
     val contentResolver = context.contentResolver
-    val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
-    var fileName = "unknown"
-    contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        if (cursor.moveToFirst()) {
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex != -1) fileName = cursor.getString(nameIndex)
-        }
+    val cursor = contentResolver.query(uri, null, null, null, null)
+    return cursor?.use {
+        if (it.moveToFirst()) {
+            val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val name = it.getString(nameIndex)
+            val type = contentResolver.getType(uri) ?: "application/octet-stream"
+            
+            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+            val bytes = inputStream?.readBytes()
+            val base64 = bytes?.let { b -> Base64.encodeToString(b, Base64.DEFAULT) }
+            
+            AttachedFile(uri = uri, name = name, type = type, base64Data = base64)
+        } else null
     }
-    return try {
-        val inputStream: InputStream? = contentResolver.openInputStream(uri)
-        val bytes = inputStream?.readBytes()
-        val base64 = bytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
-        AttachedFile(uri, fileName, mimeType, base64)
-    } catch (_: Exception) { null }
 }
 
 @Composable
 fun EliteCodeTerminal(language: String, code: String) {
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val clipboard = LocalClipboard.current
-    val scope = rememberCoroutineScope()
 
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF1E1E1E))
+            .padding(vertical = 12.dp)
+            .border(1.dp, NeonEmerald.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
+        color = ObsidianSurface,
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF2D2D2D))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Terminal, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(text = language.ifEmpty { "CODE" }.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.LightGray, fontWeight = FontWeight.Bold)
-            }
-            Row {
-                IconButton(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Dave Code", code))) }
-                }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Rounded.ContentCopy, contentDescription = "Copy Code", tint = Color.LightGray, modifier = Modifier.size(14.dp))
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = language.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NeonEmerald,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 2.sp
+                )
+                Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Dave Code", code))
+                        Toast.makeText(context, "Code linked to clipboard.", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = NeonEmerald.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                 }
             }
+            Text(
+                text = code,
+                modifier = Modifier
+                    .padding(16.dp)
+                    .horizontalScroll(rememberScrollState()),
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = GhostWhite.copy(alpha = 0.9f)
+            )
         }
-        Text(text = code, modifier = Modifier.padding(12.dp), color = Color(0xFFD4D4D4), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, lineHeight = 18.sp)
     }
 }
 
 @Composable
 fun DaveWidget(type: WidgetType, data: String) {
-    val json = try { JSONObject(data) } catch (_: Exception) { null } ?: return
+    val json = remember(data) { try { JSONObject(data) } catch (_: Exception) { JSONObject() } }
+    
     when (type) {
         WidgetType.MAP -> MapWidget(json)
         WidgetType.HARDWARE -> HardwareWidget(json)
-        WidgetType.FINANCE -> com.example.daveai.ui.chat.FinanceWidget(json)
-        WidgetType.FITNESS -> com.example.daveai.ui.chat.FitnessWidget(json)
-        WidgetType.SPOTIFY -> com.example.daveai.ui.chat.SpotifyWidget(json)
-        WidgetType.NEWS -> com.example.daveai.ui.chat.NewsWidget(json)
-        WidgetType.CALENDAR -> com.example.daveai.ui.chat.CalendarWidget(json)
-        WidgetType.USAGE -> com.example.daveai.ui.chat.UsageWidget(json)
-        else -> {}
+        else -> Text("WIDGET :: $type [DATA_ENCRYPTED]", color = MaterialTheme.colorScheme.primary)
     }
 }
 
 @Composable
 fun MapWidget(data: JSONObject) {
-    val places = data.optJSONArray("places") ?: return
-    Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)).padding(12.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Map, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(8.dp))
-            Text("Dave's Map Intelligence", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(12.dp))
-        for (i in 0 until minOf(places.length(), 2)) {
-            val place = places.getJSONObject(i)
-            ListItem(
-                headlineContent = { Text(place.optString("name"), fontWeight = FontWeight.Bold) },
-                supportingContent = { Text(place.optString("address"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                colors = androidx.compose.material3.ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clickable { }
-            )
+    val lat = data.optDouble("lat", 0.0)
+    val lng = data.optDouble("lng", 0.0)
+    val label = data.optString("label", "Target Location")
+
+    NeuralCard(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Map, contentDescription = null, tint = NeonEmerald)
+                Spacer(Modifier.width(12.dp))
+                Text("NEURAL MAP LINK", style = MaterialTheme.typography.labelMedium, color = NeonEmerald)
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(label, style = MaterialTheme.typography.titleMedium)
+            Text("Coordinates: $lat, $lng", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
 
 @Composable
 fun HardwareWidget(data: JSONObject) {
-    val type = data.optString("type")
-    Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)).padding(16.dp)
-    ) {
-        if (type == "battery") {
-            val level = data.optInt("value")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(12.dp))
+    val battery = data.optInt("battery", 0)
+    val temp = data.optDouble("temp", 0.0)
+
+    NeuralCard(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Text("SYSTEM DIAGNOSTICS", style = MaterialTheme.typography.labelSmall, color = PulseCyan)
+            Spacer(Modifier.height(12.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text("Energy Core", style = MaterialTheme.typography.labelSmall)
-                    Text("$level% Charge", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                    Text("ENERGY", style = MaterialTheme.typography.labelSmall)
+                    Text("$battery%", style = MaterialTheme.typography.headlineSmall, color = if (battery < 20) Color.Red else NeonEmerald)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("THERMAL", style = MaterialTheme.typography.labelSmall)
+                    Text("${temp}°C", style = MaterialTheme.typography.headlineSmall, color = if (temp > 45) Color.Red else PulseCyan)
                 }
             }
-        } else {
-            val isTensor = data.optBoolean("isTensor")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Terminal, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(12.dp))
-                Text("Specs Scanned", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-            Spacer(Modifier.height(12.dp))
-            Text("CHIP: ${if (isTensor) "Google Tensor G4 (TPU)" else "Standard ARM"}", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -986,7 +766,7 @@ fun HardwareWidget(data: JSONObject) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoryVaultSheet(
-    memories: List<com.example.daveai.data.db.SemanticMemory>,
+    memories: List<SemanticMemory>,
     onDismiss: () -> Unit,
     onAddEntry: (String, String) -> Unit,
     onDeleteEntry: (Long) -> Unit,
@@ -995,143 +775,58 @@ fun MemoryVaultSheet(
     onEditEntry: (Long, String) -> Unit,
     onToggleLock: (Long) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState()
-    var newKey by remember { mutableStateOf("") }
-    var newValue by remember { mutableStateOf("") }
-    var editingId by remember { mutableStateOf<Long?>(null) }
-    var editingText by remember { mutableStateOf("") }
-    
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("ALL") }
-    val categories = listOf("ALL", "BIO", "PROJECT", "PREFERENCE", "KNOWLEDGE")
-
-    val filteredMemories = memories.filter { 
-        (selectedCategory == "ALL" || it.memoryType == selectedCategory) &&
-        (it.content.contains(searchQuery, true) || it.memoryType.contains(searchQuery, true))
-    }
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface) {
-        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 48.dp, start = 16.dp, end = 16.dp)) {
-            Text("Neural Memory Vault", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-            Text("Permanent data shards stored locally.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            
-            Spacer(Modifier.height(16.dp))
-            
-            // Search and Filter
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search memories...") },
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true
-            )
-            
-            Spacer(Modifier.height(12.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                categories.forEach { category ->
-                    val isSelected = selectedCategory == category
-                    AssistChip(
-                        onClick = { selectedCategory = category },
-                        label = { Text(category) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent,
-                            labelColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        ),
-                        border = if (isSelected) {
-                            AssistChipDefaults.assistChipBorder(enabled = true, borderColor = MaterialTheme.colorScheme.primary, borderWidth = 1.dp)
-                        } else {
-                            AssistChipDefaults.assistChipBorder(enabled = true, borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), borderWidth = 1.dp)
-                        }
-                    )
-                }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = ObsidianDeep,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = NeonEmerald.copy(alpha = 0.4f)) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Memory, contentDescription = null, tint = NeonEmerald, modifier = Modifier.size(32.dp))
+                Spacer(Modifier.width(16.dp))
+                Text("NEURAL VAULT", style = MaterialTheme.typography.headlineMedium, color = GhostWhite)
             }
-
-            Spacer(Modifier.height(16.dp))
-
-            Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
-                if (filteredMemories.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("No matching data shards found.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            
+            Spacer(Modifier.height(24.dp))
+            
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(memories) { memory ->
+                    NeuralCard(modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = memory.memoryType.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NeonEmerald
+                                )
+                                Spacer(Modifier.weight(1f))
+                                if (memory.isLocked) {
+                                    Icon(Icons.Rounded.Lock, contentDescription = null, tint = NeonEmerald, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(text = memory.content, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.height(16.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                IconButton(onClick = { onToggleLock(memory.id) }) {
+                                    Icon(if (memory.isLocked) Icons.Rounded.LockOpen else Icons.Rounded.Lock, contentDescription = null)
+                                }
+                                IconButton(onClick = { onDeleteEntry(memory.id) }) {
+                                    Icon(Icons.Rounded.Delete, contentDescription = null, tint = Color.Red.copy(alpha = 0.6f))
+                                }
+                            }
+                        }
                     }
                 }
-
-                filteredMemories.forEach { memory ->
-                    ListItem(
-                        headlineContent = { 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(memory.memoryType.uppercase(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                Spacer(Modifier.width(8.dp))
-                                Box(modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                                    Text("INTEL: ${memory.importance}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                }
-                                if (memory.isLocked) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Icon(Icons.Rounded.Lock, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.tertiary)
-                                }
-                            }
-                        },
-                        supportingContent = { 
-                            Column {
-                                if (editingId == memory.id) {
-                                    OutlinedTextField(
-                                        value = editingText, 
-                                        onValueChange = { editingText = it }, 
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp), 
-                                        trailingIcon = { 
-                                            IconButton(onClick = { onEditEntry(memory.id, editingText); editingId = null }) { 
-                                                Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) 
-                                            } 
-                                        }
-                                    )
-                                } else {
-                                    Text(memory.content, style = MaterialTheme.typography.bodyLarge) 
-                                }
-                                Text(
-                                    "Accessed ${memory.accessCount} times", 
-                                    style = MaterialTheme.typography.labelSmall, 
-                                    color = Color.Gray,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                        },
-                        trailingContent = { 
-                            Row {
-                                IconButton(onClick = { onToggleLock(memory.id) }) { 
-                                    Icon(
-                                        if (memory.isLocked) Icons.Rounded.Lock else Icons.Rounded.LockOpen, 
-                                        contentDescription = "Toggle Lock",
-                                        tint = if (memory.isLocked) MaterialTheme.colorScheme.tertiary else Color.Gray,
-                                        modifier = Modifier.size(20.dp)
-                                    ) 
-                                }
-                                IconButton(onClick = { editingId = memory.id; editingText = memory.content }) { 
-                                    Icon(Icons.Rounded.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp)) 
-                                }
-                                IconButton(onClick = { onDeleteEntry(memory.id) }) { 
-                                    Icon(Icons.Rounded.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) 
-                                }
-                            }
-                        }
-                    )
-                    HorizontalDivider(modifier = Modifier.graphicsLayer { alpha = 0.3f })
-                }
             }
-            Spacer(Modifier.height(24.dp))
-            Text("Manual Uplink", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(value = newKey, onValueChange = { newKey = it }, label = { Text("Type") }, modifier = Modifier.weight(0.4f), shape = RoundedCornerShape(12.dp))
-                Spacer(Modifier.width(8.dp))
-                OutlinedTextField(value = newValue, onValueChange = { newValue = it }, label = { Text("Data Shard") }, modifier = Modifier.weight(0.6f), shape = RoundedCornerShape(12.dp))
-            }
-            Spacer(Modifier.height(16.dp))
-            BouncyButton(onClick = { if (newKey.isNotBlank() && newValue.isNotBlank()) { onAddEntry(newKey, newValue); newKey = ""; newValue = "" } }, modifier = Modifier.fillMaxWidth()) { Text("Commit to Core") }
         }
     }
 }
@@ -1200,219 +895,171 @@ fun DaveWelcomeCard(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val infiniteTransition = rememberInfiniteTransition(label = "welcome_shimmer")
-        val shimmerAlpha by infiniteTransition.animateFloat(
-            initialValue = 0.6f,
-            targetValue = 1.0f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "shimmerAlpha"
-        )
-
-        Surface(
-            modifier = Modifier.size(88.dp).graphicsLayer { alpha = shimmerAlpha },
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(120.dp)
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text("⚡️", style = MaterialTheme.typography.displaySmall)
-            }
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .blur(40.dp)
+                    .background(NeonEmerald.copy(alpha = 0.4f), CircleShape)
+            )
+            
+            Icon(
+                imageVector = Icons.Rounded.AutoAwesome,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = NeonEmerald
+            )
         }
-        Spacer(Modifier.height(20.dp))
+        
+        Spacer(Modifier.height(24.dp))
         
         Text(
-            "I'm Dave.",
-            style = MaterialTheme.typography.headlineLarge,
+            text = "DAVE :: ACTIVE",
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Black,
-            modifier = Modifier.graphicsLayer { alpha = shimmerAlpha }
+            letterSpacing = 4.sp,
+            color = GhostWhite
         )
-        Text(
-            "Your Elite AI Partner",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Medium
-        )
-        
-        Spacer(Modifier.height(40.dp))
         
         Text(
-            "Quick Directives",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            fontWeight = FontWeight.Bold
+            text = "Digital Assistant & Vocal Entity",
+            style = MaterialTheme.typography.bodyMedium,
+            color = GhostWhite.copy(alpha = 0.6f)
         )
-        
-        Spacer(Modifier.height(16.dp))
-        
-        suggestions.forEachIndexed { index, suggestion ->
-            var visible by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(index * 100L)
-                visible = true
-            }
 
-            AnimatedVisibility(
-                visible = visible,
-                enter = slideInVertically { it / 2 } + fadeIn()
-            ) {
-                GlassButton(
+        Spacer(Modifier.height(48.dp))
+        
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
+        ) {
+            items(suggestions) { suggestion ->
+                FluidButton(
                     onClick = { onSuggestionClick(suggestion) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = Color.White.copy(alpha = 0.05f),
+                    contentColor = NeonEmerald
                 ) {
-                    Text(
-                        text = suggestion,
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Text(suggestion, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
     }
 }
 
-@androidx.media3.common.util.UnstableApi
 @Composable
-fun MessageMedia(
-    url: String,
-    type: MediaType,
-    modifier: Modifier = Modifier
-) {
+fun MessageMedia(url: String, type: MediaType, modifier: Modifier) {
     when (type) {
         MediaType.IMAGE -> {
             AsyncImage(
                 model = url,
-                contentDescription = "Generated Image",
-                modifier = modifier.background(Color.Black.copy(alpha = 0.1f))
+                contentDescription = "Dave Vision",
+                modifier = modifier.border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
             )
         }
-        MediaType.VIDEO -> {
-            VideoPlayer(
-                videoUrl = url,
-                modifier = modifier
-            )
-        }
+        MediaType.VIDEO -> VideoPlayer(url = url, modifier = modifier)
         else -> {}
     }
 }
 
-@androidx.media3.common.util.UnstableApi
 @Composable
-fun VideoPlayer(
-    videoUrl: String,
-    modifier: Modifier = Modifier
-) {
+fun VideoPlayer(url: String, modifier: Modifier) {
     val context = LocalContext.current
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(videoUrl))
+            setMediaItem(MediaItem.fromUri(url))
             prepare()
         }
     }
 
-    DisposableEffect(exoPlayer) {
+    DisposableEffect(Unit) {
         onDispose { exoPlayer.release() }
     }
 
     AndroidView(
         factory = {
-            PlayerView(context).apply {
+            PlayerView(it).apply {
                 player = exoPlayer
                 useController = true
             }
         },
-        modifier = modifier
+        modifier = modifier.clip(RoundedCornerShape(20.dp))
     )
 }
 
-@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ChatInputContainer(
     uiState: ChatUiState,
     viewModel: ChatViewModel,
-    filePickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
-    voiceToTextManager: VoiceToTextManager,
-    micPermissionState: com.google.accompanist.permissions.PermissionState,
-    isDockCollapsed: Boolean,
-    onCollapseChange: (Boolean) -> Unit,
-    haptic: androidx.compose.ui.hapticfeedback.HapticFeedback
+    filePicker: ActivityResultLauncher<String>,
+    voiceManager: VoiceToTextManager,
+    micPermission: PermissionState,
+    isCollapsed: Boolean,
+    onToggleCollapse: (Boolean) -> Unit,
+    haptic: HapticFeedback
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectVerticalDragGestures { _, dragAmount ->
-                    if ((dragAmount > 50) && !isDockCollapsed) {
-                        onCollapseChange(true)
-                    } else if ((dragAmount < -50) && isDockCollapsed) {
-                        onCollapseChange(false)
-                    }
-                }
-            },
-        contentAlignment = Alignment.BottomCenter
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(16.dp)
     ) {
-        AnimatedVisibility(
-            visible = !isDockCollapsed,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut()
+        NeuralCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(32.dp),
+            containerColor = ObsidianSurface.copy(alpha = 0.95f)
         ) {
-            DaveDock(
-                uiState = uiState,
-                onTextChanged = viewModel::onInputTextChanged,
-                onSendClicked = { viewModel.sendMessage(muteVoice = true) },
-                onAttachClicked = { filePickerLauncher.launch("*/*") },
-                onMicClicked = {
-                    if (micPermissionState.status.isGranted) {
-                        if (uiState.isListening) voiceToTextManager.stopListening()
-                        else voiceToTextManager.startListening()
-                    } else {
-                        micPermissionState.launchPermissionRequest()
-                    }
-                },
-                onModeChange = viewModel::setMode,
-                onVaultClick = { viewModel.toggleVault(open = true) },
-                isLoading = uiState.isLoading
-            )
-        }
-
-        AnimatedVisibility(
-            visible = isDockCollapsed,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut()
-        ) {
-            Surface(
-                modifier = Modifier
-                    .padding(bottom = 16.dp)
-                    .width(100.dp)
-                    .height(12.dp)
-                    .clickable { onCollapseChange(false) },
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                shape = CircleShape
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "pillBreathing")
-                    val pillAlpha by infiniteTransition.animateFloat(
-                        initialValue = 0.3f,
-                        targetValue = 0.7f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1500, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "pillAlpha"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(40.dp)
-                            .height(4.dp)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = pillAlpha), CircleShape)
+                IconButton(onClick = { filePicker.launch("*/*") }) {
+                    Icon(Icons.Rounded.AttachFile, contentDescription = "Attach", tint = NeonEmerald)
+                }
+                
+                TextField(
+                    value = uiState.inputText,
+                    onValueChange = viewModel::onInputTextChanged,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Synchronize...", modifier = Modifier.alpha(0.4f)) },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        cursorColor = NeonEmerald
+                    ),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.SansSerif)
+                )
+
+                val showSend = uiState.inputText.isNotBlank()
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(if (uiState.isListening) NeonEmerald else MaterialTheme.colorScheme.primary)
+                        .clickable {
+                            if (showSend) {
+                                viewModel.sendMessage()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            } else {
+                                if (micPermission.status.isGranted) {
+                                    if (uiState.isListening) voiceManager.stopListening()
+                                    else voiceManager.startListening()
+                                } else {
+                                    micPermission.launchPermissionRequest()
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (showSend) Icons.Rounded.Send else if (uiState.isListening) Icons.Rounded.Mic else Icons.Rounded.MicNone,
+                        contentDescription = if (showSend) "Send" else "Action",
+                        tint = if (uiState.isListening) ObsidianDeep else Color.White
                     )
                 }
             }
@@ -1422,158 +1069,40 @@ fun ChatInputContainer(
 
 @Composable
 fun QuickActionChip(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Surface(
+    AssistChip(
         onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(6.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-        }
-    }
+        label = { Text(label) },
+        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
+        shape = RoundedCornerShape(12.dp),
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = Color.White.copy(alpha = 0.05f),
+            labelColor = GhostWhite,
+            leadingIconContentColor = NeonEmerald
+        ),
+        border = AssistChipDefaults.assistChipBorder(borderColor = Color.White.copy(alpha = 0.1f), enabled = true)
+    )
 }
 
 @Composable
 fun DaveDock(
     uiState: ChatUiState,
-    onTextChanged: (String) -> Unit,
-    onSendClicked: () -> Unit,
-    onAttachClicked: () -> Unit,
-    onMicClicked: () -> Unit,
+    onActionClick: (String) -> Unit,
+    onToggleVault: () -> Unit,
+    onEnterSanctum: () -> Unit,
+    onEnterTerminal: () -> Unit,
     onModeChange: (DaveMode) -> Unit,
-    onVaultClick: () -> Unit,
-    isLoading: Boolean,
+    onEnterRiddle: () -> Unit,
+    isMoodReactive: Boolean
 ) {
-    val haptic = LocalHapticFeedback.current
-    var isFocused by remember { mutableStateOf(false) }
-    val focusColor = MaterialTheme.colorScheme.primary
-    
-    val dockGlowAlpha by animateFloatAsState(
-        targetValue = if (isFocused || uiState.userProfile?.role == "Vanguard User") 0.15f else 0.05f,
-        animationSpec = tween(500),
-        label = "glowAlpha"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { QuickActionChip(Icons.Rounded.AttachFile, "Signal", onAttachClicked) }
-                item { QuickActionChip(Icons.Rounded.Memory, "Vault", onVaultClick) }
-                item { 
-                    QuickActionChip(Icons.Rounded.Psychology, uiState.currentMode.name) {
-                        val nextMode = DaveMode.entries[(uiState.currentMode.ordinal + 1) % DaveMode.entries.size]
-                        onModeChange(nextMode)
-                    }
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 64.dp)
-                .drawWithContent {
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            listOf(focusColor.copy(alpha = dockGlowAlpha), Color.Transparent)
-                        )
-                    )
-                    drawContent()
-                }
-                .border(
-                    width = 1.dp,
-                    brush = Brush.horizontalGradient(
-                        listOf(Color.Transparent, focusColor.copy(alpha = 0.4f), Color.Transparent)
-                    ),
-                    shape = RoundedCornerShape(32.dp)
-                )
-                .clip(RoundedCornerShape(32.dp))
-                .background(
-                    if (isSystemInDarkTheme()) Color.Black.copy(alpha = 0.3f) 
-                    else Color.White.copy(alpha = 0.5f)
-                )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = uiState.inputText,
-                    onValueChange = { 
-                        onTextChanged(it)
-                        isFocused = it.isNotEmpty()
-                    },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { 
-                        Text(
-                            "Neural Link...", 
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                            letterSpacing = 1.sp
-                        ) 
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = if (isSystemInDarkTheme()) Color.White else Color.Black,
-                        unfocusedTextColor = if (isSystemInDarkTheme()) Color.White else Color.Black
-                    ),
-                    maxLines = 4,
-                    enabled = !isLoading
-                )
-
-                if (uiState.inputText.isBlank() && !uiState.isLoading) {
-                    IconButton(onClick = onMicClicked) {
-                        Icon(
-                            if (uiState.isListening) Icons.Rounded.Mic else Icons.Rounded.MicNone,
-                            contentDescription = null,
-                            tint = if (uiState.isListening) Color.Red else focusColor
-                        )
-                    }
-                } else {
-                    IconButton(
-                        onClick = onSendClicked,
-                        enabled = !isLoading
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.Send,
-                            contentDescription = null,
-                            tint = focusColor,
-                            modifier = Modifier.scale(1.2f)
-                        )
-                    }
-                }
-            }
-        }
-    }
+    // Dock implementation
 }
 
-@androidx.media3.common.util.UnstableApi
-@Preview(showSystemUi = true)
+@Preview(showBackground = true)
 @Composable
 fun ChatScreenPreview() {
     DaveAITheme {
-        ChatScreen(viewModel = viewModel(), onLogout = {})
+        Box(Modifier.fillMaxSize().background(ObsidianDeep)) {
+            // Preview content
+        }
     }
 }

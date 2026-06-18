@@ -72,6 +72,8 @@ data class ChatUiState(
     val blurIntensity: Float = 0.5f,
     val glowStrength: Float = 0.5f,
     val pendingRoute: DaveRoute? = null,
+    val isFlashlightOn: Boolean = false,
+    val isDndOn: Boolean = false,
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
@@ -358,7 +360,8 @@ class ChatViewModel(
 
     fun createNewChat(title: String = "Neural Link") {
         viewModelScope.launch {
-            val sessionId = repository.createNewSession(title)
+            val uid = auth.currentUser?.uid ?: "ANONYMOUS"
+            val sessionId = repository.createNewSession(title, uid)
             selectSession(sessionId)
         }
     }
@@ -432,7 +435,7 @@ class ChatViewModel(
             try {
                 var sessionId = _uiState.value.currentSessionId
                 if (sessionId == null) {
-                    sessionId = repository.createNewSession("New Intelligence Link")
+                    sessionId = repository.createNewSession("New Intelligence Link", uid ?: "ANONYMOUS")
                     selectSession(sessionId)
                 }
 
@@ -700,18 +703,15 @@ class ChatViewModel(
     }
 
     fun toggleFlashlight() {
-        viewModelScope.launch {
-            val sessionId = _uiState.value.currentSessionId ?: "dashboard_system"
-            val currentState = false // TODO: Track flashlight state in UI
-            repository.handleFlashlight(sessionId, !currentState)
-        }
+        val newState = !_uiState.value.isFlashlightOn
+        _uiState.update { it.copy(isFlashlightOn = newState) }
+        repository.getHardwareAccelerator().toggleFlashlight(newState)
     }
 
     fun toggleDnd() {
-        viewModelScope.launch {
-            val sessionId = _uiState.value.currentSessionId ?: "dashboard_system"
-            repository.handleDNDTask(sessionId, "toggle")
-        }
+        val newState = !_uiState.value.isDndOn
+        _uiState.update { it.copy(isDndOn = newState) }
+        repository.getHardwareAccelerator().toggleDND(newState)
     }
 
     fun closeAppFactory() {

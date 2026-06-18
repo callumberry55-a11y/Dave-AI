@@ -6,11 +6,15 @@
         android:protectionLevel="signature" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <uses-feature android:name="android.hardware.npu" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -39,6 +43,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <attribution android:tag="DaveAI" android:label="@string/app_name" />
 
@@ -64,6 +69,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.DaveAI"
+            android:configChanges="keyboard|navigation|touchscreen|colorMode"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -110,6 +116,7 @@
             android:exported="true"
             android:allowEmbedded="true"
             android:resizeableActivity="true"
+            android:configChanges="keyboard|navigation|touchscreen|colorMode"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.DaveAI">
             <intent-filter>
@@ -129,6 +136,7 @@
             android:exported="true"
             android:theme="@style/Theme.DaveAI.Assistant"
             android:launchMode="singleInstance"
+            android:configChanges="keyboard|navigation|touchscreen|colorMode"
             android:excludeFromRecents="true" />
 
         <service

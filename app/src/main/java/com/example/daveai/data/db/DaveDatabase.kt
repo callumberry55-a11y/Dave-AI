@@ -11,7 +11,7 @@ import java.security.SecureRandom
 
 @Database(
     entities = [ChatMessageEntity::class, ChatSessionEntity::class, Riddle::class, SemanticMemory::class, RelationshipEntity::class, NotificationEntity::class, SecurityEvent::class],
-    version = 18,
+    version = 21,
     exportSchema = false
 )
 abstract class DaveDatabase : RoomDatabase() {
