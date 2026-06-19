@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.daveai.ui.chat.ChatViewModel
+import com.example.daveai.ui.components.DynamicAura
 import com.example.daveai.ui.components.GlassSidebar
 import com.example.daveai.ui.components.NeuralTopBar
 import kotlinx.coroutines.delay
@@ -83,6 +84,7 @@ fun LandingScreen(
     onEnterDashboard: () -> Unit,
     onEnterMarketplace: () -> Unit,
     onEnterPersonaEditor: () -> Unit,
+    onEnterVision: () -> Unit,
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -138,6 +140,10 @@ fun LandingScreen(
                 },
                 onEnterPersonaEditor = {
                     onEnterPersonaEditor()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterVision = {
+                    onEnterVision()
                     scope.launch { drawerState.close() }
                 },
                 onUpdateGlowStrength = viewModel::updateGlowStrength,
@@ -213,9 +219,9 @@ fun LandingScreen(
                             )
 
                             // Central Aura Core
-                            AuraCore(
-                                isActive = isCoreActive,
-                                onClick = onNavigateToChat
+                            DynamicAura(
+                                isSpeaking = uiState.isSpeaking,
+                                intensity = uiState.cyberIntensity
                             )
                         }
                     }

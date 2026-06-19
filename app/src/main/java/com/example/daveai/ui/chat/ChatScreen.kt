@@ -143,6 +143,7 @@ import com.example.daveai.ui.components.NeuralCard
 import com.example.daveai.ui.components.NeuralLinkDialog
 import com.example.daveai.ui.components.NeuralMetadataHeader
 import com.example.daveai.ui.components.NeuralPulseIndicator
+import com.example.daveai.ui.components.NeuralTextField
 import com.example.daveai.ui.components.NeuralThinkingIndicator
 import com.example.daveai.ui.components.NeuralTopBar
 import com.example.daveai.ui.components.StructuredContent
@@ -178,6 +179,7 @@ fun ChatScreen(
     onEnterVault: () -> Unit = {},
     onEnterMarketplace: () -> Unit = {},
     onEnterPersonaEditor: () -> Unit = {},
+    onEnterVision: () -> Unit = {},
     onEnterIdentityVerification: () -> Unit = {},
     onBackToHub: () -> Unit = {}
 ) {
@@ -297,7 +299,8 @@ fun ChatScreen(
             onStrengthenEntry = viewModel::strengthenSemanticMemory,
             onArchiveEntry = viewModel::archiveSemanticMemory,
             onEditEntry = viewModel::editSemanticMemory,
-            onToggleLock = viewModel::toggleMemoryLock
+            onToggleLock = viewModel::toggleMemoryLock,
+            onSearch = viewModel::searchMemories
         )
     }
 
@@ -333,6 +336,7 @@ fun ChatScreen(
                 onEnterTerminal = onEnterDashboard,
                 onEnterMarketplace = onEnterMarketplace,
                 onEnterPersonaEditor = onEnterPersonaEditor,
+                onEnterVision = onEnterVision,
                 onLogout = onLogout,
                 glowStrength = uiState.glowStrength,
                 blurIntensity = uiState.blurIntensity,
@@ -940,7 +944,8 @@ fun MemoryVaultSheet(
     onStrengthenEntry: (Long) -> Unit,
     onArchiveEntry: (Long, Boolean) -> Unit,
     onEditEntry: (Long, String) -> Unit,
-    onToggleLock: (Long) -> Unit
+    onToggleLock: (Long) -> Unit,
+    onSearch: (String) -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -958,6 +963,19 @@ fun MemoryVaultSheet(
                 Spacer(Modifier.width(16.dp))
                 Text("NEURAL VAULT", style = MaterialTheme.typography.headlineMedium, color = GhostWhite)
             }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            var searchQuery by remember { mutableStateOf("") }
+            NeuralTextField(
+                value = searchQuery,
+                onValueChange = { 
+                    searchQuery = it
+                    onSearch(it)
+                },
+                label = "Search semantic context...",
+                modifier = Modifier.fillMaxWidth()
+            )
             
             Spacer(Modifier.height(24.dp))
             

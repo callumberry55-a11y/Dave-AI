@@ -617,6 +617,17 @@ class ChatViewModel(
         }
     }
 
+    fun searchMemories(query: String) {
+        viewModelScope.launch {
+            if (query.isBlank()) {
+                observeMemories()
+            } else {
+                val results = repository.getSemanticMemoryDao().searchBySemanticMeaning(query)
+                _uiState.update { it.copy(semanticMemories = results) }
+            }
+        }
+    }
+
     fun updatePrimaryColor(color: Int) {
         viewModelScope.launch { settingsRepository.setPrimaryColor(color) }
     }

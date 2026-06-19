@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.Camera
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Face
@@ -70,6 +71,7 @@ fun GlassSidebar(
     onEnterTerminal: () -> Unit,
     onEnterMarketplace: () -> Unit,
     onEnterPersonaEditor: () -> Unit,
+    onEnterVision: () -> Unit,
     onUpdateGlowStrength: (Float) -> Unit,
     onUpdateBlurIntensity: (Float) -> Unit,
     onLogout: () -> Unit,
@@ -173,6 +175,14 @@ fun GlassSidebar(
                         icon = Icons.Rounded.Face,
                         label = "Digital Persona",
                         onClick = onEnterPersonaEditor
+                    )
+                }
+                item {
+                    SidebarLiquidItem(
+                        icon = Icons.Rounded.Camera,
+                        label = "Vision AI",
+                        onClick = onEnterVision,
+                        contentColor = MaterialTheme.colorScheme.tertiary
                     )
                 }
                 item {

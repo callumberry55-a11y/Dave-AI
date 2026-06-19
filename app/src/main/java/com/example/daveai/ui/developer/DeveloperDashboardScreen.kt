@@ -1,10 +1,18 @@
 package com.example.daveai.ui.developer
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -48,6 +57,7 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -66,7 +76,6 @@ import com.example.daveai.data.db.SecurityEvent
 import com.example.daveai.ui.components.NeuralTopBar
 import com.example.daveai.ui.theme.GhostWhite
 import com.example.daveai.ui.theme.NeonEmerald
-import com.example.daveai.ui.theme.ObsidianDeep
 import com.example.daveai.ui.theme.ObsidianSurface
 import com.example.daveai.ui.theme.PulseCyan
 import java.text.SimpleDateFormat
@@ -99,45 +108,61 @@ fun DeveloperDashboardScreen(
                 isProactive = true
             )
         },
-        containerColor = ObsidianDeep
+        containerColor = Color.Transparent
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent,
-                contentColor = NeonEmerald,
-                indicator = { tabPositions ->
-                    TabRowDefaults.SecondaryIndicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        color = NeonEmerald
-                    )
-                },
-                divider = { HorizontalDivider(color = Color.White.copy(alpha = 0.05f)) }
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = {
-                            Text(
-                                title,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (selectedTab == index) FontWeight.Black else FontWeight.Normal,
-                                letterSpacing = 1.sp,
-                                color = if (selectedTab == index) NeonEmerald else Color.White.copy(alpha = 0.5f)
-                            )
-                        }
-                    )
+        Box(modifier = Modifier.fillMaxSize()) {
+            NeuralBackground()
+            
+            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Color.Transparent,
+                    contentColor = NeonEmerald,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            color = NeonEmerald
+                        )
+                    },
+                    divider = { HorizontalDivider(color = Color.White.copy(alpha = 0.05f)) }
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = {
+                                Text(
+                                    title,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (selectedTab == index) FontWeight.Black else FontWeight.Normal,
+                                    letterSpacing = 1.sp,
+                                    color = if (selectedTab == index) NeonEmerald else Color.White.copy(alpha = 0.5f)
+                                )
+                            }
+                        )
+                    }
                 }
-            }
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(20.dp)) {
-                when (selectedTab) {
-                    0 -> OverviewTab(totalUsers, allUsers)
-                    1 -> UsersTab(allUsers, onElevate = viewModel::elevateUser, onDelete = viewModel::deleteUser)
-                    2 -> MonitoringTab(inTokens, outTokens, recentUsage)
-                    3 -> LogsTab(recentEvents, serverLogs, onClear = viewModel::clearLogs)
-                    4 -> FirestoreTab(allUsers, globalStats)
+                Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(20.dp)) {
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        transitionSpec = {
+                            if (targetState > initialState) {
+                                slideInHorizontally { it } + fadeIn() togetherWith slideOutHorizontally { -it } + fadeOut()
+                            } else {
+                                slideInHorizontally { -it } + fadeIn() togetherWith slideOutHorizontally { it } + fadeOut()
+                            }.using(SizeTransform(clip = false))
+                        },
+                        label = "tab_content"
+                    ) { targetTab ->
+                        when (targetTab) {
+                            0 -> OverviewTab(totalUsers, allUsers)
+                            1 -> UsersTab(allUsers, onElevate = viewModel::elevateUser, onDelete = viewModel::deleteUser)
+                            2 -> MonitoringTab(inTokens, outTokens, recentUsage)
+                            3 -> LogsTab(recentEvents, serverLogs, onClear = viewModel::clearLogs)
+                            4 -> FirestoreTab(allUsers, globalStats)
+                        }
+                    }
                 }
             }
         }
@@ -148,45 +173,63 @@ fun DeveloperDashboardScreen(
 fun OverviewTab(totalUsers: Long, allUsers: List<Map<String, Any>>) {
     val operaUsers = allUsers.count { it["network"] == "Opera" }
     
+    var entranceTrigger by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entranceTrigger = true }
+
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Surface(
-            color = ObsidianSurface,
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, NeonEmerald.copy(alpha = 0.1f))
+        AnimatedVisibility(
+            visible = entranceTrigger,
+            enter = slideInVertically { -20 } + fadeIn(tween(600))
         ) {
-            Row(
-                modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                color = ObsidianSurface,
+                shape = RoundedCornerShape(24.dp),
+                border = BorderStroke(1.dp, NeonEmerald.copy(alpha = 0.1f))
             ) {
-                SystemHeartbeat()
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text("SYSTEM STATUS", color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
-                    Text("OPERATIONAL :: VANGUARD_SYNC_ACTIVE", color = NeonEmerald, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                Row(
+                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SystemHeartbeat()
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text("SYSTEM STATUS", color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
+                        Text("OPERATIONAL :: VANGUARD_SYNC_ACTIVE", color = NeonEmerald, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+                    }
                 }
             }
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            ModernDashboardCard(
-                modifier = Modifier.weight(1f),
-                title = "Total Users",
-                value = totalUsers.toString(),
-                icon = Icons.Rounded.Group,
-                color = PulseCyan
-            )
-            ModernDashboardCard(
-                modifier = Modifier.weight(1f),
-                title = "Opera Grid",
-                value = operaUsers.toString(),
-                icon = Icons.Rounded.Public,
-                color = Color(0xFFFF5252)
-            )
+            AnimatedVisibility(
+                visible = entranceTrigger,
+                enter = slideInVertically { 20 } + fadeIn(tween(600, delayMillis = 100)),
+                modifier = Modifier.weight(1f)
+            ) {
+                ModernDashboardCard(
+                    title = "Total Users",
+                    value = totalUsers.toString(),
+                    icon = Icons.Rounded.Group,
+                    color = PulseCyan
+                )
+            }
+            AnimatedVisibility(
+                visible = entranceTrigger,
+                enter = slideInVertically { 20 } + fadeIn(tween(600, delayMillis = 200)),
+                modifier = Modifier.weight(1f)
+            ) {
+                ModernDashboardCard(
+                    title = "Opera Grid",
+                    value = operaUsers.toString(),
+                    icon = Icons.Rounded.Public,
+                    color = Color(0xFFFF5252)
+                )
+            }
         }
         
         AnimatedVisibility(
-            visible = operaUsers > 0,
-            enter = expandVertically() + fadeIn(),
+            visible = operaUsers > 0 && entranceTrigger,
+            enter = expandVertically() + fadeIn(tween(600, delayMillis = 300)),
             exit = shrinkVertically() + fadeOut()
         ) {
             val lastOperaFeedback = allUsers.find { it["network"] == "Opera" }?.get("feedback") as? String ?: "No feedback"
@@ -206,23 +249,33 @@ fun OverviewTab(totalUsers: Long, allUsers: List<Map<String, Any>>) {
             }
         }
 
-        Text(
-            "MAINFRAME TELEMETRY",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.4f),
-            fontWeight = FontWeight.Black,
-            letterSpacing = 2.sp
-        )
-        
-        Surface(
-            color = ObsidianSurface.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+        AnimatedVisibility(
+            visible = entranceTrigger,
+            enter = fadeIn(tween(600, delayMillis = 400))
         ) {
-            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ModernTelemetryRow("Mainframe Latency", "12ms", 0.1f, NeonEmerald)
-                ModernTelemetryRow("Neural Link Response", "850ms", 0.6f, PulseCyan)
-                ModernTelemetryRow("Vanguard Integrity", "99.99%", 0.95f, NeonEmerald)
+            Text(
+                "MAINFRAME TELEMETRY",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.4f),
+                fontWeight = FontWeight.Black,
+                letterSpacing = 2.sp
+            )
+        }
+        
+        AnimatedVisibility(
+            visible = entranceTrigger,
+            enter = slideInVertically { 40 } + fadeIn(tween(600, delayMillis = 500))
+        ) {
+            Surface(
+                color = ObsidianSurface.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+            ) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ModernTelemetryRow("Mainframe Latency", "12ms", 0.1f, NeonEmerald)
+                    ModernTelemetryRow("Neural Link Response", "850ms", 0.6f, PulseCyan)
+                    ModernTelemetryRow("Vanguard Integrity", "99.99%", 0.95f, NeonEmerald)
+                }
             }
         }
     }
@@ -248,49 +301,60 @@ fun ModernTelemetryRow(label: String, value: String, progress: Float, color: Col
 @Composable
 fun UsersTab(users: List<Map<String, Any>>, onElevate: (String) -> Unit, onDelete: (String) -> Unit) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        items(users) { user ->
-            val uid = user["uid"] as? String ?: ""
-            val email = user["email"] as? String ?: "Anonymous"
-            val role = user["role"] as? String ?: "Explorer"
-            val lastLogin = user["lastLogin"] as? com.google.firebase.Timestamp
-            
-            Surface(
-                color = ObsidianSurface,
-                shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, if (role == "Master Developer") NeonEmerald.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f))
+        itemsIndexed(users) { index, user ->
+            var entranceTrigger by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(index * 100L)
+                entranceTrigger = true
+            }
+
+            AnimatedVisibility(
+                visible = entranceTrigger,
+                enter = slideInHorizontally { -40 } + fadeIn(tween(600))
             ) {
-                Row(
-                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                val uid = user["uid"] as? String ?: ""
+                val email = user["email"] as? String ?: "Anonymous"
+                val role = user["role"] as? String ?: "Explorer"
+                val lastLogin = user["lastLogin"] as? com.google.firebase.Timestamp
+                
+                Surface(
+                    color = ObsidianSurface,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, if (role == "Master Developer") NeonEmerald.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.05f))
                 ) {
-                    Box(
-                        modifier = Modifier.size(48.dp).background(if (role == "Master Developer") NeonEmerald.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Icon(
-                            imageVector = if (role == "Master Developer") Icons.Rounded.Security else Icons.Rounded.Person,
-                            contentDescription = null,
-                            tint = if (role == "Master Developer") NeonEmerald else GhostWhite.copy(alpha = 0.5f)
-                        )
-                    }
-                    
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(email, color = GhostWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(role.uppercase(), color = if (role == "Master Developer") NeonEmerald else PulseCyan, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                        lastLogin?.let {
-                            val date = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(it.toDate())
-                            Text("LAST ACTIVE: $date", color = Color.White.copy(alpha = 0.3f), style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
+                        Box(
+                            modifier = Modifier.size(48.dp).background(if (role == "Master Developer") NeonEmerald.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (role == "Master Developer") Icons.Rounded.Security else Icons.Rounded.Person,
+                                contentDescription = null,
+                                tint = if (role == "Master Developer") NeonEmerald else GhostWhite.copy(alpha = 0.5f)
+                            )
                         }
-                    }
-                    Row {
-                        if (role != "Master Developer") {
-                            IconButton(onClick = { onElevate(uid) }) {
-                                Icon(Icons.Rounded.Shield, contentDescription = "Elevate", tint = NeonEmerald)
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(email, color = GhostWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(role.uppercase(), color = if (role == "Master Developer") NeonEmerald else PulseCyan, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                            lastLogin?.let {
+                                val date = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(it.toDate())
+                                Text("LAST ACTIVE: $date", color = Color.White.copy(alpha = 0.3f), style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace)
                             }
                         }
-                        IconButton(onClick = { onDelete(uid) }) {
-                            Icon(Icons.Rounded.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.6f))
+                        Row {
+                            if (role != "Master Developer") {
+                                IconButton(onClick = { onElevate(uid) }) {
+                                    Icon(Icons.Rounded.Shield, contentDescription = "Elevate", tint = NeonEmerald)
+                                }
+                            }
+                            IconButton(onClick = { onDelete(uid) }) {
+                                Icon(Icons.Rounded.Delete, contentDescription = "Delete", tint = Color.Red.copy(alpha = 0.6f))
+                            }
                         }
                     }
                 }
@@ -301,41 +365,64 @@ fun UsersTab(users: List<Map<String, Any>>, onElevate: (String) -> Unit, onDelet
 
 @Composable
 fun MonitoringTab(inTokens: Long, outTokens: Long, recentUsage: List<ChatMessageEntity>) {
+    var entranceTrigger by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entranceTrigger = true }
+
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Text("AI RESOURCE CONSUMPTION", color = Color.White.copy(alpha = 0.4f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+        AnimatedVisibility(
+            visible = entranceTrigger,
+            enter = fadeIn(tween(600))
+        ) {
+            Text("AI RESOURCE CONSUMPTION", color = Color.White.copy(alpha = 0.4f), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+        }
         
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            ModernDashboardCard(
-                modifier = Modifier.weight(1f),
-                title = "Input Tokens",
-                value = String.format(Locale.US, "%,d", inTokens),
-                icon = Icons.AutoMirrored.Rounded.Input,
-                color = NeonEmerald
-            )
-            ModernDashboardCard(
-                modifier = Modifier.weight(1f),
-                title = "Output Tokens",
-                value = String.format(Locale.US, "%,d", outTokens),
-                icon = Icons.Rounded.Output,
-                color = PulseCyan
-            )
+            AnimatedVisibility(
+                visible = entranceTrigger,
+                enter = scaleIn(tween(600, delayMillis = 100)),
+                modifier = Modifier.weight(1f)
+            ) {
+                ModernDashboardCard(
+                    title = "Input Tokens",
+                    value = String.format(Locale.US, "%,d", inTokens),
+                    icon = Icons.AutoMirrored.Rounded.Input,
+                    color = NeonEmerald
+                )
+            }
+            AnimatedVisibility(
+                visible = entranceTrigger,
+                enter = scaleIn(tween(600, delayMillis = 200)),
+                modifier = Modifier.weight(1f)
+            ) {
+                ModernDashboardCard(
+                    title = "Output Tokens",
+                    value = String.format(Locale.US, "%,d", outTokens),
+                    icon = Icons.Rounded.Output,
+                    color = PulseCyan
+                )
+            }
         }
 
-        Surface(
-            color = ObsidianSurface,
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+        AnimatedVisibility(
+            visible = entranceTrigger,
+            enter = slideInVertically { 40 } + fadeIn(tween(600, delayMillis = 300))
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("TOKEN TREND (LAST 50 EVENTS)", color = GhostWhite, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black)
-                Spacer(Modifier.height(20.dp))
-                
-                val points = recentUsage.map { (it.inputTokens + it.outputTokens).toFloat() }.reversed()
-                if (points.isNotEmpty()) {
-                    CyberGraph(points = points, color = NeonEmerald)
-                } else {
-                    Box(modifier = Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                        Text("WAITING FOR SIGNAL DATA...", color = Color.White.copy(alpha = 0.2f), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            Surface(
+                color = ObsidianSurface,
+                shape = RoundedCornerShape(24.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("TOKEN TREND (LAST 50 EVENTS)", color = GhostWhite, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black)
+                    Spacer(Modifier.height(20.dp))
+                    
+                    val points = recentUsage.map { (it.inputTokens + it.outputTokens).toFloat() }.reversed()
+                    if (points.isNotEmpty()) {
+                        CyberGraph(points = points, color = NeonEmerald)
+                    } else {
+                        Box(modifier = Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                            Text("WAITING FOR SIGNAL DATA...", color = Color.White.copy(alpha = 0.2f), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                        }
                     }
                 }
             }
@@ -358,15 +445,9 @@ fun LogsTab(securityEvents: List<SecurityEvent>, serverLogs: List<String>, onCle
                     Icon(Icons.Rounded.Terminal, contentDescription = null, tint = PulseCyan.copy(alpha = 0.3f), modifier = Modifier.size(16.dp))
                 }
                 Spacer(Modifier.height(12.dp))
-                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(serverLogs.reversed()) { log ->
-                        Text(
-                            text = "> $log",
-                            color = GhostWhite.copy(alpha = 0.8f),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            lineHeight = 14.sp
-                        )
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    itemsIndexed(serverLogs.reversed()) { index, log ->
+                        MatrixLogItem(log = log, index = index)
                     }
                 }
             }

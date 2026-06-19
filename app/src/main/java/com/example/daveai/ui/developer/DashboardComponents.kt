@@ -1,11 +1,15 @@
 package com.example.daveai.ui.developer
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +30,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -42,6 +50,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.daveai.ui.theme.GhostWhite
 import com.example.daveai.ui.theme.NeonEmerald
 import com.example.daveai.ui.theme.ObsidianSurface
 
@@ -189,5 +198,78 @@ fun SystemHeartbeat() {
                 .graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
                 .border(1.dp, NeonEmerald, CircleShape)
         )
+    }
+}
+
+@Composable
+fun NeuralBackground() {
+    val infiniteTransition = rememberInfiniteTransition(label = "neural_bg")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing)),
+        label = "time"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val width = size.width
+        val height = size.height
+        
+        // Background particles
+        repeat(15) { i ->
+            val x = (width * (0.2f + 0.6f * ((i * 73L) % 100 / 100f) + 0.1f * kotlin.math.sin(time * 2 * Math.PI + i).toFloat()))
+            val y = (height * (0.2f + 0.6f * ((i * 37L) % 100 / 100f) + 0.1f * kotlin.math.cos(time * 2 * Math.PI + i).toFloat()))
+            
+            drawCircle(
+                color = NeonEmerald.copy(alpha = 0.05f),
+                radius = 4.dp.toPx(),
+                center = Offset(x, y)
+            )
+            
+            // Connections
+            if (i > 0) {
+                val prevX = (width * (0.2f + 0.6f * (((i - 1) * 73L) % 100 / 100f) + 0.1f * kotlin.math.sin(time * 2 * Math.PI + (i - 1)).toFloat()))
+                val prevY = (height * (0.2f + 0.6f * (((i - 1) * 37L) % 100 / 100f) + 0.1f * kotlin.math.cos(time * 2 * Math.PI + (i - 1)).toFloat()))
+                
+                drawLine(
+                    color = NeonEmerald.copy(alpha = 0.02f),
+                    start = Offset(x, y),
+                    end = Offset(prevX, prevY),
+                    strokeWidth = 1f
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MatrixLogItem(log: String, index: Int) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(index * 50L)
+        visible = true
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandHorizontally() + fadeIn()
+    ) {
+        Row(modifier = Modifier.padding(vertical = 2.dp)) {
+            androidx.compose.material3.Text(
+                text = ">",
+                color = NeonEmerald,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black
+            )
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.Text(
+                text = log,
+                color = GhostWhite.copy(alpha = 0.8f),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                lineHeight = 14.sp
+            )
+        }
     }
 }
