@@ -1,4 +1,7 @@
-@file:OptIn(com.google.accompanist.permissions.ExperimentalPermissionsApi::class)
+@file:OptIn(
+    com.google.accompanist.permissions.ExperimentalPermissionsApi::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class
+)
 package com.example.daveai.ui.chat
 
 import android.Manifest
@@ -26,6 +29,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -58,7 +62,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
@@ -74,6 +80,7 @@ import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicNone
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.AlertDialog
@@ -350,6 +357,16 @@ fun ChatScreen(
                                 tint = if (uiState.partnerId != null) NeonEmerald else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                             )
                         }
+                        IconButton(onClick = { 
+                            val markdown = viewModel.generateSessionMarkdown()
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, markdown)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Export Neural Thread"))
+                        }) {
+                            Icon(Icons.Rounded.CloudDownload, contentDescription = "Export", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f))
+                        }
                         IconButton(onClick = { showDeleteConfirmation = true }) {
                             Icon(Icons.Rounded.Delete, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f))
                         }
@@ -521,6 +538,30 @@ fun MessageBubble(
     
     val contentColor = if (isDark) GhostWhite else MaterialTheme.colorScheme.onSurface
     val context = LocalContext.current
+    val hapticManager = remember { com.example.daveai.util.DaveHapticManager(context) }
+    
+    var isCopied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isCopied) {
+        if (isCopied) {
+            kotlinx.coroutines.delay(2000)
+            isCopied = false
+        }
+    }
+
+    val copyAction = {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Dave AI Message", message.content))
+        hapticManager.signalSuccess()
+        isCopied = true
+        Toast.makeText(context, "Neural signal encoded to clipboard.", Toast.LENGTH_SHORT).show()
+    }
+
+    LaunchedEffect(message.id) {
+        if (message.isFromDave) {
+            hapticManager.signalMood(message.mood)
+        }
+    }
 
     // Detect Neural Call Action
     val callActionRegex = Regex("""\[ACTION:CALL:(.*?)\]""")
@@ -558,7 +599,11 @@ fun MessageBubble(
                     .widthIn(max = 300.dp)
                     .clip(organicBlobShape(morph))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), organicBlobShape(morph)),
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), organicBlobShape(morph))
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = copyAction
+                    ),
                 color = Color.Transparent
             ) {
                 Text(
@@ -569,7 +614,14 @@ fun MessageBubble(
                 )
             }
         } else {
-            Column(modifier = Modifier.fillMaxWidth(0.92f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = copyAction
+                    )
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(8.dp).background(accentColor, CircleShape))
                     Spacer(Modifier.width(10.dp))
@@ -618,6 +670,37 @@ fun MessageBubble(
                     Spacer(Modifier.height(16.dp))
                     DaveWidget(type = message.widgetType, data = message.widgetData)
                 }
+            }
+        }
+        
+        // Message Actions
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            horizontalArrangement = if (message.isFromDave) Arrangement.Start else Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = copyAction,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = if (isCopied) Icons.Rounded.Check else Icons.Rounded.ContentCopy, 
+                    contentDescription = "Copy", 
+                    tint = if (isCopied) NeonEmerald else accentColor.copy(alpha = 0.5f), 
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            IconButton(
+                onClick = { 
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, message.content)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Share Intelligence Signal"))
+                },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(Icons.Rounded.Share, contentDescription = "Share", tint = accentColor.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
             }
         }
     }

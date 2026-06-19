@@ -67,6 +67,7 @@ import com.example.daveai.ui.vault.VaultScreen
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
@@ -120,6 +121,13 @@ class MainActivity : FragmentActivity() {
                 // Sync user to local SQL database
                 app.chatRepository.getScope().launch {
                     app.chatRepository.syncCurrentUser()
+                    
+                    // BP47 One-time migration
+                    val settings = app.settingsRepository
+                    if (!settings.isNeuralMigrated.first()) {
+                        app.chatRepository.migrateToNeuralSchema()
+                        settings.setNeuralMigrated(true)
+                    }
                 }
             }
         })

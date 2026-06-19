@@ -67,4 +67,37 @@ class DaveHapticManager(private val context: Context) {
             vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
         }
     }
+
+    /**
+     * Synthesizes haptic patterns based on Dave's current mood.
+     */
+    fun signalMood(mood: String) {
+        if (Build.VERSION.SDK_INT >= 36) {
+            val composition = VibrationEffect.startComposition()
+            when (mood.uppercase()) {
+                "HACKER", "URGENT" -> {
+                    composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 1.0f)
+                    composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.8f, 50)
+                }
+                "EMPATHETIC", "CALM" -> {
+                    composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_SLOW_RISE, 0.4f)
+                    composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, 0.3f, 200)
+                }
+                "HYPED" -> {
+                    composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f)
+                    composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f, 50)
+                    composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f, 50)
+                }
+                else -> composition.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f)
+            }
+            vibrator.vibrate(composition.compose())
+        } else {
+            val effect = when (mood.uppercase()) {
+                "URGENT" -> VibrationEffect.EFFECT_DOUBLE_CLICK
+                "CALM" -> VibrationEffect.EFFECT_TICK
+                else -> VibrationEffect.EFFECT_CLICK
+            }
+            vibrator.vibrate(VibrationEffect.createPredefined(effect))
+        }
+    }
 }

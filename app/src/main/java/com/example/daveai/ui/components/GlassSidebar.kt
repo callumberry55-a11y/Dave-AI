@@ -1,20 +1,47 @@
 package com.example.daveai.ui.components
 
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.Face
+import androidx.compose.material.icons.rounded.Flare
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Store
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -24,14 +51,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.daveai.BuildConfig
-import com.example.daveai.data.db.ChatSessionEntity
 import com.example.daveai.data.repository.UserProfile
-import com.example.daveai.ui.theme.*
+import com.example.daveai.ui.theme.ObsidianDeep
+import com.example.daveai.ui.theme.backgroundLight
 
 @Composable
 fun GlassSidebar(
     userProfile: UserProfile?,
-    sessions: List<ChatSessionEntity>,
+    sessions: List<com.example.daveai.data.db.ConversationEntity>,
     currentSessionId: String?,
     glowStrength: Float,
     blurIntensity: Float,
@@ -92,11 +119,11 @@ fun GlassSidebar(
                 }
 
                 items(sessions.take(5)) { session ->
-                    val isSelected = session.sessionId == currentSessionId
+                    val isSelected = session.id == currentSessionId
                     SidebarLiquidItem(
                         icon = Icons.Rounded.ChatBubbleOutline,
-                        label = session.title,
-                        onClick = { onSessionSelected(session.sessionId) },
+                        label = session.title ?: "Neural Thread",
+                        onClick = { onSessionSelected(session.id) },
                         containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
                         contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         isCompact = true

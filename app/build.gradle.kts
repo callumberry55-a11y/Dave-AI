@@ -21,8 +21,8 @@ android {
         applicationId = "com.example.daveai"
         minSdk = 36
         targetSdk = 37
-        versionCode = 16
-        versionName = "BP46.2026.17"
+        versionCode = 18
+        versionName = "BPBP47.2026.18"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

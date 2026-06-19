@@ -23,7 +23,9 @@ data class ConversationEntity(
     @PrimaryKey
     val id: String = UUID.randomUUID().toString(),
     val userEmail: String,
-    val createdAt: Date,
+    val createdAt: Date = Date(),
     val title: String?,
-    val lastUpdatedAt: Date?
+    val summary: String? = null,
+    val lastUpdatedAt: Date? = Date(),
+    val projectType: String = "GENERAL"
 )

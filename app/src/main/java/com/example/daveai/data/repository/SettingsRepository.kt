@@ -38,6 +38,7 @@ class SettingsRepository(
         private val PARTNER_ID = stringPreferencesKey("partner_id")
         private val PARTNER_NAME = stringPreferencesKey("partner_name")
         private val LAST_SYNC_TIMESTAMP = longPreferencesKey("last_sync_timestamp")
+        private val IS_NEURAL_MIGRATED = booleanPreferencesKey("is_neural_migrated")
 
         // Legacy API Keys in DataStore (for migration)
         private val LEGACY_CLAUDE_KEY = stringPreferencesKey("user_claude_api_key")
@@ -158,6 +159,7 @@ class SettingsRepository(
     val useBiometricsForVault: Flow<Boolean> = context.dataStore.data.map { it[USE_BIOMETRICS_FOR_VAULT] ?: false }
     val blurIntensity: Flow<Float> = context.dataStore.data.map { it[BLUR_INTENSITY] ?: 0.5f }
     val glowStrength: Flow<Float> = context.dataStore.data.map { it[GLOW_STRENGTH] ?: 0.5f }
+    val isNeuralMigrated: Flow<Boolean> = context.dataStore.data.map { it[IS_NEURAL_MIGRATED] ?: false }
 
     suspend fun setPrimaryColor(color: Int) {
         context.dataStore.edit { preferences ->
@@ -310,5 +312,9 @@ class SettingsRepository(
 
     suspend fun setGlowStrength(strength: Float) {
         context.dataStore.edit { it[GLOW_STRENGTH] = strength }
+    }
+
+    suspend fun setNeuralMigrated(migrated: Boolean) {
+        context.dataStore.edit { it[IS_NEURAL_MIGRATED] = migrated }
     }
 }

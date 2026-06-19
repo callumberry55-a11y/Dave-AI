@@ -25,5 +25,13 @@ data class MessageEntity(
     val conversationId: String,
     val role: String,
     val content: String,
-    val timestamp: Date?
+    val mediaUrl: String? = null,
+    val mediaType: String = "NONE", // NONE, IMAGE, VIDEO
+    val widgetType: String = "NONE", // NONE, MAP, HARDWARE, etc.
+    val widgetData: String? = null, // JSON string
+    val timestamp: Date? = Date(),
+    val mood: String = "NEUTRAL",
+    val hasAttachment: Boolean = false,
+    val inputTokens: Int = 0,
+    val outputTokens: Int = 0
 )

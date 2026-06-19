@@ -113,6 +113,7 @@ class ChatRepository(
     private val EMERGENCY_BYPASS_CODE = "KL34MJ2"
 
     private val repositoryScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var lastRetrievedMemories: List<com.example.daveai.data.db.MemoryEntity> = emptyList()
 
     fun getDeviceAssistant() = deviceAssistant
     fun getRiddleDao() = riddleDao
@@ -138,6 +139,71 @@ class ChatRepository(
             )
             Log.d("ChatRepository", "Synchronized new user to local SQL: $email")
         }
+    }
+
+    suspend fun migrateToNeuralSchema() = withContext(Dispatchers.IO) {
+        val user = FirebaseAuth.getInstance().currentUser ?: return@withContext
+        val email = user.email ?: return@withContext
+        
+        syncCurrentUser()
+
+        // 1. Migrate Sessions to Conversations
+        val oldSessions = chatDao.getAllSessions().first()
+        oldSessions.forEach { oldSession ->
+            val existingConv = conversationDao.getConversationsForUser(email).first().find { it.id == oldSession.sessionId }
+            if (existingConv == null) {
+                conversationDao.insertConversation(
+                    com.example.daveai.data.db.ConversationEntity(
+                        id = oldSession.sessionId,
+                        userEmail = email,
+                        createdAt = Date(oldSession.lastMessageTimestamp),
+                        title = oldSession.title,
+                        summary = oldSession.summary,
+                        lastUpdatedAt = Date(oldSession.lastMessageTimestamp),
+                        projectType = oldSession.projectType
+                    )
+                )
+                
+                // 2. Migrate Messages
+                val oldMessages = chatDao.getMessagesForSession(oldSession.sessionId).first()
+                oldMessages.forEach { oldMsg ->
+                    messageDao.insertMessage(
+                        com.example.daveai.data.db.MessageEntity(
+                            conversationId = oldSession.sessionId,
+                            role = oldMsg.role,
+                            content = oldMsg.content,
+                            mediaUrl = oldMsg.mediaUrl,
+                            mediaType = oldMsg.mediaType,
+                            widgetType = oldMsg.widgetType,
+                            widgetData = oldMsg.widgetData,
+                            timestamp = Date(oldMsg.timestamp),
+                            mood = oldMsg.mood,
+                            hasAttachment = oldMsg.hasAttachment,
+                            inputTokens = oldMsg.inputTokens,
+                            outputTokens = oldMsg.outputTokens
+                        )
+                    )
+                }
+            }
+        }
+
+        // 3. Migrate SemanticMemory to MemoryEntity
+        val oldMemories = semanticMemoryDao.getAllMemories().first()
+        oldMemories.forEach { oldMem ->
+            val existingMem = memoryDao.getMemoriesForUser(email).first().find { it.content == oldMem.content }
+            if (existingMem == null) {
+                memoryDao.insertMemory(
+                    com.example.daveai.data.db.MemoryEntity(
+                        userEmail = email,
+                        content = oldMem.content,
+                        vectorEmbedding = null,
+                        sourceTitle = oldMem.memoryType,
+                        tags = listOf(oldMem.sentiment)
+                    )
+                )
+            }
+        }
+        Log.d("ChatRepository", "Neural schema migration completed.")
     }
 
     init {
@@ -261,74 +327,34 @@ class ChatRepository(
 
     private suspend fun getRelevantContext(userQuery: String): String = withContext(Dispatchers.IO) {
         try {
-            Log.d("ChatRepository", "Retrieving relevant context with linked neural nodes...")
+            Log.d("ChatRepository", "Retrieving relevant context with structured neural nodes...")
             val keywords = hardwareAccelerator.extractKeywords(userQuery)
-            val primaryMemories = mutableSetOf<SemanticMemory>()
             
-            // Phase 1: Primary extraction
-            keywords.forEach { primaryMemories.addAll(semanticMemoryDao.findRelevantMemories(it)) }
+            // Phase 1: Keyword-based extraction (FTS)
+            val searchResults = mutableSetOf<com.example.daveai.data.db.MemoryEntity>()
+            keywords.forEach { searchResults.addAll(memoryDao.searchMemories(it)) }
             
-            // Phase 2: Hop-based retrieval (Neural Linking)
-            val linkedMemories = mutableSetOf<SemanticMemory>()
-            primaryMemories.forEach { memory ->
-                if (memory.relatedIds.isNotBlank()) {
-                    memory.relatedIds.split(",").forEach { idString ->
-                        idString.toLongOrNull()?.let { id ->
-                            val linked = semanticMemoryDao.getAllMemories().firstOrNull()?.find { it.id == id }
-                            if (linked != null) linkedMemories.add(linked)
-                        }
-                    }
-                }
+            // Phase 2: Recent context
+            val email = FirebaseAuth.getInstance().currentUser?.email ?: "ANONYMOUS"
+            val allUserMemories = memoryDao.getMemoriesForUser(email).first()
+            
+            val totalMemories = searchResults.toMutableSet()
+            if (totalMemories.size < 5) {
+                totalMemories.addAll(allUserMemories.take(5))
             }
-            
-            val totalMemories = (primaryMemories + linkedMemories).toMutableSet()
-            
-            // Recency & Decay logic
-            val allMemories = semanticMemoryDao.getAllMemories().first()
-            val now = System.currentTimeMillis()
-            
-            // If few matches, add recent/important ones
-            if (totalMemories.size < 10) {
-                totalMemories.addAll(allMemories.sortedByDescending { it.timestamp }.take(5))
-                totalMemories.addAll(allMemories.sortedByDescending { it.importance }.take(3))
-            }
-            
+
             val contextMemories = totalMemories.toList().distinctBy { it.id }
-            
-            // Update stats & decay
-            contextMemories.forEach { memory ->
-                val timeSinceLastAccess = now - memory.timestamp
-                
-                // Decay logic
-                var newImportance = memory.importance
-                if (!memory.isLocked && timeSinceLastAccess > 1000L * 60 * 60 * 24 * 7 && memory.importance > 1 && memory.accessCount < 5) {
-                    newImportance -= 1
-                }
+            lastRetrievedMemories = contextMemories
 
-                semanticMemoryDao.updateMemory(memory.copy(
-                    accessCount = memory.accessCount + 1,
-                    timestamp = now,
-                    importance = newImportance
-                ))
-            }
-            
-            val relationship = relationshipDao.getRelationshipLedger() ?: RelationshipEntity()
-            val architectVerified = true 
-
-            Log.d("ChatRepository", "Neural retrieval complete. Nodes found: ${contextMemories.size}")
+            Log.d("ChatRepository", "Neural structured retrieval complete. Nodes found: ${contextMemories.size}")
             buildString {
-                if (architectVerified) {
-                    append("\n--- ARCHITECT AUTHENTICATION ---\n")
-                    append("STATUS: Verified as Callum (Creator)\n")
-                    append("---------------------------------\n")
+                append("\n--- NEURAL SEMANTIC CLUSTER (STRUCTURED) ---\n")
+                contextMemories.forEach { 
+                    append("[${it.sourceTitle} | Tags: ${it.tags?.joinToString(",")}] ${it.content}\n") 
                 }
-                if (contextMemories.isNotEmpty()) {
-                    append("\n\n--- NEURAL SEMANTIC CLUSTER ---\n")
-                    contextMemories.sortedByDescending { it.importance }.forEach { 
-                        append("[${it.memoryType} | ${it.sentiment}] ${it.content}\n") 
-                    }
-                    append("----------------------------------\n")
-                }
+                append("-------------------------------------------\n")
+                
+                val relationship = relationshipDao.getRelationshipLedger() ?: RelationshipEntity()
                 append("\n--- RELATIONSHIP LEDGER ---\n")
                 append("Rapport Level: ${relationship.rapportLevel}/100\n")
                 if (relationship.insideJokes.isNotBlank()) append("Inside Jokes: ${relationship.insideJokes}\n")
@@ -337,31 +363,46 @@ class ChatRepository(
                 append("---------------------------\n")
             }
         } catch (e: Exception) {
-            Log.e("ChatRepository", "Neural retrieval failed: ${e.message}", e)
+            Log.e("ChatRepository", "Neural structured retrieval failed: ${e.message}", e)
             ""
         }
     }
 
-    val allSessions: Flow<List<ChatSessionEntity>> = chatDao.getAllSessions()
-    fun getMessagesForSession(sessionId: String): Flow<List<ChatMessageEntity>> = chatDao.getMessagesForSession(sessionId)
-
-    suspend fun createNewSession(title: String, userId: String = "ANONYMOUS"): String = withContext(Dispatchers.IO) {
-        val sessionId = UUID.randomUUID().toString()
-        val session = ChatSessionEntity(sessionId = sessionId, title = title, lastMessageTimestamp = System.currentTimeMillis())
-        chatDao.insertSession(session)
-        if (userId != "ANONYMOUS") {
-            firestoreRepository.syncSession(userId, session)
-        }
-        return@withContext sessionId
+    val allConversations: Flow<List<com.example.daveai.data.db.ConversationEntity>> by lazy {
+        val email = FirebaseAuth.getInstance().currentUser?.email ?: "ANONYMOUS"
+        conversationDao.getConversationsForUser(email)
     }
 
+    fun getMessagesForConversation(conversationId: String): Flow<List<com.example.daveai.data.db.MessageEntity>> = 
+        messageDao.getMessagesForConversation(conversationId)
+
+    suspend fun createNewConversation(title: String, userEmail: String): String = withContext(Dispatchers.IO) {
+        val id = UUID.randomUUID().toString()
+        val conv = com.example.daveai.data.db.ConversationEntity(
+            id = id,
+            userEmail = userEmail,
+            title = title
+        )
+        conversationDao.insertConversation(conv)
+        return@withContext id
+    }
+
+    suspend fun deleteConversation(id: String) = withContext(Dispatchers.IO) {
+        conversationDao.deleteConversationById(id)
+    }
+
+    // Legacy Bridge for BP47 transition
+    val allSessions: Flow<List<ChatSessionEntity>> = chatDao.getAllSessions()
+    fun getMessagesForSession(sessionId: String): Flow<List<ChatMessageEntity>> = chatDao.getMessagesForSession(sessionId)
+    suspend fun createNewSession(title: String, userId: String = "ANONYMOUS"): String = withContext(Dispatchers.IO) {
+        val id = createNewConversation(title, userId)
+        val session = ChatSessionEntity(sessionId = id, title = title)
+        chatDao.insertSession(session)
+        return@withContext id
+    }
     suspend fun deleteSession(sessionId: String) = withContext(Dispatchers.IO) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid
-        chatDao.deleteMessagesForSession(sessionId)
         chatDao.deleteSession(sessionId)
-        if (uid != null) {
-            firestoreRepository.deleteSession(uid, sessionId)
-        }
+        conversationDao.deleteConversationById(sessionId)
     }
 
     suspend fun syncAllToFirestore(uid: String) = withContext(Dispatchers.IO) {
@@ -416,9 +457,17 @@ class ChatRepository(
                 append(cleanContent)
                 attachments.forEach { append("\n[Attached File: ${it.name}]") }
             }
-            val message = ChatMessageEntity(sessionId = sessionId, role = "user", content = displayContent)
-            chatDao.insertMessage(message)
-            uid?.let { firestoreRepository.syncMessage(it, sessionId, message) }
+            val message = com.example.daveai.data.db.MessageEntity(
+                conversationId = sessionId,
+                role = "user",
+                content = displayContent,
+                hasAttachment = attachments.isNotEmpty()
+            )
+            messageDao.insertMessage(message)
+            // legacy sync
+            val legacyMsg = ChatMessageEntity(sessionId = sessionId, role = "user", content = displayContent)
+            chatDao.insertMessage(legacyMsg)
+            uid?.let { firestoreRepository.syncMessage(it, sessionId, legacyMsg) }
             updateSessionTimestamp(sessionId)
         }
 
@@ -711,15 +760,36 @@ class ChatRepository(
             _thinkingStatus.value = ""
 
             if (!isGhostMode) {
-                val assistantMessage = ChatMessageEntity(
+                val assistantMessage = com.example.daveai.data.db.MessageEntity(
+                    conversationId = sessionId, 
+                    role = "assistant", 
+                    content = assistantContent,
+                    inputTokens = inTokens,
+                    outputTokens = outTokens
+                )
+                messageDao.insertMessage(assistantMessage)
+                
+                // Link memories
+                lastRetrievedMemories.forEach { memory ->
+                    memoryLinkDao.insertMemoryLink(
+                        com.example.daveai.data.db.MemoryLinkEntity(
+                            messageId = assistantMessage.id,
+                            memoryId = memory.id,
+                            relevanceScore = 1.0f // Heuristic for now
+                        )
+                    )
+                }
+                
+                // legacy
+                val legacyMsg = ChatMessageEntity(
                     sessionId = sessionId, 
                     role = "assistant", 
                     content = assistantContent,
                     inputTokens = inTokens,
                     outputTokens = outTokens
                 )
-                chatDao.insertMessage(assistantMessage)
-                uid?.let { firestoreRepository.syncMessage(it, sessionId, assistantMessage) }
+                chatDao.insertMessage(legacyMsg)
+                uid?.let { firestoreRepository.syncMessage(it, sessionId, legacyMsg) }
                 updateSessionTimestamp(sessionId)
                 generateSessionContext(sessionId, cleanContent, assistantContent)
             }

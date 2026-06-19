@@ -3,7 +3,6 @@ package com.example.daveai.ui.riddle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.daveai.data.db.AnswerResult
-import com.example.daveai.data.db.ChatSessionEntity
 import com.example.daveai.data.db.Riddle
 import com.example.daveai.data.db.RiddleDao
 import com.example.daveai.data.db.verifyUserAnswer
@@ -31,7 +30,7 @@ data class RiddleUiState(
     val tierName: String = "CASUAL",
     val errorTrigger: Int = 0,
     val userProfile: UserProfile? = null,
-    val sessions: List<ChatSessionEntity> = emptyList(),
+    val sessions: List<com.example.daveai.data.db.ConversationEntity> = emptyList(),
     val glowStrength: Float = 0.5f,
     val blurIntensity: Float = 0.5f,
 )
@@ -53,8 +52,8 @@ class RiddleViewModel(
     init {
         loadProgress()
         viewModelScope.launch {
-            chatRepository.allSessions.collect { sessions ->
-                _uiState.update { it.copy(sessions = sessions) }
+            chatRepository.allConversations.collect { conversations ->
+                _uiState.update { it.copy(sessions = conversations) }
             }
         }
         viewModelScope.launch {
@@ -186,7 +185,8 @@ class RiddleViewModel(
 
     fun createNewChat() {
         viewModelScope.launch {
-            chatRepository.createNewSession("New Neural Thread", "Initialize")
+            val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: "ANONYMOUS"
+            chatRepository.createNewConversation("New Neural Thread", email)
         }
     }
 

@@ -35,7 +35,7 @@ class DaveAgentReceiver : BroadcastReceiver() {
             try {
                 if (messageQuery != null) {
                     Log.d("DaveAgent", "Processing background query: $messageQuery")
-                    val sessionId = chatRepository.createNewSession("Agentic Task", "GENERAL")
+                    val sessionId = chatRepository.createNewConversation("Agentic Task", "GENERAL")
                     
                     // Send to Dave in Ghost Mode so it doesn't clutter the main UI history
                     val response = chatRepository.sendMessage(

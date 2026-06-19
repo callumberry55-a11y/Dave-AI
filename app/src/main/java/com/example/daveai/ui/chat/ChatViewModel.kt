@@ -3,7 +3,6 @@ package com.example.daveai.ui.chat
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.daveai.data.db.ChatSessionEntity
 import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.data.repository.UserProfile
 import com.example.daveai.data.repository.UserStatsRepository
@@ -20,7 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 data class ChatUiState(
     val dbMessages: List<ChatMessage> = emptyList(),
     val ghostMessages: List<ChatMessage> = emptyList(),
-    val sessions: List<ChatSessionEntity> = emptyList(),
+    val sessions: List<com.example.daveai.data.db.ConversationEntity> = emptyList(),
     val userProfile: UserProfile? = null,
     val currentSessionId: String? = null,
     val inputText: String = "",
@@ -94,6 +93,7 @@ data class AttachedFile(
 )
 
 data class ChatMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val content: String,
     val isFromDave: Boolean,
     val mediaUrl: String? = null,
@@ -345,8 +345,8 @@ class ChatViewModel(
 
     private fun observeSessions() {
         viewModelScope.launch {
-            repository.allSessions.collect { sessions ->
-                _uiState.update { it.copy(sessions = sessions) }
+            repository.allConversations.collect { conversations ->
+                _uiState.update { it.copy(sessions = conversations) }
             }
         }
     }
@@ -356,7 +356,7 @@ class ChatViewModel(
         _uiState.update { it.copy(currentSessionId = sessionId, dbMessages = emptyList(), ghostMessages = emptyList()) }
         
         messageCollectionJob = viewModelScope.launch {
-            repository.getMessagesForSession(sessionId).collect { entities ->
+            repository.getMessagesForConversation(sessionId).collect { entities ->
                 val mapped = entities.map { entity ->
                     ChatMessage(
                         content = entity.content,
@@ -390,8 +390,8 @@ class ChatViewModel(
 
     fun createNewChat(title: String = "Neural Link") {
         viewModelScope.launch {
-            val uid = auth.currentUser?.uid
-            val sessionId = repository.createNewSession(title, uid ?: "ANONYMOUS")
+            val email = auth.currentUser?.email ?: "ANONYMOUS"
+            val sessionId = repository.createNewConversation(title, email)
             selectSession(sessionId)
         }
     }
@@ -465,7 +465,7 @@ class ChatViewModel(
             try {
                 var sessionId = _uiState.value.currentSessionId
                 if (sessionId == null) {
-                    sessionId = repository.createNewSession("New Intelligence Link", uid ?: "ANONYMOUS")
+                    sessionId = repository.createNewConversation("New Intelligence Link", auth.currentUser?.email ?: "ANONYMOUS")
                     selectSession(sessionId)
                 }
 
@@ -540,7 +540,7 @@ class ChatViewModel(
 
     fun deleteSession(sessionId: String) {
         viewModelScope.launch {
-            repository.deleteSession(sessionId)
+            repository.deleteConversation(sessionId)
             if (_uiState.value.currentSessionId == sessionId) {
                 _uiState.update { it.copy(currentSessionId = null, dbMessages = emptyList(), ghostMessages = emptyList()) }
             }
@@ -766,5 +766,26 @@ class ChatViewModel(
 
     fun closeAppFactory() {
         _uiState.update { it.copy(isBuildingApp = false, isShowingPreview = false) }
+    }
+
+    fun generateSessionMarkdown(): String {
+        val messages = _uiState.value.messages
+        val session = _uiState.value.sessions.find { it.id == _uiState.value.currentSessionId }
+        val title = session?.title ?: "Neural Thread"
+        
+        return buildString {
+            append("# DAVE OS :: NEURAL THREAD\n")
+            append("## Title: $title\n")
+            append("## Date: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date())}\n\n")
+            append("---\n\n")
+            
+            messages.forEach { msg ->
+                val role = if (msg.isFromDave) "DAVE" else "USER"
+                append("**$role**:\n${msg.content}\n\n")
+            }
+            
+            append("---\n")
+            append("*End of Transmission*\n")
+        }
     }
 }

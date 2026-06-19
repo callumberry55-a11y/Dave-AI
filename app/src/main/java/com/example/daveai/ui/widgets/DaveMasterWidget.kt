@@ -42,9 +42,9 @@ class DaveMasterWidget : GlanceAppWidget() {
         val battery = assistant.getBatteryLevel()
         val connection = assistant.getConnectivityStatus()
         
-        val sessions = repo.allSessions.first()
-        val latestSession = sessions.firstOrNull()
-        val latestMessage = latestSession?.let { repo.getMessagesForSession(it.sessionId).first().lastOrNull() }
+        val conversations = repo.allConversations.first()
+        val latestConv = conversations.firstOrNull()
+        val latestMessage = latestConv?.let { repo.getMessagesForConversation(it.id).first().lastOrNull() }
         
         provideContent {
             MasterContent(latestMessage?.content, battery, connection)
