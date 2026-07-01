@@ -288,6 +288,8 @@ fun RiddleScreen(
                 },
                 onUpdateGlowStrength = viewModel::updateGlowStrength,
                 onUpdateBlurIntensity = viewModel::updateBlurIntensity,
+                onModeChange = viewModel::setMode,
+                currentMode = uiState.currentMode,
                 onLogout = {
                     scope.launch { drawerState.close() }
                     viewModel.logout()

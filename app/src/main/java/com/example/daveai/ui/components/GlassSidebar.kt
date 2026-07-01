@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.Camera
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
@@ -52,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.daveai.BuildConfig
+import com.example.daveai.data.model.DaveMode
 import com.example.daveai.data.repository.UserProfile
 import com.example.daveai.ui.theme.ObsidianDeep
 import com.example.daveai.ui.theme.backgroundLight
@@ -74,6 +76,8 @@ fun GlassSidebar(
     onEnterVision: () -> Unit,
     onUpdateGlowStrength: (Float) -> Unit,
     onUpdateBlurIntensity: (Float) -> Unit,
+    onModeChange: (DaveMode) -> Unit,
+    currentMode: DaveMode,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -157,6 +161,31 @@ fun GlassSidebar(
                         onClick = onEnterRiddleRoom,
                         contentColor = MaterialTheme.colorScheme.tertiary
                     )
+                }
+
+                item { Spacer(Modifier.height(16.dp)) }
+
+                // ZONE 2.5: MODES
+                item { SidebarSectionZone("OPERATIONAL MODES") }
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+                         DaveMode.entries.forEach { mode ->
+                    val isSelected = mode == currentMode
+                    SidebarLiquidItem(
+                        icon = when (mode) {
+                            DaveMode.EXPLORER -> Icons.Rounded.Flare
+                            DaveMode.POET -> Icons.Rounded.AutoStories
+                            DaveMode.HACKER -> Icons.Rounded.Speed
+                            else -> Icons.Rounded.AutoAwesome
+                        },
+                                label = mode.name,
+                                onClick = { onModeChange(mode) },
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f) else Color.Transparent,
+                                contentColor = if (isSelected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
+                                isCompact = true
+                            )
+                        }
+                    }
                 }
 
                 item { Spacer(Modifier.height(16.dp)) }

@@ -6,6 +6,7 @@ import com.example.daveai.data.db.AnswerResult
 import com.example.daveai.data.db.Riddle
 import com.example.daveai.data.db.RiddleDao
 import com.example.daveai.data.db.verifyUserAnswer
+import com.example.daveai.data.model.DaveMode
 import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.data.repository.SettingsRepository
 import com.example.daveai.data.repository.UserProfile
@@ -33,6 +34,7 @@ data class RiddleUiState(
     val sessions: List<com.example.daveai.data.db.ConversationEntity> = emptyList(),
     val glowStrength: Float = 0.5f,
     val blurIntensity: Float = 0.5f,
+    val currentMode: DaveMode = DaveMode.EXPLORER
 )
 
 class RiddleViewModel(
@@ -181,6 +183,10 @@ class RiddleViewModel(
         viewModelScope.launch {
             settingsRepository.setBlurIntensity(intensity)
         }
+    }
+
+    fun setMode(mode: DaveMode) {
+        _uiState.update { it.copy(currentMode = mode) }
     }
 
     fun createNewChat() {

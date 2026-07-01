@@ -21,8 +21,8 @@ android {
         applicationId = "com.example.daveai"
         minSdk = 36
         targetSdk = 37
-        versionCode = 18
-        versionName = "BPBP47.2026.18"
+        versionCode = 19
+        versionName = "BP48.2026.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -56,7 +56,7 @@ android {
         val firestoreKey = localProps.getProperty("FIRESTORE_API_KEY") ?: "AIzaSyAUuKyeoKa2V694n9SA04Rln6kw-IY9PNI"
         buildConfigField("String", "FIRESTORE_API_KEY", "\"$firestoreKey\"")
 
-        buildConfigField("String", "INTELLIGENCE_VERSION", "\"V1.0.0\"")
+        buildConfigField("String", "INTELLIGENCE_VERSION", "\"BP46.2026.16\"")
         manifestPlaceholders["intelligenceAuthority"] = "com.example.daveai.intelligence"
         manifestPlaceholders["appPackageName"] = "com.example.daveai"
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey

@@ -62,6 +62,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDownload
@@ -78,6 +79,7 @@ import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicNone
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Share
@@ -137,6 +139,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import com.example.daveai.data.model.DaveMode
 import com.example.daveai.ui.components.FluidButton
 import com.example.daveai.ui.components.GlassSidebar
 import com.example.daveai.ui.components.NeuralCard
@@ -337,11 +340,13 @@ fun ChatScreen(
                 onEnterMarketplace = onEnterMarketplace,
                 onEnterPersonaEditor = onEnterPersonaEditor,
                 onEnterVision = onEnterVision,
+                onUpdateGlowStrength = viewModel::updateGlowStrength,
+                onUpdateBlurIntensity = viewModel::updateBlurIntensity,
+                onModeChange = viewModel::setMode,
+                currentMode = uiState.currentMode,
                 onLogout = onLogout,
                 glowStrength = uiState.glowStrength,
-                blurIntensity = uiState.blurIntensity,
-                onUpdateGlowStrength = viewModel::updateGlowStrength,
-                onUpdateBlurIntensity = viewModel::updateBlurIntensity
+                blurIntensity = uiState.blurIntensity
             )
         },
         scrimColor = Color.Black.copy(alpha = 0.5f)
@@ -887,7 +892,83 @@ fun DaveWidget(type: WidgetType, data: String) {
     when (type) {
         WidgetType.MAP -> MapWidget(json)
         WidgetType.HARDWARE -> HardwareWidget(json)
+        WidgetType.POETRY -> PoetryWidget(json)
+        WidgetType.MEDIA -> MediaWidget(json)
         else -> Text("WIDGET :: $type [DATA_ENCRYPTED]", color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+fun PoetryWidget(data: JSONObject) {
+    val title = data.optString("title", "Neural Echo")
+    val author = data.optString("author", "Dave")
+    val lines = data.optJSONArray("lines")
+    val content = data.optString("content", "")
+
+    NeuralCard(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.AutoStories, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            Text("by $author", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+            Spacer(Modifier.height(12.dp))
+            
+            if (lines != null) {
+                for (i in 0 until lines.length()) {
+                    Text(lines.optString(i), style = MaterialTheme.typography.bodyLarge, fontFamily = FontFamily.Serif)
+                }
+            } else {
+                Text(content, style = MaterialTheme.typography.bodyLarge, fontFamily = FontFamily.Serif)
+            }
+        }
+    }
+}
+
+@Composable
+fun MediaWidget(data: JSONObject) {
+    val url = data.optString("url", "")
+    val id = data.optString("id", "")
+    val type = data.optString("type", "IMAGE")
+
+    NeuralCard(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (type == "IMAGE") Icons.Rounded.Image else Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (type == "IMAGE") "Visual Synthesis" else "Audio Composition",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            
+            if (type == "IMAGE" && url.isNotBlank()) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = "Generated Image",
+                    modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp))
+                )
+            } else {
+                Text("Content ID: $id", style = MaterialTheme.typography.bodyMedium)
+                Text("Processing on neural mainframe...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                if (url.isNotBlank()) {
+                    BouncyButton(
+                        onClick = { /* Open URL */ },
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text("Stream Audio")
+                    }
+                }
+            }
+        }
     }
 }
 

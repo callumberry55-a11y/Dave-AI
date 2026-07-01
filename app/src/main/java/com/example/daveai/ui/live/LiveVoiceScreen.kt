@@ -72,6 +72,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.daveai.DaveApplication
+import com.example.daveai.data.model.DaveMode
 import com.example.daveai.ui.chat.AttachedFile
 import com.example.daveai.ui.chat.ChatViewModel
 import com.example.daveai.util.VoiceToTextManager
@@ -417,7 +418,7 @@ fun SiriWaveAnimation(
     isThinking: Boolean,
     isSpeaking: Boolean,
     rms: Float,
-    mode: com.example.daveai.ui.chat.DaveMode = com.example.daveai.ui.chat.DaveMode.EXPLORER
+    mode: DaveMode = DaveMode.EXPLORER
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
     val phase by infiniteTransition.animateFloat(
@@ -446,11 +447,15 @@ fun SiriWaveAnimation(
     
     // Wave colors based on state AND mode
     val speakingBaseColor = when (mode) {
-        com.example.daveai.ui.chat.DaveMode.HACKER -> Color(0xFF00E676) // Matrix Green
-        com.example.daveai.ui.chat.DaveMode.CREATIVE -> Color(0xFFC0CA33) // Lime Gold
-        com.example.daveai.ui.chat.DaveMode.ANALYST -> Color(0xFFFFD600) // Gold
-        com.example.daveai.ui.chat.DaveMode.GAMER -> Color(0xFFF44336) // Red
-        com.example.daveai.ui.chat.DaveMode.RESEARCHER -> Color(0xFF00C853) // Emerald
+        DaveMode.HACKER -> Color(0xFF00E676) // Matrix Green
+        DaveMode.CREATIVE -> Color(0xFFC0CA33) // Lime Gold
+        DaveMode.ANALYST -> Color(0xFFFFD600) // Gold
+        DaveMode.GAMER -> Color(0xFFF44336) // Red
+        DaveMode.RESEARCHER -> Color(0xFF00C853) // Emerald
+        DaveMode.VISIONARY -> Color(0xFF64FFDA) // Teal
+        DaveMode.SOCIOLOGIST -> Color(0xFFE040FB) // Purple
+        DaveMode.APP_FACTORY -> Color(0xFF2979FF) // Blue
+        DaveMode.POET -> Color(0xFFF06292) // Pink
         else -> Color(0xFF00E676) // Default Emerald
     }
 

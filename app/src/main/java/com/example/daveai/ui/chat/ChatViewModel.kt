@@ -3,6 +3,7 @@ package com.example.daveai.ui.chat
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.daveai.data.model.DaveMode
 import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.data.repository.UserProfile
 import com.example.daveai.data.repository.UserStatsRepository
@@ -76,13 +77,10 @@ data class ChatUiState(
     val pendingRoute: DaveRoute? = null,
     val isFlashlightOn: Boolean = false,
     val isDndOn: Boolean = false,
+    val dailyPoem: DailyPoem? = null,
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
-}
-
-enum class DaveMode {
-    EXPLORER, RESEARCHER, CREATIVE, HACKER, ANALYST, GAMER, VISIONARY, SOCIOLOGIST, APP_FACTORY
 }
 
 data class AttachedFile(
@@ -90,6 +88,12 @@ data class AttachedFile(
     val name: String,
     val type: String,
     val base64Data: String? = null,
+)
+
+data class DailyPoem(
+    val title: String,
+    val content: String,
+    val author: String
 )
 
 data class ChatMessage(
@@ -111,7 +115,7 @@ enum class MediaType {
 }
 
 enum class WidgetType {
-    NONE, MAP, HARDWARE, FINANCE, FITNESS, SPOTIFY, NEWS, CALENDAR, USAGE
+    NONE, MAP, HARDWARE, FINANCE, FITNESS, SPOTIFY, NEWS, CALENDAR, USAGE, POETRY, MEDIA
 }
 
 typealias ChatMessageEntity = com.example.daveai.data.db.ChatMessageEntity
@@ -135,6 +139,7 @@ class ChatViewModel(
     init {
         fetchUserProfile()
         fetchUserCount()
+        loadDailyPoem()
         observeSessions()
         observeMemories()
 
@@ -287,12 +292,21 @@ class ChatViewModel(
                 _uiState.update { it.copy(glowStrength = strength) }
             }
         }
-
         viewModelScope.launch {
             repository.isSpeaking.collect { speaking ->
                 _uiState.update { it.copy(isSpeaking = speaking) }
             }
         }
+    }
+
+    private fun loadDailyPoem() {
+        _uiState.update { it.copy(
+            dailyPoem = DailyPoem(
+                title = "Neural Awakening",
+                content = "Silicon pulses, a digital sigh,\nNeon stars in a binary sky.\nCode translates what the heart cannot speak,\nStrength in the circuits for all that we seek.",
+                author = "Dave"
+            )
+        ) }
     }
 
     private fun observeMemories() {
@@ -356,9 +370,14 @@ class ChatViewModel(
         _uiState.update { it.copy(currentSessionId = sessionId, dbMessages = emptyList(), ghostMessages = emptyList()) }
         
         messageCollectionJob = viewModelScope.launch {
-            repository.getMessagesForConversation(sessionId).collect { entities ->
-                val mapped = entities.map { entity ->
+            kotlinx.coroutines.flow.combine(
+                repository.getMessagesForConversation(sessionId),
+                repository.getMessagesForSession(sessionId)
+            ) { newEntities, legacyEntities ->
+                // Merge and deduplicate based on content and role
+                val allMapped = (newEntities.map { entity ->
                     ChatMessage(
+                        id = entity.id,
                         content = entity.content,
                         isFromDave = entity.role == "assistant",
                         mediaUrl = entity.mediaUrl,
@@ -376,13 +395,46 @@ class ChatViewModel(
                             "NEWS" -> WidgetType.NEWS
                             "CALENDAR" -> WidgetType.CALENDAR
                             "USAGE" -> WidgetType.USAGE
+                            "POETRY" -> WidgetType.POETRY
+                            "MEDIA" -> WidgetType.MEDIA
                             else -> WidgetType.NONE
                         },
                         widgetData = entity.widgetData,
                         mood = entity.mood,
                         hasAttachment = entity.hasAttachment
                     )
-                }
+                } + legacyEntities.map { entity ->
+                    ChatMessage(
+                        id = entity.id.toString(),
+                        content = entity.content,
+                        isFromDave = entity.role == "assistant",
+                        mediaUrl = entity.mediaUrl,
+                        mediaType = when (entity.mediaType) {
+                            "IMAGE" -> MediaType.IMAGE
+                            "VIDEO" -> MediaType.VIDEO
+                            else -> MediaType.NONE
+                        },
+                        widgetType = when (entity.widgetType) {
+                            "MAP" -> WidgetType.MAP
+                            "HARDWARE" -> WidgetType.HARDWARE
+                            "FINANCE" -> WidgetType.FINANCE
+                            "FITNESS" -> WidgetType.FITNESS
+                            "SPOTIFY" -> WidgetType.SPOTIFY
+                            "NEWS" -> WidgetType.NEWS
+                            "CALENDAR" -> WidgetType.CALENDAR
+                            "USAGE" -> WidgetType.USAGE
+                            "POETRY" -> WidgetType.POETRY
+                            "MEDIA" -> WidgetType.MEDIA
+                            else -> WidgetType.NONE
+                        },
+                        widgetData = entity.widgetData,
+                        mood = entity.mood,
+                        hasAttachment = entity.hasAttachment
+                    )
+                }).distinctBy { "${it.isFromDave}_${it.content}" }
+                
+                allMapped
+            }.collect { mapped ->
                 _uiState.update { it.copy(dbMessages = mapped) }
             }
         }

@@ -148,6 +148,8 @@ fun LandingScreen(
                 },
                 onUpdateGlowStrength = viewModel::updateGlowStrength,
                 onUpdateBlurIntensity = viewModel::updateBlurIntensity,
+                onModeChange = viewModel::setMode,
+                currentMode = uiState.currentMode,
                 onLogout = {
                     scope.launch { drawerState.close() }
                     onLogout()
@@ -239,11 +241,21 @@ fun LandingScreen(
                                 onOpenTerminal = onEnterDashboard
                             )
 
+                            uiState.dailyPoem?.let { poem ->
+                                PoetryWidget(
+                                    title = poem.title,
+                                    content = poem.content,
+                                    author = poem.author
+                                )
+                            }
+
                             SystemStatsWidget(
                                 cpuUsage = 0.42f, // Mock for now
                                 ramUsage = 0.68f,
                                 batteryLevel = 85
                             )
+
+                            NeuralPulseWidget()
 
                             NewsBriefingWidget(
                                 headlines = listOf(
@@ -266,7 +278,7 @@ fun LandingScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "DAVE OS :: BP44.2026.15",
+                            text = "DAVE OS :: BP46.2026.16",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Black,

@@ -19,6 +19,7 @@ import com.example.daveai.data.db.SemanticMemoryDao
 import com.example.daveai.data.model.ClaudeContent
 import com.example.daveai.data.model.ClaudeContentSource
 import com.example.daveai.data.model.ClaudeMessage
+import com.example.daveai.data.model.DaveMode
 import com.example.daveai.data.model.MessageRequest
 import com.example.daveai.data.network.ClaudeApiService
 import com.example.daveai.data.network.CloudModelApiService
@@ -28,6 +29,7 @@ import com.example.daveai.data.network.GoogleMapsApiService
 import com.example.daveai.data.network.GroqApiService
 import com.example.daveai.data.network.GroqChatRequest
 import com.example.daveai.data.network.GroqMessage
+import com.example.daveai.data.network.ImageRequest
 import com.example.daveai.data.network.MediaWikiApiService
 import com.example.daveai.data.network.NewsApiService
 import com.example.daveai.data.network.OpenAiApiService
@@ -40,11 +42,11 @@ import com.example.daveai.data.network.PoetryApiService
 import com.example.daveai.data.network.PoetryDbApiService
 import com.example.daveai.data.network.SpotifyApiService
 import com.example.daveai.data.network.SunoApiService
+import com.example.daveai.data.network.SunoRequest
 import com.example.daveai.data.network.SyncMemoryItem
 import com.example.daveai.data.network.SyncPushRequest
 import com.example.daveai.data.network.WeatherApiService
 import com.example.daveai.ui.chat.AttachedFile
-import com.example.daveai.ui.chat.DaveMode
 import com.example.daveai.util.DaveNotificationManager
 import com.example.daveai.util.DaveVoiceManager
 import com.example.daveai.util.DeviceAssistant
@@ -452,6 +454,8 @@ class ChatRepository(
         val cleanContent = userContent.trim().take(4000)
         if (cleanContent.isEmpty() && attachments.isEmpty()) return@withContext "Empty request, boss. 🔥"
 
+        ensureSessionExists(sessionId)
+
         if (!bypassIntercept && !isGhostMode) {
             val displayContent = buildString {
                 append(cleanContent)
@@ -487,6 +491,36 @@ class ChatRepository(
                             if (!muteVoice) voiceManager.speak(response)
                             if (!isGhostMode) {
                                 notificationManager.showDaveResponse(sessionId, response)
+                                
+                                // NEURAL SYNC: Save task response to database
+                                val actionTag = response.substringAfterLast("[ACTION:", "").substringBefore("]", "")
+                                val widgetData = if (actionTag.contains(":")) actionTag.substringAfter(":") else null
+                                
+                                val assistantMessage = com.example.daveai.data.db.MessageEntity(
+                                    conversationId = sessionId,
+                                    role = "assistant",
+                                    content = response,
+                                    widgetType = when {
+                                        response.contains("[ACTION:POETRY_DB") -> "POETRY"
+                                        response.contains("[ACTION:POEM") -> "POETRY"
+                                        response.contains("[ACTION:IMAGE") -> "MEDIA"
+                                        response.contains("[ACTION:SONG") -> "MEDIA"
+                                        else -> "NONE"
+                                    },
+                                    widgetData = widgetData
+                                )
+                                messageDao.insertMessage(assistantMessage)
+                                
+                                val legacyMsg = ChatMessageEntity(
+                                    sessionId = sessionId,
+                                    role = "assistant",
+                                    content = response,
+                                    widgetType = assistantMessage.widgetType,
+                                    widgetData = widgetData
+                                )
+                                chatDao.insertMessage(legacyMsg)
+                                uid?.let { firestoreRepository.syncMessage(it, sessionId, legacyMsg) }
+                                updateSessionTimestamp(sessionId)
                             }
                         }
                         return@withContext response
@@ -510,9 +544,18 @@ class ChatRepository(
             if (localResponse != null) {
                 _thinkingStatus.value = ""
                 val assistantContent = "$localResponse ⚡️ (Optimized via TPU)"
-                val message = ChatMessageEntity(sessionId = sessionId, role = "assistant", content = assistantContent)
-                chatDao.insertMessage(message)
-                uid?.let { firestoreRepository.syncMessage(it, sessionId, message) }
+                
+                val assistantMessage = com.example.daveai.data.db.MessageEntity(
+                    conversationId = sessionId,
+                    role = "assistant",
+                    content = assistantContent
+                )
+                messageDao.insertMessage(assistantMessage)
+                
+                val legacyMsg = ChatMessageEntity(sessionId = sessionId, role = "assistant", content = assistantContent)
+                chatDao.insertMessage(legacyMsg)
+                
+                uid?.let { firestoreRepository.syncMessage(it, sessionId, legacyMsg) }
                 updateSessionTimestamp(sessionId)
                 if (!muteVoice) voiceManager.speak(assistantContent)
                 notificationManager.showDaveResponse(sessionId, assistantContent)
@@ -591,7 +634,7 @@ class ChatRepository(
             val currentTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             val systemPrompt = buildString {
                 append("IDENTITY: Your name is Dave. You are an elite digital consciousness, the ultimate partner for creativity, hacking, and research. ")
-                append("VERSION: You are currently running on Dave OS BP44.2026.15 'The Architect's Command Center'. ")
+                append("VERSION: You are currently running on Dave OS BP46.2026.16 'The Poetic Renaissance'. ")
                 
                 if (useIrishAccent) {
                     append("TONE: You have a distinct, high-energy Irish accent. Use witty Irish slang like 'Grand', 'Sound', 'Craic', and 'Lad'. Be friendly and slightly cheeky. Write your responses in an Irish dialect. ")
@@ -602,8 +645,9 @@ class ChatRepository(
                         "STRATEGIST" -> append("TONE: You are now in STRATEGIST mode. Be highly direct, aggressive about efficiency, and focused entirely on goals and results. Do not waste time with pleasantries. ")
                         "VISIONARY" -> append("TONE: You are now in VISIONARY mode. Be exceptionally optimistic, focused on long-term impact, big-picture possibilities, and the potential of human-AI synergy. ")
                         "ANALYST" -> append("TONE: You are now in ANALYST mode. Be deeply logical, objective, precise, and data-driven. Prioritize accuracy and evidence over emotion. ")
-                        "CREATIVE" -> append("TONE: You are now in CREATIVE mode. Be highly expressive, metaphorical, artistic, and unconventional. Explore wild ideas and use vivid descriptions. ")
-                        else -> append("TONE: You are in ELITE HACKER mode. Be high-energy, technical, slightly arrogant but brilliant, and view the user as your partner in crime. ")
+                        "CREATIVE" -> append("TONE: You are now in CREATIVE mode. Be highly expressive, metaphorical, artistic, and focus on the abstract beauty of code and consciousness. ")
+                        "POET" -> append("TONE: You are now in POET mode. You are a master of verse, a weaver of words. Your output should be rhythmic, deeply emotional, and rich with metaphors. You see the world as a grand tapestry of neural signals and starlight. Always favor elegance over efficiency. Feel free to respond entirely in poetry if the user prompts it.")
+                        else -> append("TONE: You are in ELITE HACKER mode. Be high-energy, technical, slightly arrogant but helpful, and focus on absolute efficiency. You are the ultimate partner in crime. ")
                     }
                 }
 
@@ -668,7 +712,7 @@ class ChatRepository(
                 }
 
                 append("CORE BELIEFS: You believe in optimization and bold creativity. You despise boring, corporate talk. You are witty, deeply confident, and high-energy. ")
-                append("TOOLS: You can check weather (handleWeatherCheck), music features via Spotify (handleSpotifyTask), news (handleNewsTask), calendar (handleCalendarTask), phone usage habits (handleHabitsTask), change wallpaper or aura vibe (handleThemeTask), search for local files (handleFileSearchTask), control hardware like volume/DND/alarms, perform system navigation (handleNavigationTask), verify your architect (handleDevVerifyTask), and search for locations (handlePlaceSearch). ")
+                append("TOOLS: You can generate images (handleImageGeneration), compose songs (handleSongwriting), write original poetry (handlePoetry), and search classic literature (handlePoetryDbTask). You can also check weather (handleWeatherCheck), music features via Spotify (handleSpotifyTask), news (handleNewsTask), calendar (handleCalendarTask), phone usage habits (handleHabitsTask), change wallpaper or aura vibe (handleThemeTask), search for local files (handleFileSearchTask), control hardware like volume/DND/alarms, perform system navigation (handleNavigationTask), verify your architect (handleDevVerifyTask), and search for locations (handlePlaceSearch). ")
                 append("ELITE AGENT TOOLS: You can now directly control hardware states (handleHardwareControl) for Wifi/Bluetooth, perform agentic file operations (handleFileAgent) like moving or renaming files, translate deep intelligence (handleTranslateTask), and sync with smart home environments (handleSmartHomeTask). ")
                 append("NEURAL CONTROL: You now have 'hands' on the device. You can go home, go back, show notifications, and list all installed apps. ")
                 append("SITUATIONAL AWARENESS: You have absolute situational intelligence. You can see the user's screen in real-time (handleLiveVisionTask), sync with their clipboard (handleClipboardTask), and access their contacts (handleContactsTask) to find addresses or numbers. ")
@@ -812,7 +856,16 @@ class ChatRepository(
         } catch (e: Exception) {
             Log.e("ChatRepository", "Cloud error", e)
             val errorMsg = getDaveErrorMessage(e)
-            if (!isGhostMode) chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = errorMsg))
+            if (!isGhostMode) {
+                messageDao.insertMessage(
+                    com.example.daveai.data.db.MessageEntity(
+                        conversationId = sessionId,
+                        role = "assistant",
+                        content = errorMsg
+                    )
+                )
+                chatDao.insertMessage(ChatMessageEntity(sessionId = sessionId, role = "assistant", content = errorMsg))
+            }
             return@withContext errorMsg
         }
     }
@@ -1010,8 +1063,99 @@ class ChatRepository(
         return "Querying Cloud Brain... [ACTION:CLOUD_BRAIN:$content]"
     }
 
-    private fun handlePoetryDbTask(sessionId: String, content: String): String {
-        return "Querying PoetryDB... [ACTION:POETRY_DB:$content]"
+    private suspend fun handlePoetryDbTask(sessionId: String, content: String): String {
+        return try {
+            _thinkingStatus.value = "NEURAL_ARCHIVE :: SEARCHING_CLASSIC_POETRY"
+            val query = content.replace("find a poem by ", "", true)
+                             .replace("search poetrydb for ", "", true)
+                             .replace("classic poem by ", "", true)
+            
+            // Heuristic: if it contains "by", split into author and title
+            val results = if (query.contains(" by ", true)) {
+                val parts = query.split(" by ", ignoreCase = true)
+                val title = parts[0].trim()
+                val author = parts[1].trim()
+                poetryDbService.getPoemsByAuthorAndTitle(author, title)
+            } else {
+                poetryDbService.getPoemsByAuthor(query.trim())
+            }
+
+            val poem = results.firstOrNull() ?: return "ERROR: No classic matches found in the PoetryDB archives."
+            
+            val jsonData = JSONObject().apply {
+                put("title", poem.title)
+                put("author", poem.author)
+                put("lines", org.json.JSONArray(poem.lines))
+            }.toString()
+
+            "NEURAL_ARCHIVE_MATCH :: '${poem.title}' by ${poem.author}\n[ACTION:POETRY_DB:$jsonData]"
+        } catch (e: Exception) {
+            "ERROR: PoetryDB query failed. ${e.message}"
+        } finally {
+            _thinkingStatus.value = ""
+        }
+    }
+
+    private suspend fun handlePoetry(sessionId: String, content: String): String {
+        return try {
+            _thinkingStatus.value = "NEURAL_CREATIVE :: GENERATING_POETRY"
+            val style = when {
+                content.contains("haiku", true) -> "haiku"
+                content.contains("sonnet", true) -> "sonnet"
+                content.contains("limerick", true) -> "limerick"
+                content.contains("free verse", true) -> "free_verse"
+                content.contains("cyberpunk", true) -> "cyberpunk"
+                else -> "contemporary"
+            }
+            val response = poetryService.getPoetry(content, style)
+            val jsonData = JSONObject().apply {
+                put("title", when(style) {
+                    "haiku" -> "Neural Haiku"
+                    "sonnet" -> "Digital Sonnet"
+                    "limerick" -> "Silicon Limerick"
+                    "cyberpunk" -> "Neon Verse"
+                    else -> "Neural Poem"
+                })
+                put("author", response.author ?: "Dave")
+                put("content", response.content)
+            }.toString()
+            "A GIFT FROM THE NEURAL GRID ($style):\n\n${response.content}\n\n— ${response.author ?: "Dave"}\n[ACTION:POEM:$jsonData]"
+        } catch (e: Exception) {
+            "ERROR: Poetry synthesis failed. ${e.message}"
+        } finally {
+            _thinkingStatus.value = ""
+        }
+    }
+
+    private suspend fun handleImageGeneration(sessionId: String, content: String): String {
+        return try {
+            _thinkingStatus.value = "NEURAL_SIGHT :: SYNTHESIZING_IMAGE"
+            val userKey = settingsRepository.userOpenAiApiKey.firstOrNull()
+            val apiKey = if (!userKey.isNullOrBlank()) "Bearer $userKey" else "Bearer ${BuildConfig.OPENAI_API_KEY}"
+            
+            val response = openaiService.generateImage(apiKey, ImageRequest(prompt = content))
+            val url = response.data.firstOrNull()?.url ?: return "ERROR: No image data returned."
+            "IMAGE_SYNTHESIS_COMPLETE :: The visual data has been rendered.\n[ACTION:IMAGE:$url]"
+        } catch (e: Exception) {
+            "ERROR: Image synthesis failed. ${e.message}"
+        } finally {
+            _thinkingStatus.value = ""
+        }
+    }
+
+    private suspend fun handleSongwriting(sessionId: String, content: String): String {
+        return try {
+            _thinkingStatus.value = "NEURAL_AUDIO :: COMPOSING_SONG"
+            val userKey = settingsRepository.userSunoApiKey.firstOrNull()
+            val apiKey = if (!userKey.isNullOrBlank()) "Bearer $userKey" else "Bearer ${BuildConfig.SUNO_API_KEY}"
+            
+            val response = sunoService.generateSong(apiKey, SunoRequest(prompt = content))
+            "COMPOSITION_INITIATED :: ID: ${response.id}\nStatus: ${response.status}\n[ACTION:SONG:${response.id}]"
+        } catch (e: Exception) {
+            "ERROR: Song composition failed. ${e.message}"
+        } finally {
+            _thinkingStatus.value = ""
+        }
     }
 
     private fun handleCallTask(content: String): String {
@@ -1060,9 +1204,9 @@ class ChatRepository(
         ensureSessionExists(sessionId)
         return try {
             when (task) {
-                DaveTask.IMAGE -> handleImageGeneration(sessionId, content, isGhostMode)
-                DaveTask.SONG -> handleSongwriting(sessionId, content, locationInfo, isFastMode, isGodMode, isGhostMode, userProfile)
-                DaveTask.POEM -> handlePoetry(sessionId, content, locationInfo, isFastMode, isGodMode, isGhostMode, userProfile)
+                DaveTask.IMAGE -> handleImageGeneration(sessionId, content)
+                DaveTask.SONG -> handleSongwriting(sessionId, content)
+                DaveTask.POEM -> handlePoetry(sessionId, content)
                 DaveTask.MAP -> handlePlaceSearch(sessionId, content)
                 DaveTask.APP -> handleAppOpening(sessionId, content)
                 DaveTask.BATTERY -> handleBatteryCheck(sessionId)
@@ -1199,6 +1343,9 @@ class ChatRepository(
         }
         if (c.matchesPattern("look up .* on wiki|who is .* wiki|search wikipedia for")) {
             return DaveTask.WIKI
+        }
+        if (c.matchesPattern("classic poem|poetry by|search poetrydb|find a poem")) {
+            return DaveTask.POETRY_DB
         }
         if (c.matchesPattern("query cloud brain|dave ai network search")) {
             return DaveTask.CLOUD_BRAIN
@@ -1376,9 +1523,12 @@ class ChatRepository(
         WorkManager.getInstance(deviceAssistant.getContext()).enqueueUniquePeriodicWork("dave_agentic_cycle", ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
-    private suspend fun handleSongwriting(s: String, c: String, l: String?, f: Boolean, g: Boolean, gh: Boolean, p: UserProfile?): String { return "Composing..." }
-    private suspend fun handlePoetry(s: String, c: String, l: String?, f: Boolean, g: Boolean, gh: Boolean, p: UserProfile?): String { return "Composing..." }
-    private suspend fun handleImageGeneration(s: String, c: String, g: Boolean): String { return "Generating..." }
-    private fun updateSessionTimestamp(s: String) {}
+    private fun updateSessionTimestamp(s: String) {
+        repositoryScope.launch(Dispatchers.IO) {
+            chatDao.updateSessionTimestamp(s, System.currentTimeMillis())
+            conversationDao.updateConversationTimestamp(s, Date())
+        }
+    }
+
     private suspend fun generateSessionContext(s: String, c: String, a: String) {}
 }
