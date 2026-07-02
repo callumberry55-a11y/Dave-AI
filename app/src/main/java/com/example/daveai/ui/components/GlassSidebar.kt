@@ -74,6 +74,7 @@ fun GlassSidebar(
     onEnterMarketplace: () -> Unit,
     onEnterPersonaEditor: () -> Unit,
     onEnterVision: () -> Unit,
+    onEnterMultimedia: () -> Unit = {},
     onUpdateGlowStrength: (Float) -> Unit,
     onUpdateBlurIntensity: (Float) -> Unit,
     onModeChange: (DaveMode) -> Unit,
@@ -152,6 +153,13 @@ fun GlassSidebar(
                         icon = Icons.Rounded.Speed,
                         label = "The Sanctum",
                         onClick = onEnterSanctum
+                    )
+                }
+                item {
+                    SidebarLiquidItem(
+                        icon = Icons.Rounded.AutoStories,
+                        label = "Multimedia Hub",
+                        onClick = onEnterMultimedia
                     )
                 }
                 item {

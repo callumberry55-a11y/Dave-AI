@@ -55,6 +55,8 @@ import com.example.daveai.ui.developer.DeveloperDashboardScreen
 import com.example.daveai.ui.developer.DeveloperDashboardViewModel
 import com.example.daveai.ui.landing.LandingScreen
 import com.example.daveai.ui.live.LiveVoiceScreen
+import com.example.daveai.ui.multimedia.MultimediaHubScreen
+import com.example.daveai.ui.multimedia.MultimediaViewModel
 import com.example.daveai.ui.navigation.DaveRoute
 import com.example.daveai.ui.pulse.PulseScreen
 import com.example.daveai.ui.riddle.RiddleScreen
@@ -282,6 +284,14 @@ fun DaveApp(
         )
     }
 
+    val multimediaViewModel: MultimediaViewModel = viewModel {
+        MultimediaViewModel(
+            repository = app.chatRepository,
+            spotifyService = app.chatRepository.getSpotifyService(),
+            settingsRepository = settingsRepository
+        )
+    }
+
     val backStack = rememberNavBackStack(startRoute)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -333,6 +343,7 @@ fun DaveApp(
                                         onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
                                         onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
                                         onEnterVision = { backStack.add(DaveRoute.Vision) },
+                                        onEnterMultimedia = { backStack.add(DaveRoute.MultimediaHub) },
                                         onLogout = {
                                             authViewModel.logout()
                                             chatViewModel.reset()
@@ -368,6 +379,9 @@ fun DaveApp(
                                         onEnterVision = {
                                             backStack.add(DaveRoute.Vision)
                                         },
+                                        onEnterMultimedia = {
+                                            backStack.add(DaveRoute.MultimediaHub)
+                                        },
                                         onEnterSanctum = {
                                             backStack.add(DaveRoute.Sanctum)
                                         },
@@ -397,6 +411,7 @@ fun DaveApp(
                                         onEnterMarketplace = { backStack.add(DaveRoute.AuraMarketplace) },
                                         onEnterPersonaEditor = { backStack.add(DaveRoute.PersonalityEditor) },
                                         onEnterVision = { backStack.add(DaveRoute.Vision) },
+                                        onEnterMultimedia = { backStack.add(DaveRoute.MultimediaHub) },
                                         onLogout = {
                                             authViewModel.logout()
                                             chatViewModel.reset()
@@ -501,6 +516,14 @@ fun DaveApp(
                                 NavEntry(key) {
                                     PulseScreen(
                                         viewModel = chatViewModel,
+                                        onBack = { backStack.removeLastOrNull() }
+                                    )
+                                }
+                            }
+                            is DaveRoute.MultimediaHub -> {
+                                NavEntry(key) {
+                                    MultimediaHubScreen(
+                                        viewModel = multimediaViewModel,
                                         onBack = { backStack.removeLastOrNull() }
                                     )
                                 }

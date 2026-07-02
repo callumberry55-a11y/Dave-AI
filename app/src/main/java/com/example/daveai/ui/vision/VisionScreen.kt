@@ -71,7 +71,6 @@ import com.example.daveai.ui.theme.ObsidianDeep
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
@@ -247,13 +246,7 @@ fun VisionScreen(
                         viewModel.viewModelScope.launch {
                             try {
                                 val base64 = bitmapToBase64(bitmap)
-                                // In a real app, we'd use a multimodal model. 
-                                // Since Gemini Nano is on-device via SDK, we'll simulate the "intelligence" 
-                                // using Dave's cloud brain (Gemini/Claude) with the base64 if available, 
-                                // or a descriptive prompt for now.
-                                
-                                val response = "I see a dynamic environment with complex geometric structures. System state is optimized for real-time tracking."
-                                delay(1500)
+                                val response = viewModel.analyzeVisionFrame(base64)
                                 analysisResult = response
                                 isAnalyzing = false
                             } catch (e: Exception) {
@@ -310,5 +303,5 @@ private fun bitmapToBase64(bitmap: Bitmap): String {
     val outputStream = ByteArrayOutputStream()
     bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
     val byteArray = outputStream.toByteArray()
-    return Base64.encodeToString(byteArray, Base64.DEFAULT)
+    return Base64.encodeToString(byteArray, Base64.NO_WRAP)
 }

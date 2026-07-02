@@ -3,16 +3,29 @@ package com.example.daveai.util
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.os.Handler
+import android.os.Looper
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import com.example.daveai.BuildConfig
+import com.example.daveai.data.network.ElevenLabsApiService
 import com.example.daveai.data.network.OpenAiApiService
 import com.example.daveai.data.network.TtsRequest
-import com.example.daveai.data.network.ElevenLabsApiService
 import com.example.daveai.data.repository.SettingsRepository
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -25,10 +38,27 @@ class DaveVoiceManager(
     private val openAiService: OpenAiApiService,
     private val elevenLabsService: ElevenLabsApiService,
     private val settingsRepository: SettingsRepository
-) {
+) : TextToSpeech.OnInitListener {
     private val managerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaPlayer: MediaPlayer? = null
     private val audioQueue = ConcurrentLinkedQueue<File>()
+
+    private var tts: TextToSpeech? = null
+    private var isTtsInitialized = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+    
+    init {
+        tts = TextToSpeech(context, this)
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            isTtsInitialized = true
+            Log.d("DaveVoice", "System TTS Initialized.")
+        } else {
+            Log.e("DaveVoice", "System TTS Initialization failed.")
+        }
+    }
     
     @Volatile
     private var isPlayingQueue: Boolean = false
@@ -41,69 +71,128 @@ class DaveVoiceManager(
     private val _isSpeaking = MutableStateFlow(false)
     val isSpeaking: StateFlow<Boolean> = _isSpeaking
 
+    private val speechMutex = Mutex()
+
     var onStartSpeaking: (() -> Unit)? = null
     var onDoneSpeaking: (() -> Unit)? = null
     var onErrorSpeaking: (() -> Unit)? = null
 
     suspend fun speak(text: String, speed: Double = 1.05) = withContext(Dispatchers.IO) {
-        val userOpenAiKey = settingsRepository.userOpenAiApiKey.firstOrNull()
-        val openAiKey = if (!userOpenAiKey.isNullOrBlank()) userOpenAiKey else BuildConfig.OPENAI_API_KEY
+        val useSystemTts = settingsRepository.useSystemTts.firstOrNull() ?: false
         
-        if (openAiKey.isBlank()) {
-            Log.w("DaveVoice", "OpenAI API Key is missing. Dave is silent.")
+        if (useSystemTts) {
+            speakSystem(text)
             return@withContext
         }
 
-        Log.d("DaveVoice", "Initiating vocal sequence: \"${text.take(20)}...\"")
-        
-        // Stop current sequence
-        stop()
+        speechMutex.withLock {
+            val userOpenAiKey = settingsRepository.userOpenAiApiKey.firstOrNull()
+            val openAiKey = if (!userOpenAiKey.isNullOrBlank()) userOpenAiKey else BuildConfig.OPENAI_API_KEY
+            
+            if (openAiKey.isBlank()) {
+                Log.w("DaveVoice", "OpenAI API Key is missing. Dave is silent.")
+                return@withLock
+            }
 
-        val chunks = splitIntoChunks(text)
-        if (chunks.isEmpty()) return@withContext
+            Log.d("DaveVoice", "Initiating vocal sequence: \"${text.take(20)}...\"")
+            
+            // Stop current sequence
+            stop()
 
-        speakJob = managerScope.launch(Dispatchers.IO) {
-            isFetching = true
-            try {
-                // Map chunks to Deferred to preserve order while allowing parallel fetch
-                val deferredChunks = chunks.map { chunk ->
-                    async {
-                        fetchWithRetry(chunk, openAiKey, speed)
+            val chunks = splitIntoChunks(text)
+            if (chunks.isEmpty()) return@withLock
+
+            speakJob = managerScope.launch(Dispatchers.IO) {
+                isFetching = true
+                try {
+                    // Map chunks to Deferred to preserve order while allowing parallel fetch
+                    val deferredChunks = chunks.map { chunk ->
+                        async {
+                            fetchWithRetry(chunk, openAiKey, speed)
+                        }
                     }
-                }
 
-                // Process them in order
-                deferredChunks.forEachIndexed { index, deferred ->
-                    val tempFile = deferred.await()
-                    if (tempFile != null) {
-                        Log.d("DaveVoice", "Chunk $index ready, adding to queue.")
-                        audioQueue.offer(tempFile)
-                        
-                        // Kickstart playback if it's not currently active
-                        synchronized(this@DaveVoiceManager) {
-                            if (mediaPlayer == null) {
-                                Log.d("DaveVoice", "Player idle, kickstarting for chunk $index")
-                                managerScope.launch(Dispatchers.Main) {
-                                    playNextInQueue()
+                    // Process them in order
+                    deferredChunks.forEachIndexed { index, deferred ->
+                        val tempFile = deferred.await()
+                        if (tempFile != null) {
+                            Log.d("DaveVoice", "Chunk $index ready, adding to queue.")
+                            audioQueue.offer(tempFile)
+                            
+                            // Kickstart playback if it's not currently active
+                            synchronized(this@DaveVoiceManager) {
+                                if (mediaPlayer == null) {
+                                    Log.d("DaveVoice", "Player idle, kickstarting for chunk $index")
+                                    managerScope.launch(Dispatchers.Main) {
+                                        playNextInQueue()
+                                    }
                                 }
                             }
+                        } else {
+                            Log.e("DaveVoice", "Chunk $index failed to fetch.")
                         }
-                    } else {
-                        Log.e("DaveVoice", "Chunk $index failed to fetch.")
                     }
-                }
-            } finally {
-                isFetching = false
-                Log.d("DaveVoice", "All chunks fetched. Remaining in queue: ${audioQueue.size}")
-                // Final check to ensure we don't end early
-                synchronized(this@DaveVoiceManager) {
-                    if (mediaPlayer == null && audioQueue.isNotEmpty()) {
-                        managerScope.launch(Dispatchers.Main) {
-                            playNextInQueue()
+                } finally {
+                    isFetching = false
+                    Log.d("DaveVoice", "All chunks fetched. Remaining in queue: ${audioQueue.size}")
+                    // Final check to ensure we don't end early
+                    synchronized(this@DaveVoiceManager) {
+                        if (mediaPlayer == null && audioQueue.isNotEmpty()) {
+                            managerScope.launch(Dispatchers.Main) {
+                                playNextInQueue()
+                            }
                         }
                     }
                 }
             }
+            
+            // Wait for completion if needed, or just let it run in background?
+            // Actually, we want to hold the lock until the job is at least established
+            // and the previous one fully stopped.
+        }
+    }
+
+    private fun speakSystem(text: String) {
+        mainHandler.post {
+            // 1. Instantly kill any active or overlapping speech
+            tts?.stop()
+
+            // 2. Clear existing events if needed (Android TTS doesn't have onend/onboundary on the utterance itself like Web)
+            // But we can stop previous ones.
+
+            // 3. Force a tiny timeout buffer to let the audio engine reset (The "speakClean" logic)
+            mainHandler.postDelayed({
+                if (isTtsInitialized) {
+                    Log.d("DaveVoice", "System TTS speaking: \"${text.take(20)}...\"")
+                    _isSpeaking.value = true
+                    onStartSpeaking?.invoke()
+                    
+                    val params = android.os.Bundle()
+                    params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "")
+                    
+                    tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "DaveUtteranceId")
+                    
+                    // We don't have a perfect onDone for simple speak without listener, 
+                    // but we can set a listener if we want it to be perfect.
+                    tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) {}
+                        override fun onDone(utteranceId: String?) {
+                            mainHandler.post {
+                                _isSpeaking.value = false
+                                onDoneSpeaking?.invoke()
+                            }
+                        }
+                        override fun onError(utteranceId: String?) {
+                            mainHandler.post {
+                                _isSpeaking.value = false
+                                onErrorSpeaking?.invoke()
+                            }
+                        }
+                    })
+                } else {
+                    Log.w("DaveVoice", "System TTS not initialized yet.")
+                }
+            }, 50)
         }
     }
 
@@ -250,6 +339,7 @@ class DaveVoiceManager(
     fun stop() {
         synchronized(this) {
             Log.d("DaveVoice", "Stopping all vocal activity.")
+            tts?.stop()
             speakJob?.cancel()
             speakJob = null
             isFetching = false
@@ -271,6 +361,7 @@ class DaveVoiceManager(
 
     fun destroy() {
         stop()
+        tts?.shutdown()
         managerScope.cancel()
     }
 }

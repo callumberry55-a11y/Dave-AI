@@ -53,6 +53,7 @@ data class ChatUiState(
     val isShowingPreview: Boolean = false,
     val isAutoReplyEnabled: Boolean = false,
     val isSpeaking: Boolean = false,
+    val useSystemTts: Boolean = false,
     val partnerId: String? = null,
     val partnerName: String? = null,
     val pairingCode: String? = null,
@@ -78,6 +79,7 @@ data class ChatUiState(
     val isFlashlightOn: Boolean = false,
     val isDndOn: Boolean = false,
     val dailyPoem: DailyPoem? = null,
+    val systemStats: com.example.daveai.util.SystemStats = com.example.daveai.util.SystemStats(0f, 0f, 0),
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
@@ -142,6 +144,7 @@ class ChatViewModel(
         loadDailyPoem()
         observeSessions()
         observeMemories()
+        observeSystemStats()
 
         // Sync local UI state with SettingsRepository flows
         viewModelScope.launch {
@@ -202,6 +205,11 @@ class ChatViewModel(
         viewModelScope.launch {
             settingsRepository.isAutoReplyEnabled.collect { enabled ->
                 _uiState.update { it.copy(isAutoReplyEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.useSystemTts.collect { use ->
+                _uiState.update { it.copy(useSystemTts = use) }
             }
         }
 
@@ -307,6 +315,15 @@ class ChatViewModel(
                 author = "Dave"
             )
         ) }
+    }
+
+    private fun observeSystemStats() {
+        viewModelScope.launch {
+            val provider = com.example.daveai.util.SystemStatsProvider(repository.getContext())
+            provider.observeStats().collect { stats ->
+                _uiState.update { it.copy(systemStats = stats) }
+            }
+        }
     }
 
     private fun observeMemories() {
@@ -485,6 +502,38 @@ class ChatViewModel(
 
     fun stopSpeaking() {
         repository.stopSpeaking()
+    }
+
+    suspend fun analyzeVisionFrame(base64Data: String): String {
+        return try {
+            val uid = auth.currentUser?.uid
+            val userProfile = _uiState.value.userProfile
+            val persona = _uiState.value.digitalPersona
+            
+            repository.sendMessage(
+                sessionId = "vision_analysis_temp",
+                userContent = "EXAMINE OPTICAL DATA :: Provide a detailed, elite analysis of the objects, environment, and context within this frame. Respond with technical precision and your current persona tone.",
+                attachments = listOf(
+                    AttachedFile(
+                        uri = Uri.EMPTY,
+                        name = "vision_frame.jpg",
+                        type = "image/jpeg",
+                        base64Data = base64Data
+                    )
+                ),
+                isFastMode = false,
+                isGodMode = _uiState.value.isGodMode,
+                isGhostMode = true,
+                userProfile = userProfile,
+                uid = uid,
+                bypassIntercept = true,
+                mode = _uiState.value.currentMode,
+                persona = persona,
+                muteVoice = true
+            )
+        } catch (e: Exception) {
+            "Vision analysis failed: ${e.message}"
+        }
     }
 
     fun sendMessage(muteVoice: Boolean = false) {
@@ -702,6 +751,10 @@ class ChatViewModel(
 
     fun toggleAutoReply(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setIsAutoReplyEnabled(enabled) }
+    }
+
+    fun toggleSystemTts(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setUseSystemTts(enabled) }
     }
 
     fun updateClaudeApiKey(key: String?) {

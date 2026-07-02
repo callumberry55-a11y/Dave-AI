@@ -87,6 +87,7 @@ fun LandingScreen(
     onEnterMarketplace: () -> Unit,
     onEnterPersonaEditor: () -> Unit,
     onEnterVision: () -> Unit,
+    onEnterMultimedia: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -146,6 +147,10 @@ fun LandingScreen(
                 },
                 onEnterVision = {
                     onEnterVision()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterMultimedia = {
+                    onEnterMultimedia()
                     scope.launch { drawerState.close() }
                 },
                 onUpdateGlowStrength = viewModel::updateGlowStrength,
@@ -252,9 +257,9 @@ fun LandingScreen(
                             }
 
                             SystemStatsWidget(
-                                cpuUsage = 0.42f, // Mock for now
-                                ramUsage = 0.68f,
-                                batteryLevel = 85
+                                cpuUsage = uiState.systemStats.cpuUsage,
+                                ramUsage = uiState.systemStats.ramUsage,
+                                batteryLevel = uiState.systemStats.batteryLevel
                             )
 
                             NeuralPulseWidget()

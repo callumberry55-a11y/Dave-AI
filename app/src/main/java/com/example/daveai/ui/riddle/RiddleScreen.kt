@@ -171,6 +171,7 @@ fun RiddleScreen(
     onEnterMarketplace: () -> Unit = {},
     onEnterPersonaEditor: () -> Unit = {},
     onEnterVision: () -> Unit = {},
+    onEnterMultimedia: () -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -284,6 +285,10 @@ fun RiddleScreen(
                 },
                 onEnterVision = {
                     onEnterVision()
+                    scope.launch { drawerState.close() }
+                },
+                onEnterMultimedia = {
+                    onEnterMultimedia()
                     scope.launch { drawerState.close() }
                 },
                 onUpdateGlowStrength = viewModel::updateGlowStrength,

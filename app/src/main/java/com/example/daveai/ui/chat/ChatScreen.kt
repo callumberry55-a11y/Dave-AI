@@ -183,6 +183,7 @@ fun ChatScreen(
     onEnterMarketplace: () -> Unit = {},
     onEnterPersonaEditor: () -> Unit = {},
     onEnterVision: () -> Unit = {},
+    onEnterMultimedia: () -> Unit = {},
     onEnterIdentityVerification: () -> Unit = {},
     onBackToHub: () -> Unit = {}
 ) {
@@ -340,6 +341,7 @@ fun ChatScreen(
                 onEnterMarketplace = onEnterMarketplace,
                 onEnterPersonaEditor = onEnterPersonaEditor,
                 onEnterVision = onEnterVision,
+                onEnterMultimedia = onEnterMultimedia,
                 onUpdateGlowStrength = viewModel::updateGlowStrength,
                 onUpdateBlurIntensity = viewModel::updateBlurIntensity,
                 onModeChange = viewModel::setMode,

@@ -19,4 +19,5 @@ sealed interface DaveRoute {
     @Serializable data object IdentityVerification : DaveRoute, NavKey
     @Serializable data object Vision : DaveRoute, NavKey
     @Serializable data object Pulse : DaveRoute, NavKey
+    @Serializable data object MultimediaHub : DaveRoute, NavKey
 }

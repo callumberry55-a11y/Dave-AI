@@ -125,6 +125,7 @@ class ChatRepository(
     fun getContext() = deviceAssistant.getContext()
     fun getHardwareAccelerator() = hardwareAccelerator
     fun getScope() = repositoryScope
+    fun getSpotifyService() = spotifyService
 
     suspend fun syncCurrentUser() = withContext(Dispatchers.IO) {
         val user = FirebaseAuth.getInstance().currentUser ?: return@withContext
@@ -1107,7 +1108,7 @@ class ChatRepository(
                 content.contains("cyberpunk", true) -> "cyberpunk"
                 else -> "contemporary"
             }
-            val response = poetryService.getPoetry(content, style)
+            val response = getPoetry(content, style)
             val jsonData = JSONObject().apply {
                 put("title", when(style) {
                     "haiku" -> "Neural Haiku"
@@ -1125,6 +1126,10 @@ class ChatRepository(
         } finally {
             _thinkingStatus.value = ""
         }
+    }
+
+    suspend fun getPoetry(content: String, style: String): com.example.daveai.data.network.PoetryResponse {
+        return poetryService.getPoetry(content, style)
     }
 
     private suspend fun handleImageGeneration(sessionId: String, content: String): String {
