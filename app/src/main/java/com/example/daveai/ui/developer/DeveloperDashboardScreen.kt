@@ -95,9 +95,10 @@ fun DeveloperDashboardScreen(
     val outTokens by viewModel.totalOutputTokens.collectAsState()
     val recentUsage by viewModel.recentUsage.collectAsState()
     val globalStats by viewModel.globalStats.collectAsState()
+    val thoughts by viewModel.consciousnessStream.collectAsState()
     
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("OVERVIEW", "USERS", "MONITORING", "LOGS", "FIRESTORE")
+    val tabs = listOf("OVERVIEW", "USERS", "MONITORING", "THOUGHTS", "LOGS", "FIRESTORE")
 
     Scaffold(
         topBar = {
@@ -159,10 +160,63 @@ fun DeveloperDashboardScreen(
                             0 -> OverviewTab(totalUsers, allUsers)
                             1 -> UsersTab(allUsers, onElevate = viewModel::elevateUser, onDelete = viewModel::deleteUser)
                             2 -> MonitoringTab(inTokens, outTokens, recentUsage)
-                            3 -> LogsTab(recentEvents, serverLogs, onClear = viewModel::clearLogs)
-                            4 -> FirestoreTab(allUsers, globalStats)
+                            3 -> ThoughtsTab(thoughts)
+                            4 -> LogsTab(recentEvents, serverLogs, onClear = viewModel::clearLogs)
+                            5 -> FirestoreTab(allUsers, globalStats)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
                 }
             }
         }
@@ -282,6 +336,58 @@ fun OverviewTab(totalUsers: Long, allUsers: List<Map<String, Any>>) {
 }
 
 @Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ModernTelemetryRow(label: String, value: String, progress: Float, color: Color) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -295,6 +401,58 @@ fun ModernTelemetryRow(label: String, value: String, progress: Float, color: Col
             color = color,
             trackColor = Color.White.copy(alpha = 0.05f)
         )
+    }
+}
+
+@Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -357,6 +515,58 @@ fun UsersTab(users: List<Map<String, Any>>, onElevate: (String) -> Unit, onDelet
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
                 }
             }
         }
@@ -431,6 +641,58 @@ fun MonitoringTab(inTokens: Long, outTokens: Long, recentUsage: List<ChatMessage
 }
 
 @Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun LogsTab(securityEvents: List<SecurityEvent>, serverLogs: List<String>, onClear: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Surface(
@@ -489,6 +751,58 @@ fun LogsTab(securityEvents: List<SecurityEvent>, serverLogs: List<String>, onCle
 }
 
 @Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun FirestoreTab(users: List<Map<String, Any>>, globalStats: Map<String, Any>) {
     var selectedPath by remember { mutableStateOf("/users") }
     
@@ -523,6 +837,58 @@ fun FirestoreTab(users: List<Map<String, Any>>, globalStats: Map<String, Any>) {
 }
 
 @Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ModernFilterChip(selected: Boolean, onClick: () -> Unit, label: String) {
     Surface(
         onClick = onClick,
@@ -537,6 +903,58 @@ fun ModernFilterChip(selected: Boolean, onClick: () -> Unit, label: String) {
             style = MaterialTheme.typography.labelSmall,
             fontWeight = if (selected) FontWeight.Black else FontWeight.Normal
         )
+    }
+}
+
+@Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -556,5 +974,57 @@ fun FirestoreDataCard(content: String) {
             fontSize = 11.sp,
             lineHeight = 16.sp
         )
+    }
+}
+
+@Composable
+fun ThoughtsTab(thoughts: List<com.example.daveai.data.model.Thought>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(thoughts) { thought ->
+            NeuralCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(
+                                    when (thought.type) {
+                                        com.example.daveai.data.model.ThoughtType.REFLECTION -> DavePurple
+                                        com.example.daveai.data.model.ThoughtType.PLANNING -> DaveBlue
+                                        com.example.daveai.data.model.ThoughtType.EMOTION -> Color(0xFFE53935)
+                                        else -> NeonEmerald
+                                    },
+                                    CircleShape
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            thought.type.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(thought.timestamp)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        thought.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 }

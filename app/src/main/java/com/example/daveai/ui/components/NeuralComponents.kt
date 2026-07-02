@@ -155,7 +155,8 @@ fun NeuralTopBar(
     onNavigationClick: (() -> Unit)? = null,
     navigationIcon: ImageVector? = null,
     actions: @Composable RowScope.() -> Unit = {},
-    isProactive: Boolean = false
+    isProactive: Boolean = false,
+    hasNeuralActivity: Boolean = false
 ) {
     val isDark = isSystemInDarkTheme()
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -164,6 +165,14 @@ fun NeuralTopBar(
         targetValue = 0.8f,
         animationSpec = infiniteRepeatable(tween(3000), RepeatMode.Reverse),
         label = "alpha"
+    )
+
+    val activityTransition = rememberInfiniteTransition(label = "activity_pulse")
+    val activityScale by activityTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
+        label = "activity_scale"
     )
 
     Box(
@@ -205,6 +214,24 @@ fun NeuralTopBar(
                             "NEURAL ACTIVE",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else if (hasNeuralActivity) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .graphicsLayer {
+                                    scaleX = activityScale
+                                    scaleY = activityScale
+                                }
+                                .background(NeonEmerald, CircleShape)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "THOUGHT STREAM ACTIVE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NeonEmerald
                         )
                     }
                 }

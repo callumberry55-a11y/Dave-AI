@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.daveai.data.model.DaveMode
+import com.example.daveai.data.model.Thought
 import com.example.daveai.data.repository.ChatRepository
 import com.example.daveai.data.repository.UserProfile
 import com.example.daveai.data.repository.UserStatsRepository
@@ -84,7 +85,8 @@ data class ChatUiState(
     val dailyPoem: DailyPoem? = null,
     val systemStats: com.example.daveai.util.SystemStats = com.example.daveai.util.SystemStats(0f, 0f, 0),
     val rapportLevel: Int = 0,
-    val emotionalArc: String = ""
+    val emotionalArc: String = "",
+    val consciousnessStream: List<Thought> = emptyList()
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
@@ -324,6 +326,11 @@ class ChatViewModel(
         viewModelScope.launch {
             repository.isSpeaking.collect { speaking ->
                 _uiState.update { it.copy(isSpeaking = speaking) }
+            }
+        }
+        viewModelScope.launch {
+            repository.consciousnessStream.collect { stream ->
+                _uiState.update { it.copy(consciousnessStream = stream) }
             }
         }
     }

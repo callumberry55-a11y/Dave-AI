@@ -383,7 +383,8 @@ fun ChatScreen(
                             Icon(Icons.Rounded.Delete, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f))
                         }
                     },
-                    isProactive = uiState.messages.any { it.isFromDave }
+                    isProactive = uiState.messages.any { it.isFromDave },
+                    hasNeuralActivity = uiState.consciousnessStream.any { System.currentTimeMillis() - it.timestamp < 300_000 }
                 )
             },
             bottomBar = {

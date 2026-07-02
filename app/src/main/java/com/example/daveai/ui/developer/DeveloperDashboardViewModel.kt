@@ -4,13 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.daveai.data.db.SecurityEvent
 import com.example.daveai.data.db.SecurityEventDao
+import com.example.daveai.data.model.Thought
 import com.example.daveai.data.repository.UserStatsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class DashboardUiState(
@@ -55,6 +56,8 @@ class DeveloperDashboardViewModel(
 
     val globalStats = userStatsRepository.observeGlobalStats()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val consciousnessStream: StateFlow<List<Thought>> = chatRepository.consciousnessStream
 
     fun clearLogs() {
         viewModelScope.launch {

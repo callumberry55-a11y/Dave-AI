@@ -147,6 +147,9 @@ class MainActivity : FragmentActivity() {
             val meshAnimationSpeed by settingsRepository.meshAnimationSpeed.collectAsState(initial = 1.0f)
             val primaryColor = Color(primaryColorInt)
 
+            val thoughtStream by chatRepository.consciousnessStream.collectAsState(initial = emptyList())
+            val hasNeuralActivity = thoughtStream.any { System.currentTimeMillis() - it.timestamp < 300_000 }
+
             CompositionLocalProvider(
                 LocalCyberIntensity provides cyberIntensity,
                 com.example.daveai.ui.components.LocalGlowStrength provides glowStrength,
@@ -160,7 +163,8 @@ class MainActivity : FragmentActivity() {
                         primaryColor = primaryColor,
                         useSystemWallpaper = useSystemWallpaper,
                         customWallpaperUri = customWallpaperUri,
-                        animationSpeed = meshAnimationSpeed
+                        animationSpeed = meshAnimationSpeed,
+                        hasNeuralActivity = hasNeuralActivity
                     ) {
                         Surface(
                             modifier = Modifier.fillMaxSize(),

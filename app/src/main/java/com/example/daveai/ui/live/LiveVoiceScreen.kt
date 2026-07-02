@@ -306,7 +306,8 @@ fun LiveVoiceScreen(
                 isThinking = uiState.isLoading,
                 isSpeaking = isDaveSpeaking,
                 rms = rmsLevel,
-                mode = uiState.currentMode
+                mode = uiState.currentMode,
+                emotionalArc = uiState.emotionalArc
             )
 
             Spacer(modifier = Modifier.height(48.dp))
@@ -418,7 +419,8 @@ fun SiriWaveAnimation(
     isThinking: Boolean,
     isSpeaking: Boolean,
     rms: Float,
-    mode: DaveMode = DaveMode.EXPLORER
+    mode: DaveMode = DaveMode.EXPLORER,
+    emotionalArc: String = ""
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
     val phase by infiniteTransition.animateFloat(
@@ -445,8 +447,15 @@ fun SiriWaveAnimation(
         label = "dynamic_amplitude"
     )
     
-    // Wave colors based on state AND mode
-    val speakingBaseColor = when (mode) {
+    // Wave colors based on state AND mode AND emotional arc
+    val arcColor = when {
+        emotionalArc.lowercase().contains("trust") -> Color(0xFF64B5F6) // Soft Blue
+        emotionalArc.lowercase().contains("tension") -> Color(0xFFFF7043) // Deep Orange
+        emotionalArc.lowercase().contains("excited") -> Color(0xFFFFEE58) // Bright Yellow
+        else -> null
+    }
+
+    val speakingBaseColor = arcColor ?: when (mode) {
         DaveMode.HACKER -> Color(0xFF00E676) // Matrix Green
         DaveMode.CREATIVE -> Color(0xFFC0CA33) // Lime Gold
         DaveMode.ANALYST -> Color(0xFFFFD600) // Gold
