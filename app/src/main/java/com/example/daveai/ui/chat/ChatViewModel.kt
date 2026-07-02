@@ -86,7 +86,9 @@ data class ChatUiState(
     val systemStats: com.example.daveai.util.SystemStats = com.example.daveai.util.SystemStats(0f, 0f, 0),
     val rapportLevel: Int = 0,
     val emotionalArc: String = "",
-    val consciousnessStream: List<Thought> = emptyList()
+    val currentMood: String = "NEUTRAL",
+    val consciousnessStream: List<Thought> = emptyList(),
+    val sentienceSyncLevel: Float = 1.0f
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
@@ -333,6 +335,16 @@ class ChatViewModel(
                 _uiState.update { it.copy(consciousnessStream = stream) }
             }
         }
+
+        // Sentience Sync Simulation
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(5000)
+                _uiState.update { 
+                    it.copy(sentienceSyncLevel = (0.98f + (kotlin.random.Random.nextFloat() * 0.02f)).coerceAtMost(1.0f))
+                }
+            }
+        }
     }
 
     private fun loadDailyPoem() {
@@ -360,7 +372,8 @@ class ChatViewModel(
                 relationship?.let { rel ->
                     _uiState.update { it.copy(
                         rapportLevel = rel.rapportLevel,
-                        emotionalArc = rel.ongoingEmotionalArcs
+                        emotionalArc = rel.ongoingEmotionalArcs,
+                        currentMood = rel.currentMood
                     ) }
                 }
             }

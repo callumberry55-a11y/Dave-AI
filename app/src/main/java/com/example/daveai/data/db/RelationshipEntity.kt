@@ -15,5 +15,6 @@ data class RelationshipEntity(
     val partnerName: String? = null,
     val lastInteractionSentiment: String = "NEUTRAL",
     val totalInteractions: Int = 0,
-    val lastInteractionTimestamp: Long = System.currentTimeMillis()
+    val lastInteractionTimestamp: Long = System.currentTimeMillis(),
+    val currentMood: String = "NEUTRAL"
 )

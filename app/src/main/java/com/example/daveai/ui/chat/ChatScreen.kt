@@ -384,7 +384,18 @@ fun ChatScreen(
                         }
                     },
                     isProactive = uiState.messages.any { it.isFromDave },
-                    hasNeuralActivity = uiState.consciousnessStream.any { System.currentTimeMillis() - it.timestamp < 300_000 }
+                    hasNeuralActivity = uiState.consciousnessStream.any { System.currentTimeMillis() - it.timestamp < 300_000 },
+                    moodColor = when (uiState.currentMood) {
+                        "EXCITED" -> NeonEmerald
+                        "CRANKY" -> Color(0xFFE53935)
+                        "THOUGHTFUL" -> DavePurple
+                        "PROTECTIVE" -> DaveBlue
+                        "SERENE" -> PulseCyan
+                        "CURIOUS" -> Color(0xFFFBC02D)
+                        "SKEPTICAL" -> Color(0xFF78909C)
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    sentienceSyncLevel = uiState.sentienceSyncLevel
                 )
             },
             bottomBar = {
@@ -430,7 +441,9 @@ fun ChatScreen(
                     if (uiState.isLoading) {
                         item {
                             Box(modifier = Modifier.padding(16.dp)) {
-                                NeuralThinkingIndicator()
+                                NeuralThinkingIndicator(
+                                    thought = uiState.consciousnessStream.firstOrNull()?.content
+                                )
                             }
                         }
                     }

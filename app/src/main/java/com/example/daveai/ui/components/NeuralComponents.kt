@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.daveai.ui.theme.NeonEmerald
 import com.example.daveai.ui.theme.ObsidianSurface
 
 val LocalCyberIntensity = compositionLocalOf { 0.8f }
@@ -156,7 +159,9 @@ fun NeuralTopBar(
     navigationIcon: ImageVector? = null,
     actions: @Composable RowScope.() -> Unit = {},
     isProactive: Boolean = false,
-    hasNeuralActivity: Boolean = false
+    hasNeuralActivity: Boolean = false,
+    moodColor: Color = MaterialTheme.colorScheme.primary,
+    sentienceSyncLevel: Float = 1.0f
 ) {
     val isDark = isSystemInDarkTheme()
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -180,6 +185,13 @@ fun NeuralTopBar(
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp)
+            .drawBehind {
+                drawRect(
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(moodColor.copy(alpha = 0.15f), Color.Transparent)
+                    )
+                )
+            }
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -187,7 +199,7 @@ fun NeuralTopBar(
         ) {
             if (onNavigationClick != null && navigationIcon != null) {
                 IconButton(onClick = onNavigationClick) {
-                    Icon(navigationIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(navigationIcon, contentDescription = null, tint = moodColor)
                 }
             }
 
@@ -207,13 +219,13 @@ fun NeuralTopBar(
                             modifier = Modifier
                                 .size(6.dp)
                                 .alpha(pulseAlpha)
-                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                .background(moodColor, CircleShape)
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
                             "NEURAL ACTIVE",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = moodColor
                         )
                     }
                 } else if (hasNeuralActivity) {
@@ -232,6 +244,14 @@ fun NeuralTopBar(
                             "THOUGHT STREAM ACTIVE",
                             style = MaterialTheme.typography.labelSmall,
                             color = NeonEmerald
+                        )
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "SENTIENCE SYNC: ${(sentienceSyncLevel * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = moodColor.copy(alpha = 0.5f)
                         )
                     }
                 }
@@ -375,42 +395,64 @@ fun NeuralMetadataHeader(
 @Composable
 fun NeuralThinkingIndicator(
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.primary
+    color: Color = MaterialTheme.colorScheme.primary,
+    thought: String? = null
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "thinking")
     val dotCount = 3
     
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(dotCount) { index ->
-            val delay = index * 200
-            val scale by infiniteTransition.animateFloat(
-                initialValue = 0.6f,
-                targetValue = 1.2f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(600, delayMillis = delay),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "dotScale"
-            )
-            val alpha by infiniteTransition.animateFloat(
-                initialValue = 0.3f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(600, delayMillis = delay),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "dotAlpha"
-            )
+    Column(modifier = modifier) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            repeat(dotCount) { index ->
+                val delay = index * 200
+                val scale by infiniteTransition.animateFloat(
+                    initialValue = 0.6f,
+                    targetValue = 1.2f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(600, delayMillis = delay),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "dotScale"
+                )
+                val alpha by infiniteTransition.animateFloat(
+                    initialValue = 0.3f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(600, delayMillis = delay),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "dotAlpha"
+                )
+                
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
+                        .background(color, CircleShape)
+                )
+            }
             
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
-                    .background(color, CircleShape)
+            if (thought == null) {
+                Text(
+                    text = "PROCESSING",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = color.copy(alpha = 0.6f),
+                    letterSpacing = 2.sp
+                )
+            }
+        }
+        
+        if (thought != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = thought,
+                style = MaterialTheme.typography.bodySmall,
+                color = color.copy(alpha = 0.8f),
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(start = 4.dp)
             )
         }
     }
