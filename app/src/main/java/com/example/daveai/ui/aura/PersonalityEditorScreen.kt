@@ -26,9 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -135,9 +132,9 @@ fun PersonalityEditorScreen(
                     )
                     Spacer(Modifier.height(16.dp))
                     
-                    PersonaSlider("SARCASM", 0.8f) // Mock sliders for now
-                    PersonaSlider("TECHNICAL DEPTH", 0.9f)
-                    PersonaSlider("EMPATHY", 0.4f)
+                    PersonaSlider("SARCASM", uiState.sarcasmLevel) { viewModel.updateSarcasmLevel(it) }
+                    PersonaSlider("TECHNICAL DEPTH", uiState.technicalDepth) { viewModel.updateTechnicalDepth(it) }
+                    PersonaSlider("EMPATHY", uiState.empathyLevel) { viewModel.updateEmpathyLevel(it) }
                 }
             }
             
@@ -154,13 +151,12 @@ fun PersonalityEditorScreen(
 }
 
 @Composable
-private fun PersonaSlider(label: String, initialValue: Float) {
-    var value by remember { mutableStateOf(initialValue) }
+private fun PersonaSlider(label: String, initialValue: Float, onValueChange: (Float) -> Unit) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = Color.Gray, fontWeight = FontWeight.Bold)
         Slider(
-            value = value,
-            onValueChange = { value = it },
+            value = initialValue,
+            onValueChange = onValueChange,
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary

@@ -201,6 +201,7 @@ class DaveApplication : Application() {
         settingsRepository = com.example.daveai.data.repository.SettingsRepository(this, securityRepository)
         val deviceAssistant = DeviceAssistant(this)
         val hardwareAccelerator = HardwareAccelerator(this)
+        val semanticMemoryManager = com.example.daveai.util.SemanticMemoryManager(this)
         voiceManager = DaveVoiceManager(this, openaiService, elevenLabsService, settingsRepository)
         notificationManager = DaveNotificationManager(this)
         riddleSoundManager = RiddleSoundManager(this)
@@ -237,7 +238,8 @@ class DaveApplication : Application() {
             deviceAssistant = deviceAssistant,
             voiceManager = voiceManager,
             notificationManager = notificationManager,
-            settingsRepository = settingsRepository
+            settingsRepository = settingsRepository,
+            semanticMemoryManager = semanticMemoryManager
         )
 
         chatRepository.scheduleAgenticCycle()

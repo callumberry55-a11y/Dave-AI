@@ -12,5 +12,8 @@ data class RelationshipEntity(
     val sharedExperiences: String = "",
     val monitoredKeywords: String = "",
     val partnerId: String? = null,
-    val partnerName: String? = null
+    val partnerName: String? = null,
+    val lastInteractionSentiment: String = "NEUTRAL",
+    val totalInteractions: Int = 0,
+    val lastInteractionTimestamp: Long = System.currentTimeMillis()
 )

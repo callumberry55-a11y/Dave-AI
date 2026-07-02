@@ -121,6 +121,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -650,10 +651,27 @@ fun MessageBubble(
                 // Remove the action tag from display text
                 val cleanText = message.content.replace(callActionRegex, "").trim()
 
-                StructuredContent(
-                    text = cleanText,
-                    contentColor = contentColor
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .drawBehind {
+                            if (message.mood != "NEUTRAL") {
+                                val glowAlpha = 0.15f
+                                drawRect(
+                                    brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                        colors = listOf(accentColor.copy(alpha = glowAlpha), Color.Transparent),
+                                        center = center,
+                                        radius = size.width
+                                    )
+                                )
+                            }
+                        }
+                ) {
+                    StructuredContent(
+                        text = cleanText,
+                        contentColor = contentColor
+                    )
+                }
                 
                 if (phoneNumber != null) {
                     Spacer(Modifier.height(12.dp))
@@ -743,7 +761,7 @@ private fun TTSPlaybackButton(
             .background(accentColor.copy(alpha = 0.1f))
             .clickable {
                 if (uiState.isSpeaking) viewModel.stopSpeaking()
-                else viewModel.speak(message.content)
+                else viewModel.speak(message.content, mood = message.mood)
             },
         contentAlignment = Alignment.Center
     ) {

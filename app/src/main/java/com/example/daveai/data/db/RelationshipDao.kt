@@ -8,6 +8,9 @@ import androidx.room.Query
 @Dao
 interface RelationshipDao {
     @Query("SELECT * FROM relationship_ledger WHERE id = 1")
+    fun observeRelationshipLedger(): kotlinx.coroutines.flow.Flow<RelationshipEntity?>
+
+    @Query("SELECT * FROM relationship_ledger WHERE id = 1")
     suspend fun getRelationshipLedger(): RelationshipEntity?
     
     @Query("SELECT * FROM relationship_ledger WHERE id = 1")

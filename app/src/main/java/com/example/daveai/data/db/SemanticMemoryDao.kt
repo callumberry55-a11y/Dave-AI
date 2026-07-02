@@ -18,6 +18,9 @@ interface SemanticMemoryDao {
     @Query("SELECT * FROM semantic_memory ORDER BY timestamp DESC")
     fun getAllMemories(): Flow<List<SemanticMemory>>
 
+    @Query("SELECT * FROM semantic_memory")
+    suspend fun getAllMemoriesSync(): List<SemanticMemory>
+
     @Query("SELECT * FROM semantic_memory WHERE content LIKE '%' || :query || '%' OR memory_type LIKE '%' || :query || '%' ORDER BY importance DESC, timestamp DESC LIMIT 10")
     suspend fun findRelevantMemories(query: String): List<SemanticMemory>
 

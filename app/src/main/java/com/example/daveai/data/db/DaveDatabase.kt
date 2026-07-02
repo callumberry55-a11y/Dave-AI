@@ -27,7 +27,7 @@ import java.security.SecureRandom
         MessageFtsEntity::class,
         MemoryFtsEntity::class
     ],
-    version = 24,
+    version = 25,
     exportSchema = false
 )
 @TypeConverters(DataConverters::class)

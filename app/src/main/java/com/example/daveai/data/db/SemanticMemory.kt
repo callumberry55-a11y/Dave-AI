@@ -22,5 +22,7 @@ data class SemanticMemory(
     @ColumnInfo(name = "related_ids")
     val relatedIds: String = "", // Comma-separated IDs of related memories
     val metadata: String = "", // Extra JSON metadata if needed
-    val sentiment: String = "NEUTRAL" // Emotional tone of the memory
+    val sentiment: String = "NEUTRAL", // Emotional tone of the memory
+    @ColumnInfo(name = "embedding")
+    val embedding: FloatArray? = null // New local vector embedding
 )

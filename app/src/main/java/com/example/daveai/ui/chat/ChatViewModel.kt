@@ -78,8 +78,13 @@ data class ChatUiState(
     val pendingRoute: DaveRoute? = null,
     val isFlashlightOn: Boolean = false,
     val isDndOn: Boolean = false,
+    val empathyLevel: Float = 0.5f,
+    val sarcasmLevel: Float = 0.5f,
+    val technicalDepth: Float = 0.8f,
     val dailyPoem: DailyPoem? = null,
     val systemStats: com.example.daveai.util.SystemStats = com.example.daveai.util.SystemStats(0f, 0f, 0),
+    val rapportLevel: Int = 0,
+    val emotionalArc: String = ""
 ) {
     val messages: List<ChatMessage>
         get() = dbMessages + ghostMessages
@@ -145,6 +150,7 @@ class ChatViewModel(
         observeSessions()
         observeMemories()
         observeSystemStats()
+        observeRelationship()
 
         // Sync local UI state with SettingsRepository flows
         viewModelScope.launch {
@@ -301,6 +307,21 @@ class ChatViewModel(
             }
         }
         viewModelScope.launch {
+            settingsRepository.empathyLevel.collect { level ->
+                _uiState.update { it.copy(empathyLevel = level) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.sarcasmLevel.collect { level ->
+                _uiState.update { it.copy(sarcasmLevel = level) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.technicalDepth.collect { depth ->
+                _uiState.update { it.copy(technicalDepth = depth) }
+            }
+        }
+        viewModelScope.launch {
             repository.isSpeaking.collect { speaking ->
                 _uiState.update { it.copy(isSpeaking = speaking) }
             }
@@ -322,6 +343,19 @@ class ChatViewModel(
             val provider = com.example.daveai.util.SystemStatsProvider(repository.getContext())
             provider.observeStats().collect { stats ->
                 _uiState.update { it.copy(systemStats = stats) }
+            }
+        }
+    }
+
+    private fun observeRelationship() {
+        viewModelScope.launch {
+            repository.getRelationshipState().collect { relationship ->
+                relationship?.let { rel ->
+                    _uiState.update { it.copy(
+                        rapportLevel = rel.rapportLevel,
+                        emotionalArc = rel.ongoingEmotionalArcs
+                    ) }
+                }
             }
         }
     }
@@ -494,9 +528,12 @@ class ChatViewModel(
         _uiState.update { it.copy(attachedFiles = it.attachedFiles + file) }
     }
 
-    fun speak(text: String) {
+    fun speak(text: String, mood: String = "NEUTRAL") {
         viewModelScope.launch {
-            repository.speak(text)
+            // Instant termination of current speech before starting new one
+            repository.stopSpeaking()
+            kotlinx.coroutines.delay(50) // Tiny buffer to clear engine
+            repository.speak(text, mood = mood)
         }
     }
 
@@ -755,6 +792,18 @@ class ChatViewModel(
 
     fun toggleSystemTts(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setUseSystemTts(enabled) }
+    }
+
+    fun updateEmpathyLevel(level: Float) {
+        viewModelScope.launch { settingsRepository.setEmpathyLevel(level) }
+    }
+
+    fun updateSarcasmLevel(level: Float) {
+        viewModelScope.launch { settingsRepository.setSarcasmLevel(level) }
+    }
+
+    fun updateTechnicalDepth(level: Float) {
+        viewModelScope.launch { settingsRepository.setTechnicalDepth(level) }
     }
 
     fun updateClaudeApiKey(key: String?) {

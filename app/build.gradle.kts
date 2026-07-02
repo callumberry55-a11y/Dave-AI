@@ -161,6 +161,9 @@ dependencies {
     // Security & Encryption
     implementation(libs.sqlcipher.android)
     implementation(libs.security.crypto)
+    
+    // MediaPipe Tasks library for local text embeddings
+    implementation("com.google.mediapipe:tasks-text:0.10.14")
     // Removed sqlite-ktx as it's not strictly necessary for basic SQLCipher integration 
     // unless we need specific KTX features for SupportSQLiteDatabase
 

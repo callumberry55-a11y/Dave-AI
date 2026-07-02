@@ -40,6 +40,9 @@ class SettingsRepository(
         private val LAST_SYNC_TIMESTAMP = longPreferencesKey("last_sync_timestamp")
         private val IS_NEURAL_MIGRATED = booleanPreferencesKey("is_neural_migrated")
         private val USE_SYSTEM_TTS = booleanPreferencesKey("use_system_tts")
+        private val EMPATHY_LEVEL = floatPreferencesKey("empathy_level")
+        private val SARCASM_LEVEL = floatPreferencesKey("sarcasm_level")
+        private val TECHNICAL_DEPTH = floatPreferencesKey("technical_depth")
 
         // Legacy API Keys in DataStore (for migration)
         private val LEGACY_CLAUDE_KEY = stringPreferencesKey("user_claude_api_key")
@@ -162,6 +165,9 @@ class SettingsRepository(
     val glowStrength: Flow<Float> = context.dataStore.data.map { it[GLOW_STRENGTH] ?: 0.5f }
     val isNeuralMigrated: Flow<Boolean> = context.dataStore.data.map { it[IS_NEURAL_MIGRATED] ?: false }
     val useSystemTts: Flow<Boolean> = context.dataStore.data.map { it[USE_SYSTEM_TTS] ?: false }
+    val empathyLevel: Flow<Float> = context.dataStore.data.map { it[EMPATHY_LEVEL] ?: 0.5f }
+    val sarcasmLevel: Flow<Float> = context.dataStore.data.map { it[SARCASM_LEVEL] ?: 0.5f }
+    val technicalDepth: Flow<Float> = context.dataStore.data.map { it[TECHNICAL_DEPTH] ?: 0.8f }
 
     suspend fun setPrimaryColor(color: Int) {
         context.dataStore.edit { preferences ->
@@ -322,5 +328,17 @@ class SettingsRepository(
 
     suspend fun setUseSystemTts(use: Boolean) {
         context.dataStore.edit { it[USE_SYSTEM_TTS] = use }
+    }
+
+    suspend fun setEmpathyLevel(level: Float) {
+        context.dataStore.edit { it[EMPATHY_LEVEL] = level }
+    }
+
+    suspend fun setSarcasmLevel(level: Float) {
+        context.dataStore.edit { it[SARCASM_LEVEL] = level }
+    }
+
+    suspend fun setTechnicalDepth(level: Float) {
+        context.dataStore.edit { it[TECHNICAL_DEPTH] = level }
     }
 }
